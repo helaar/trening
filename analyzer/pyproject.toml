@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "analyzer"
+version = "0.1.0"
+description = "FIT file analysis tool for cycling and running workouts"
+authors = ["Helge"]
+readme = "README.md"
+packages = [{include = "*", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pandas = "^2.0.0"
+numpy = "^1.24.0"
+pydantic = "^2.0.0"
+fitparse = "^1.2.0"
+pyyaml = "^6.0"
+
+[tool.poetry.scripts]
+fit-analyze = "fit_analyzes:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

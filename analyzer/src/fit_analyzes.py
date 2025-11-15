@@ -41,7 +41,8 @@ class Zone:
 
         return low >= value <= high
     
-    def get_zone(zones : list[Zone], value: float) -> Zone | None:
+    @staticmethod
+    def get_zone(zones : list['Zone'], value: float) -> 'Zone | None':
         for z in zones:
             if z.in_zone(value):
                 return z
@@ -440,11 +441,11 @@ def summarize_strength_sets(
         hr_available = True
 
     # Sorter settene på message_index hvis tilgjengelig, ellers behold original rekkefølge
-    def sort_key(msg: Dict[str, object]):
+    def sort_key(msg: dict[str, object]):
         idx = msg.get("message_index")
         return idx if isinstance(idx, (int, float)) else float("inf")
 
-    results: List[Dict[str, object]] = []
+    results: list[dict[str, object]] = []
     for ordinal, msg in enumerate(sorted(set_messages, key=sort_key), start=1):
         start_ts = msg.get("timestamp")
         duration_sec = msg.get("duration")
