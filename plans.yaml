@@ -1,0 +1,54 @@
+plans:
+- end_180: 
+  sport: cycling
+  description: Ride power zone 2 for 180 minutes
+  steps:
+  - active:
+    power: 143-198 W
+    duration: PT180M
+- sweetspot_2x20:
+  sport: cycling
+  steps:
+  - warmup:
+    power: 156-156 W
+    duration: PT20M
+  - warmup:
+    power: 200-200 W
+    duration: PT5M
+  - warmup:
+    power: 234-234 W 
+    duration: PT3M
+  - recovery:
+    power: 143-143 W
+    duration: PT3M
+  - set:
+    repeat: 10 
+    steps:
+    - hard: 
+      power: 234-234 W
+      duration: PT1M
+    - easy:
+      power: 203-203 W
+      duration: PT1M
+  - recovery:
+    power: 130-130 W
+    duration: PT3M
+  - set:
+    repeat: 10 
+    steps:
+    - hard: 
+      power: 240-240 W
+      duration: PT1M
+    - easy:
+      power: 203-203 W
+      duration: PT1M
+  - recovery:
+    power: 130-130 W
+    duration: PT3M
+  - recovery:
+    power: 143-143 W
+    duration: PT10M
+
+
+
+      

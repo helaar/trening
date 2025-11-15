@@ -1,0 +1,29 @@
+max-hr: 191
+hr-zones:
+  - Recovery: 0-141
+  - Aerobic: 142-152
+  - Tempo: 153-162
+  - Sub Threshold: 163-170
+  - Super Threshold: 171-177
+  - Aerobic Capacity: 178-183
+  - Anaerobic Capacity: 184-
+cycling: 
+  ftp: 260
+  power-zones: 
+    - Recovery: 0-143
+    - Endurance: 144-195
+    - Tempo: 196-234
+    - Treshold: 235-273
+    - VO2 Max: 274-312
+    - Anaerobic Capacity: 313-390
+    - Neuromuscular: 391-
+running:
+  ftp: 365
+  power-zones: 
+    - Recovery: 0-255
+    - Endurance: 255-290
+    - Tempo: 290-330
+    - Threshold: 330-385
+    - VO2Max: 385-440
+    - Anaerobic: 440-
+autolap: PT10M
