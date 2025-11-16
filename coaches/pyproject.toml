@@ -12,6 +12,7 @@ crewai-tools = "^1.4.1"
 python-dotenv = "^1.0.0"
 pydantic = "^2.5.0"
 pydantic-settings = "^2.1.0"
+pyyaml = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core"]
