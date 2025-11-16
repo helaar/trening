@@ -52,7 +52,7 @@ class Zone:
         low = self.low or value
         high = self.high or value
 
-        return low >= value <= high
+        return low <= value <= high
     
     @staticmethod
     def get_zone(zones : list['Zone'], value: float) -> 'Zone | None':
