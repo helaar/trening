@@ -55,7 +55,7 @@ def main():
         analysis_task = Task(
             description=f"Analyze workout data for {args.date} from directory {args.workout_dir}. Use the workout_file_reader tool to retrieve the workout records and provide a comprehensive analysis report.",
             agent=agent,
-            expected_output="A detailed performance analysis report including session overview, quantitative summary, qualitative assessment, progress indicators, risk flags, and coach recommendations.",
+            expected_output="A detailed performance analysis report, in markdown format, including session overview, quantitative summary, qualitative assessment, progress indicators, risk flags, and coach recommendations.",
         )
         
         # Create a crew with the agent and task
