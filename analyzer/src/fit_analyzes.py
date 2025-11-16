@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Kalkulerer NP, IF, TSS, VI, sonefordeling, pulsdrift og lap-detaljer (inkl. autolap)
-fra en FIT-fil. All output logges både til terminal og til <fitfil>-analyse.txt.
+Calculates NP, IF, TSS, VI, zone distribution, heart rate drift and lap details (incl. autolap)
+from a FIT file. All output is logged both to terminal and to <fitfile>-analysis.txt.
 """
 import argparse
 import re
@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from datetime import timedelta, date
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import yaml
 from pydantic import BaseModel, Field
@@ -32,7 +31,7 @@ class ApplicationSettings(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Dataklasser og hjelpefunksjoner
+# Data classes and helper functions
 # ---------------------------------------------------------------------------
 INTENSITY_NAMES = {
     0: "active",
@@ -78,11 +77,11 @@ def _safe_float(value: float | None) -> float | None:
 def normalized_power(power: pd.Series, window: int = 30) -> float:
     valid_power = power.dropna()
     if valid_power.empty:
-        raise ValueError("Ingen power-data å beregne NP fra.")
+        raise ValueError("No power data available to calculate NP from.")
 
     rolling_mean = valid_power.rolling(window=window, min_periods=window).mean().dropna()
     if rolling_mean.empty:
-        raise ValueError("For kort segment til å beregne Normalized Power.")
+        raise ValueError("Segment too short to calculate Normalized Power.")
 
     np_value = (rolling_mean.pow(4).mean()) ** 0.25
     return float(np_value)
@@ -90,7 +89,7 @@ def normalized_power(power: pd.Series, window: int = 30) -> float:
 
 def intensity_factor(np_value: float, ftp: float) -> float:
     if ftp <= 0:
-        raise ValueError("FTP må være > 0.")
+        raise ValueError("FTP must be > 0.")
     return np_value / ftp
 
 
@@ -124,7 +123,7 @@ def parse_zone_definitions(raw: list[dict[str, str]] | None) -> list[Zone]:
     zones: list[Zone] = []
     for entry in raw:
         if not isinstance(entry, dict) or len(entry) != 1:
-            raise ValueError(f"Ugyldig sone-definisjon: {entry!r}")
+            raise ValueError(f"Invalid zone definition: {entry!r}")
         name, range_spec = next(iter(entry.items()))
         low, high = parse_range(range_spec)
         zones.append(Zone(name=name, low=low, high=high))
@@ -134,7 +133,7 @@ def parse_zone_definitions(raw: list[dict[str, str]] | None) -> list[Zone]:
 def parse_range(range_spec: str) -> tuple[float|None, float|None]:
     parts = str(range_spec).split("-", 1)
     if len(parts) != 2:
-        raise ValueError(f"Kunne ikke tolke intervall: {range_spec!r}")
+        raise ValueError(f"Could not parse range: {range_spec!r}")
 
     low_str, high_str = parts[0].strip(), parts[1].strip()
     low = float(low_str) if low_str else None
@@ -144,7 +143,7 @@ def parse_range(range_spec: str) -> tuple[float|None, float|None]:
 
 def parse_iso8601_duration(value: str) -> float:
     """
-    Tolker en ISO 8601 varighet (f.eks. PT10M) til sekunder.
+    Parses an ISO 8601 duration (e.g. PT10M) to seconds.
     """
     pattern = (
         r"^P(?:(?P<days>\d+)D)?"
@@ -152,7 +151,7 @@ def parse_iso8601_duration(value: str) -> float:
     )
     match = re.fullmatch(pattern, value)
     if not match:
-        raise ValueError(f"Ugyldig ISO 8601 varighet: {value!r}")
+        raise ValueError(f"Invalid ISO 8601 duration: {value!r}")
 
     days = float(match.group("days") or 0)
     hours = float(match.group("hours") or 0)
@@ -172,11 +171,11 @@ def infer_sample_interval(index: pd.DatetimeIndex) -> float:
 
 def parse_hms(value: str) -> float:
     """
-    Tolker HH:MM:SS, MM:SS eller SS til sekunder.
+    Parses HH:MM:SS, MM:SS or SS to seconds.
     """
     parts = value.strip().split(":")
     if not parts or len(parts) > 3:
-        raise ValueError(f"Ugyldig tidsformat: {value!r}")
+        raise ValueError(f"Invalid time format: {value!r}")
 
     parts = [int(p) for p in parts]
     if len(parts) == 3:
@@ -389,7 +388,7 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float, window: int = 30) -
 
 def split_into_autolaps(df: pd.DataFrame, autolap_seconds: float) -> list[dict[str, pd.Timestamp]]:
     """
-    Deler økten inn i like segmenter (autolapper) på autolap_seconds.
+    Splits the session into equal segments (autolaps) of autolap_seconds.
     """
     if len(df) < 2 or autolap_seconds <= 0:
         return []
@@ -417,36 +416,36 @@ def summarize_strength_sets(
     hr_column: str = "heart_rate",
 ) -> list[dict[str, object]]:
     """
-    Kombinerer en Garmin "set"-liste og et record-datasett for å beregne
-    pulsstatistikk per styrkesett.
+    Combines a Garmin "set" list and a record dataset to calculate
+    heart rate statistics per strength set.
 
-    Parametre
-    ---------
-    set_messages : iterable av dict
-        Resultatet fra f.eks. `[msg.get_values() for msg in fitfile.get_messages("set")]`.
-        Forventer felter som 'timestamp', 'duration', 'message_index',
-        'set_type', 'repetitions', 'weight', 'category', men tar med alt som finnes.
+    Parameters
+    ----------
+    set_messages : iterable of dict
+        Result from e.g. `[msg.get_values() for msg in fitfile.get_messages("set")]`.
+        Expects fields like 'timestamp', 'duration', 'message_index',
+        'set_type', 'repetitions', 'weight', 'category', but includes all available fields.
     records_df : pandas.DataFrame
-        Time-series (f.eks. fra `read_records`). Må ha DatetimeIndex og inneholde kolonnen `hr_column`.
+        Time-series (e.g. from `read_records`). Must have DatetimeIndex and contain the `hr_column` column.
     hr_column : str, default "heart_rate"
-        Kolonnenavn for pulsverdier.
+        Column name for heart rate values.
 
-    Retur
-    -----
+    Returns
+    -------
     List[Dict[str, object]]
-        Ett dictionary per sett, sortert på message_index (eller rekkefølgen du ga dem i),
-        med felter som `start_time`, `end_time`, `duration_sec`, `avg_hr`, osv.
+        One dictionary per set, sorted by message_index (or the order you provided them),
+        with fields like `start_time`, `end_time`, `duration_sec`, `avg_hr`, etc.
 
     Raises
     ------
     ValueError
-        Hvis `records_df` mangler `hr_column` eller indeks ikke er DatetimeIndex.
+        If `records_df` is missing `hr_column` or index is not DatetimeIndex.
     """
     if hr_column not in records_df.columns:
-        raise ValueError(f"records_df mangler kolonnen '{hr_column}'.")
+        raise ValueError(f"records_df is missing column '{hr_column}'.")
 
     if not isinstance(records_df.index, pd.DatetimeIndex):
-        raise ValueError("records_df må være indeksert med DatetimeIndex.")
+        raise ValueError("records_df must be indexed with DatetimeIndex.")
 
     hr_series = records_df[hr_column].dropna()
     if hr_series.empty:
@@ -454,7 +453,7 @@ def summarize_strength_sets(
     else:
         hr_available = True
 
-    # Sorter settene på message_index hvis tilgjengelig, ellers behold original rekkefølge
+    # Sort sets by message_index if available, otherwise keep original order
     def sort_key(msg: dict[str, object]):
         idx = msg.get("message_index")
         return idx if isinstance(idx, (int, float)) else float("inf")
@@ -465,14 +464,14 @@ def summarize_strength_sets(
         duration_sec = msg.get("duration")
 
         if start_ts is None or duration_sec is None:
-            # Mangler nødvendig info -> hopp over
+            # Missing required info -> skip
             continue
 
         start_ts = pd.to_datetime(start_ts)
         duration_sec = float(duration_sec)
         end_ts = start_ts + pd.to_timedelta(duration_sec, unit="s")
 
-        # Hent ut pulsdata for intervallet
+        # Extract heart rate data for the interval
         avg_hr = min_hr = max_hr = None
         hr_samples = 0
         if hr_available:
@@ -484,7 +483,7 @@ def summarize_strength_sets(
                 max_hr = float(window.max())
 
         entry = {
-            "ordinal": ordinal,  # rekkefølge i tabellen
+            "ordinal": ordinal,  # order in table
             "message_index": msg.get("message_index"),
             "start_time": start_ts,
             "end_time": end_ts,
@@ -527,8 +526,8 @@ def _print_stats(log, stats: dict[str, float| None]) -> None:
         return f"{value:.1f}" if value is not None else "—"
 
     log(f"- Min : {fmt(stats['min'])}")
-    log(f"- Maks: {fmt(stats['max'])}")
-    log(f"- Snitt: {fmt(stats['mean'])}")
+    log(f"- Max: {fmt(stats['max'])}")
+    log(f"- Average: {fmt(stats['mean'])}")
     log(f"- Std : {fmt(stats['std'])}")
 
 
@@ -537,10 +536,10 @@ def _print_zone_summary(log, summary: dict[str, object], label: str) -> None:
     total = summary["total_seconds"]
 
     if not zones or total == 0:
-        log(f"Ingen {label}-data til soneberegning.")
+        log(f"No {label} data for zone calculation.")
         return
 
-    log(f"Totalt tid i beregningen: {seconds_to_hms(total)}")
+    log(f"Total time in calculation: {seconds_to_hms(total)}")
     for zone in zones:
         range_str = format_range(zone["lower"], zone["upper"])
         log(
@@ -561,7 +560,7 @@ def _print_lap_table(log, tittel: str, lap_rows: list[dict[str, object]], header
 
     log(f"\n## {tittel.capitalize()}")
     if not lap_rows:
-        log(f"Ingen {tittel}.")
+        log(f"No {tittel}.")
         return
 
     def fmt_float(value: float | None, decimals: int = 1) -> str:
@@ -613,43 +612,43 @@ def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFil
 #   if_value = intensity_factor(np_value, ftp)
 #   tss_value = training_stress_score(duration_sec, np_value, if_value, ftp)
 
-    if df.get("temparature"): log(f"Temperatur (snitt): {df["temperature"].dropna().mean():.1f} ℃")
-    log(f"Datapunkter: {len(df)}")
-    log(f"Estimert samplingsintervall: {sample_interval:.2f} s")
+    if df.get("temparature"): log(f"Temperature (average): {df["temperature"].dropna().mean():.1f} ℃")
+    log(f"Data points: {len(df)}")
+    log(f"Estimated sampling interval: {sample_interval:.2f} s")
 #   log(f"Intensity Factor (IF): {if_value:.3f}")
 #   log(f"Training Stress Score (TSS): {tss_value:.1f}")
 
-    log("\n# Puls (bpm)")
+    log("\n# Heart Rate (bpm)")
     _print_stats(log, hr_stats)
 
     if hr_zones:
-        log("\n# Tid i puls-zoner")
+        log("\n# Time in heart rate zones")
         hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
-        _print_zone_summary(log, hr_summary, "puls")
+        _print_zone_summary(log, hr_summary, "heart rate")
 
     if fit.sets:
         sets_summary = summarize_strength_sets(fit.sets, fit.data_frame)
         headers = [
             ("#", "ordinal"),
             ("Type", "set_type"),
-            ("Varighet (s)", "duration_sec"),
-            ("Repitisjoner", "repetitions"),
-            ("Vekt (kg)", "weight"),
-            ("Snitt puls", "avg_hr"),
-            ("Maks puls", "max_hr")
+            ("Duration (s)", "duration_sec"),
+            ("Repetitions", "repetitions"),
+            ("Weight (kg)", "weight"),
+            ("Avg HR", "avg_hr"),
+            ("Max HR", "max_hr")
         ]
-        _print_lap_table(log,"styrke-sett", sets_summary, headers)
+        _print_lap_table(log,"strength sets", sets_summary, headers)
     
 
 def _power_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> list[str]:
     
-    # TODO: Midlertidig løsning. Bør få refaktorisert resten også
+    # TODO: Temporary solution. Should refactor the rest as well
     df = fit.data_frame
     laps = fit.laps
 
     ftp = settings.get(fit.workout.category).get("ftp")
     if ftp is None:
-        raise ValueError("FTP må oppgis via --ftp eller i settings.yaml.")
+        raise ValueError("FTP must be specified via --ftp or in settings.yaml.")
 
     max_hr = settings.get("max-hr")
     power_zones = parse_zone_definitions(settings.get(fit.workout.category).get("power-zones"))
@@ -678,46 +677,46 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
     vi_value = (np_value / avg_power) if avg_power and avg_power > 0 else None
 
     asc, desc,min,max = _calculate_elevation(df)
-    log(f"Total stigning¹: {asc:.1f} m")
-    log(f"Maks høyde: {max:.1f} moh")
-    log(f"Minste høyde: {min:.1f} moh")
-    log(f"Hastighet (snitt): {fit.workout._distance/duration_sec*3.6:.1f} km/t")
-    if df.get("temparature"): log(f"Temperatur (snitt): {df["temperature"].dropna().mean():.1f} ℃")
-    log(f"Datapunkter: {len(df)}")
-    log(f"Estimert samplingsintervall: {sample_interval:.2f} s")
+    log(f"Total elevation gain¹: {asc:.1f} m")
+    log(f"Max elevation: {max:.1f} masl")
+    log(f"Min elevation: {min:.1f} masl")
+    log(f"Speed (average): {fit.workout._distance/duration_sec*3.6:.1f} km/h")
+    if df.get("temparature"): log(f"Temperature (average): {df["temperature"].dropna().mean():.1f} ℃")
+    log(f"Data points: {len(df)}")
+    log(f"Estimated sampling interval: {sample_interval:.2f} s")
     log(f"FTP: {ftp:.0f} W")
     if max_hr:
-        log(f"Maks puls (fra settings): {max_hr} bpm")
+        log(f"Max HR (from settings): {max_hr} bpm")
     
-    log("\n## Kraft (W)")
+    log("\n## Power (W)")
     _print_stats(log, power_stats)
     log(f"Normalized Power (NP): {np_value:.1f} W")
     if avg_power and avg_power > 0:
-        log(f"Gjennomsnittlig watt: {avg_power:.1f} W")
-        log(f"Variabilitetsindeks (VI): {vi_value:.3f}")
+        log(f"Average power: {avg_power:.1f} W")
+        log(f"Variability Index (VI): {vi_value:.3f}")
     else:
-        log("Gjennomsnittlig watt: —")
-        log("Variabilitetsindeks (VI): —")
+        log("Average power: —")
+        log("Variability Index (VI): —")
     log(f"Intensity Factor (IF): {if_value:.3f}")
     log(f"Training Stress Score (TSS): {tss_value:.1f}")
 
-    log("\n## Puls (bpm)")
+    log("\n## Heart Rate (bpm)")
     _print_stats(log, hr_stats)
 
-    log("\n## Kadens (rpm)")
+    log("\n## Cadence (rpm)")
     _print_stats(log, cad_stats)
 
     if power_zones:
-        log("\n## Tid i kraft-zoner")
+        log("\n## Time in power zones")
         power_summary = compute_zone_durations(df["power"], power_zones, sample_interval)
-        _print_zone_summary(log, power_summary, "kraft")
+        _print_zone_summary(log, power_summary, "power")
     if hr_zones:
-        log("\n## Tid i puls-zoner")
+        log("\n## Time in heart rate zones")
         hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
-        _print_zone_summary(log, hr_summary, "puls")
+        _print_zone_summary(log, hr_summary, "heart rate")
 
     drift_result = compute_heart_rate_drift(df, drift_start, drift_duration)
-    log("\n## Pulsdrift")
+    log("\n## Heart Rate Drift")
     if drift_result:
         rel_start = (drift_result["start_ts"] - df.index[0]).total_seconds()
         rel_end = (drift_result["end_ts"] - df.index[0]).total_seconds()
@@ -725,35 +724,35 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
             f"Segment: {seconds_to_hms(rel_start)} → {seconds_to_hms(rel_end)} "
             f"({seconds_to_hms(drift_result['duration'])})"
         )
-        log(f"- Snitt HR (P1): {drift_result['avg_hr_p1']:.1f} bpm")
-        log(f"- Snitt HR (P2): {drift_result['avg_hr_p2']:.1f} bpm")
-        log(f"- Snitt watt (P1): {drift_result['avg_power_p1']:.1f} W")
-        log(f"- Snitt watt (P2): {drift_result['avg_power_p2']:.1f} W")
+        log(f"- Avg HR (P1): {drift_result['avg_hr_p1']:.1f} bpm")
+        log(f"- Avg HR (P2): {drift_result['avg_hr_p2']:.1f} bpm")
+        log(f"- Avg power (P1): {drift_result['avg_power_p1']:.1f} W")
+        log(f"- Avg power (P2): {drift_result['avg_power_p2']:.1f} W")
         log(f"- HR/W (P1): {drift_result['hr_per_watt_p1']:.4f}")
         log(f"- HR/W (P2): {drift_result['hr_per_watt_p2']:.4f}")
-        log(f"- Pulsdrift: {drift_result['drift_pct']:.2f} %")
+        log(f"- HR drift: {drift_result['drift_pct']:.2f} %")
     else:
-        log("Ingen gyldig data til å beregne pulsdrift for valgt segment.")
+        log("No valid data to calculate heart rate drift for selected segment.")
 
     # ------------------------------------------------------------------
-    # Lap-detaljer
+    # Lap details
     # ------------------------------------------------------------------
     autolap_seconds = None
     if autolap:
         autolap_seconds = parse_iso8601_duration(str(autolap))
 
-    # Hvis ingen (eller bare én) lap i datafilen og autolap er definert:
+    # If no (or only one) lap in data file and autolap is defined:
     if autolap_seconds and (len(laps) <= 1 or args.autolap):
         autolaps = split_into_autolaps(df, autolap_seconds)
         if autolaps:
             log(
-                f"Autolap aktivert {autolap}({seconds_to_hms(autolap_seconds)}). "
-                f"Genererer {len(autolaps)} runder automatisk."
+                f"Autolap enabled {autolap}({seconds_to_hms(autolap_seconds)}). "
+                f"Generating {len(autolaps)} laps automatically."
             )
             laps = autolaps
 
     if not laps:
-        log("Ingen runder (heller ingen autolap) funnet i økten.")
+        log("No laps (nor autolap) found in session.")
     else:
         lap_rows = []
         for idx, lap in enumerate(laps, start=1):
@@ -795,44 +794,44 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
             headers = [
                 ("Lap", "lap"),
                 ("Start", "start_str"),
-                ("Varighet", "duration_str"),
-                ("Distanse km", "distance"),
+                ("Duration", "duration_str"),
+                ("Distance km", "distance"),
                 ("NP", "np"),
-                ("Snitt W", "avg_power"),
-                ("Snitt HR", "avg_hr"),
-                ("Snitt kad", "avg_cad"),
-                ("Pulsdrift %", "drift_pct"),
-                ("Maks W", "max_power"),
-                ("Maks HR", "max_hr"),
-                ("Snitt km/t", "avg_speed"),
-                ("Høydemeter¹ ↑", "ascent"),
-                ("Høydemeter¹ ↓", "descent"),
-                ("Snitt ℃", "avg_temp")   ,               
-                ("Beskrivelse", "description")
+                ("Avg W", "avg_power"),
+                ("Avg HR", "avg_hr"),
+                ("Avg Cad", "avg_cad"),
+                ("HR Drift %", "drift_pct"),
+                ("Max W", "max_power"),
+                ("Max HR", "max_hr"),
+                ("Avg km/h", "avg_speed"),
+                ("Elevation¹ ↑", "ascent"),
+                ("Elevation¹ ↓", "descent"),
+                ("Avg ℃", "avg_temp"),
+                ("Description", "description")
                 ]
-            _print_lap_table(log, "runder", lap_rows, headers)
+            _print_lap_table(log, "laps", lap_rows, headers)
         else:
-            log("Fant laps, men ingen gyldige data i disse segmentene.")
+            log("Found laps, but no valid data in these segments.")
 
         log("--------")
-        log(" ¹ - Høydemeter er omtrentlig beregnet. Samsvarer ikke 100% med TP og Strava")
+        log(" ¹ - Elevation is approximately calculated. Does not match 100% with TP and Strava")
    
 
 # ---------------------------------------------------------------------------
-# Hovedprogram
+# Main program
 # ---------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Beregn NP, IF, TSS, VI, sonefordeling, pulsdrift og lap-detaljer fra en FIT-fil."
+        description="Calculate NP, IF, TSS, VI, zone distribution, heart rate drift and lap details from a FIT file."
     )
-    parser.add_argument("--fitfile", required=True, help="Path til FIT-fil.")
-    parser.add_argument("--settings", help="Path til settings.yaml.")
-    parser.add_argument("--ftp", type=float, help="Overstyr FTP (watt).")
-    parser.add_argument("--window", type=int, default=30, help="Vinduslengde (s) for NP. Default 30.")
-    parser.add_argument("--drift-start", help="Startpunkt for pulsdrift (HH:MM:SS, MM:SS eller SS).")
-    parser.add_argument("--drift-duration", help="Varighet for pulsdrift (HH:MM:SS, MM:SS eller SS).")
-    parser.add_argument("--autolap", type=bool,required=False, help="Autolap for økta som helhet")
+    parser.add_argument("--fitfile", required=True, help="Path to FIT file.")
+    parser.add_argument("--settings", help="Path to settings.yaml.")
+    parser.add_argument("--ftp", type=float, help="Override FTP (watts).")
+    parser.add_argument("--window", type=int, default=30, help="Window length (s) for NP. Default 30.")
+    parser.add_argument("--drift-start", help="Start point for heart rate drift (HH:MM:SS, MM:SS or SS).")
+    parser.add_argument("--drift-duration", help="Duration for heart rate drift (HH:MM:SS, MM:SS or SS).")
+    parser.add_argument("--autolap", type=bool,required=False, help="Autolap for entire session")
     args = parser.parse_args()
 
     fit_path = Path(args.fitfile).expanduser().resolve()
@@ -852,7 +851,7 @@ def main():
         app_config_data = settings.get("application", {})
         app_settings = ApplicationSettings.model_validate(app_config_data)
 
-        log("## Øktinformasjon")
+        log("## Session Information")
         formatter = ModelFormatter()
         formatter.format(log,fit.workout)
         log("") # newline
@@ -867,7 +866,7 @@ def main():
                 print(f"Uncategorized sport {fit.workout.sport}/{fit.workout.sub_sport}")
 
         # ------------------------------------------------------------------
-        # Skriv til fil
+        # Write to file
         # ------------------------------------------------------------------
         output_path = app_settings.get_output_path()
         
@@ -877,16 +876,16 @@ def main():
         else:
             date_prefix = date.today().strftime("%Y-%m-%d")
         
-        filename = f"{date_prefix}_{fit_path.stem}-analyse.md"
+        filename = f"{date_prefix}_{fit_path.stem}-analysis.md"
         
         analysis_text = "\n".join(log_lines)
         analysis_path = output_path / filename
         analysis_path.write_text(analysis_text, encoding="utf-8")
 
-        print(f"\nAnalyse lagret til: {analysis_path}")
+        print(f"\nAnalysis saved to: {analysis_path}")
 
     except Exception as exc:
-        error_msg = f"\n[FEIL] {exc}"
+        error_msg = f"\n[ERROR] {exc}"
         log(error_msg)
 
         if log_lines:
@@ -902,12 +901,12 @@ def main():
             
             # Create filename with date prefix - use today's date in error cases
             date_prefix = date.today().strftime("%Y-%m-%d")
-            filename = f"{date_prefix}_{fit_path.stem}-analyse.md"
+            filename = f"{date_prefix}_{fit_path.stem}-analysis.md"
             
             analysis_text = "\n".join(log_lines)
             analysis_path = output_path / filename
             analysis_path.write_text(analysis_text, encoding="utf-8")
-            print(f"Foreløpig logg lagret i: {analysis_path}")
+            print(f"Preliminary log saved in: {analysis_path}")
 
         raise
 
