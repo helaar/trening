@@ -6,15 +6,29 @@ fra en FIT-fil. All output logges både til terminal og til <fitfil>-analyse.txt
 import argparse
 import re
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import timedelta, date
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import yaml
+from pydantic import BaseModel, Field
 
 from format.garmin_fit import FitFileParser
 from format.utils import ModelFormatter
+
+
+# ---------------------------------------------------------------------------
+# Settings models
+# ---------------------------------------------------------------------------
+class ApplicationSettings(BaseModel):
+    output_dir: str = Field(default=".", alias="output-dir")
+    
+    def get_output_path(self) -> Path:
+        """Get the configured output directory as a Path object."""
+        output_path = Path(self.output_dir).expanduser().resolve()
+        output_path.mkdir(parents=True, exist_ok=True)
+        return output_path
 
 
 # ---------------------------------------------------------------------------
@@ -834,6 +848,10 @@ def main():
             settings = load_settings(args.settings)
         fit = FitFileParser(fit_path)
 
+        # Parse application settings
+        app_config_data = settings.get("application", {})
+        app_settings = ApplicationSettings.model_validate(app_config_data)
+
         log("## Øktinformasjon")
         formatter = ModelFormatter()
         formatter.format(log,fit.workout)
@@ -841,7 +859,7 @@ def main():
 
         
         match fit.workout.category:
-            case "running"|"cycling": 
+            case "running"|"cycling":
                 _power_based_summary( log, args, settings, fit)
             case "strength":
                 _strength_based_summary(log, args, settings, fit)
@@ -851,8 +869,18 @@ def main():
         # ------------------------------------------------------------------
         # Skriv til fil
         # ------------------------------------------------------------------
+        output_path = app_settings.get_output_path()
+        
+        # Create filename with date prefix from workout or today's date
+        if fit.workout.start_time:
+            date_prefix = fit.workout.start_time.strftime("%Y-%m-%d")
+        else:
+            date_prefix = date.today().strftime("%Y-%m-%d")
+        
+        filename = f"{date_prefix}_{fit_path.stem}-analyse.md"
+        
         analysis_text = "\n".join(log_lines)
-        analysis_path = fit_path.with_name(f"{fit_path.stem}-analyse.md")
+        analysis_path = output_path / filename
         analysis_path.write_text(analysis_text, encoding="utf-8")
 
         print(f"\nAnalyse lagret til: {analysis_path}")
@@ -862,8 +890,22 @@ def main():
         log(error_msg)
 
         if log_lines:
+            # Use fallback for error case
+            try:
+                app_config_data = settings.get("application", {}) if 'settings' in locals() else {}
+                app_settings = ApplicationSettings.model_validate(app_config_data)
+                output_path = app_settings.get_output_path()
+            except Exception:
+                # Final fallback if settings parsing fails
+                output_path = Path(".").resolve()
+                output_path.mkdir(parents=True, exist_ok=True)
+            
+            # Create filename with date prefix - use today's date in error cases
+            date_prefix = date.today().strftime("%Y-%m-%d")
+            filename = f"{date_prefix}_{fit_path.stem}-analyse.md"
+            
             analysis_text = "\n".join(log_lines)
-            analysis_path = fit_path.with_name(f"{fit_path.stem}-analyse.md")
+            analysis_path = output_path / filename
             analysis_path.write_text(analysis_text, encoding="utf-8")
             print(f"Foreløpig logg lagret i: {analysis_path}")
 

@@ -225,7 +225,7 @@ class FitFileParser:
                 sensors = row.get("sensors")
 
         if total_distance is None:
-            total_distance = self.data_frame["distance"].notna().max()
+            total_distance = self.data_frame["distance"].dropna().max() if "distance" in self.data_frame.columns else 0.0
 
         sensor_list =[]
         for m,s in sensors:
@@ -240,9 +240,9 @@ class FitFileParser:
             sport=sport,
             sub_sport=sub_sport,
             name=workout_name,
-            device=device
+            device=device,
+            start_time=start_time
         )
         
-        workout._distance=total_distance
-        workout.start_time=start_time.isoformat() if  isinstance(start_time, datetime) else start_time
+        workout._distance = float(total_distance) if total_distance is not None else 0.0
         return workout
