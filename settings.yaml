@@ -1,3 +1,5 @@
+application:
+  output-dir: /home/helge/dev/privat/trening/ENV/exchange
 max-hr: 191
 hr-zones:
   - Recovery: 0-141
