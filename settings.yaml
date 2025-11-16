@@ -2,13 +2,13 @@ application:
   output-dir: /home/helge/dev/privat/trening/ENV/exchange
 max-hr: 191
 hr-zones:
-  - Recovery: 0-141
-  - Aerobic: 142-152
-  - Tempo: 153-162
-  - Sub Threshold: 163-170
-  - Super Threshold: 171-177
-  - Aerobic Capacity: 178-183
-  - Anaerobic Capacity: 184-
+  - Recovery: 0-115
+  - Endurance: 115-138  
+  - Tempo: 138-157
+  - Lactate Threshold: 157-167
+  - VO2max: 167-176
+  - Anaerobic Capacity: 176-183
+  - Neuromuscular Power: 184-
 cycling: 
   ftp: 260
   power-zones: 
