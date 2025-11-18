@@ -1,6 +1,5 @@
 - Helge:
-  # Athlete Profile
-  profile:
+  basics:
     age: 50+
     gender: male
     location: Trondheim, Norway
@@ -92,7 +91,7 @@
     running capacity through winter without compromising cycling specificity. 
     Balance technical data analysis with intuition and bodily signals.
 
-  other: |
-    Outdoor traing season starts around easter and lasts to mid/end september. Running is
-    preferred off season (mid august to outdoor season starts). Skiing will be preferred
-    on good conditions and should only be used as bonus-exercises.
+  weather: |
+    - Outdoor traing season starts around easter and lasts to mid/end september. 
+    - Running is  preferred off season (mid august to outdoor season starts). 
+    - Skiing will be preferred  on good weather conditions and should only be used as bonus-exercises.
