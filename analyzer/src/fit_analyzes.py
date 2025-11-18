@@ -97,10 +97,13 @@ def training_stress_score(duration_sec: float, np_value: float, if_value: float,
     return (duration_sec * np_value * if_value) / (ftp * 3600) * 100
 
 
-def series_stats(series: pd.Series) -> dict[str, float | None]:
+def series_stats(series: pd.Series, drop_nulls: bool | None = False ) -> dict[str, float | None]:
     valid = series.dropna()
     if valid.empty:
         return {"min": None, "max": None, "mean": None, "std": None}
+
+    if drop_nulls:
+        valid = valid[valid != 0.0]
 
     return {
         "min": float(valid.min()),
@@ -664,9 +667,10 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
 
     duration_sec = sample_interval * len(df)
 
-    power_stats = series_stats(df["power"])
-    hr_stats = series_stats(df["heart_rate"])
-    cad_stats = series_stats(df["cadence"])
+    drop_nulls = True 
+    power_stats = series_stats(df["power"], drop_nulls=drop_nulls)
+    hr_stats = series_stats(df["heart_rate"], drop_nulls=drop_nulls)
+    cad_stats = series_stats(df["cadence"], drop_nulls=drop_nulls)
     # speed_stats = series_stats(df["speed"])
 
     np_value = normalized_power(df["power"], window=args.window)
@@ -688,7 +692,7 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
     if max_hr:
         log(f"Max HR (from settings): {max_hr} bpm")
     
-    log("\n## Power (W)")
+    log("\n## Power (W)²")
     _print_stats(log, power_stats)
     log(f"Normalized Power (NP): {np_value:.1f} W")
     if avg_power and avg_power > 0:
@@ -700,10 +704,10 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
     log(f"Intensity Factor (IF): {if_value:.3f}")
     log(f"Training Stress Score (TSS): {tss_value:.1f}")
 
-    log("\n## Heart Rate (bpm)")
+    log("\n## Heart Rate (bpm)²")
     _print_stats(log, hr_stats)
 
-    log("\n## Cadence (rpm)")
+    log("\n## Cadence (rpm)²")
     _print_stats(log, cad_stats)
 
     if power_zones:
@@ -815,6 +819,7 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
 
         log("--------")
         log(" ¹ - Elevation gain/loss may be inaccurate. Does not match 100% with TP and Strava. Zwift delivers a more reliable elevation profile.")
+        log(" ² - Zero measurements are removed on overall statistics, but not on laps")
    
 
 # ---------------------------------------------------------------------------
