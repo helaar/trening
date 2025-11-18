@@ -3,7 +3,7 @@
 import argparse
 from datetime import datetime
 from crewai import Task, Crew
-from roles.config import Config
+from roles.config import config
 from roles.loader import CoachLoader
 from tools.workout_reader import create_workout_reader_tool
 
@@ -39,7 +39,7 @@ def main():
     
     try:
         # Initialize configuration and loader
-        config = Config()
+        
         loader = CoachLoader(config)
         
         # Create a workout reader tool configured with the specified directory

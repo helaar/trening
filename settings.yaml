@@ -1,7 +1,10 @@
 application:
   output-dir: /home/helge/dev/privat/trening/ENV/exchange
-max-hr: 191
-hr-zones:
+heart-rate:
+  max: 191
+  measured-activity: cycling/vo2max-test
+  date: 2024-11-02
+  zones:
   - Recovery: 0-115
   - Endurance: 115-138  
   - Tempo: 138-157

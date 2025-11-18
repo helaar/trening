@@ -330,8 +330,8 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float, window: int = 30) -
         stats["drift_pct"] = None
         stats["dist"]  = None
         stats["avg_speed"] = None
-        stats["ascent"] = None
-        stats["descent"] = None
+        stats["elev_gain"] = None
+        stats["elev_loss"] = None
         stats["avg_temp"] = None
         return stats
 
@@ -366,9 +366,9 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float, window: int = 30) -
     drift = compute_heart_rate_drift(segment)
     stats["drift_pct"] = drift["drift_pct"] if drift else None
 
-    ascent, descent, min, max = _calculate_elevation(segment)
-    stats["ascent"] = float(ascent) if pd.notna(ascent) else None
-    stats["descent"] = float(descent) if pd.notna(descent) else None
+    elev_gain, elev_loss, min, max = _calculate_elevation(segment)
+    stats["elev_gain"] = float(elev_gain) if pd.notna(elev_gain) else None
+    stats["elev_loss"] = float(elev_loss) if pd.notna(elev_loss) else None
 
     if segment.get("temperature") is not None:
         avg_temp = segment["temperature"].dropna().mean()
@@ -528,7 +528,7 @@ def _print_stats(log, stats: dict[str, float| None]) -> None:
     log(f"- Min : {fmt(stats['min'])}")
     log(f"- Max: {fmt(stats['max'])}")
     log(f"- Average: {fmt(stats['mean'])}")
-    log(f"- Std : {fmt(stats['std'])}")
+    log(f"- Std. dev. : {fmt(stats['std'])}")
 
 
 def _print_zone_summary(log, summary: dict[str, object], label: str) -> None:
@@ -555,7 +555,7 @@ def _print_lap_table(log, tittel: str, lap_rows: list[dict[str, object]], header
     """
     no_decimals = {"duration_sec", "repetitions", "lap"}
     one_decimal = {"distance", "np", "avg_power", "avg_hr", "avg_cad", "max_power", "max_hr",
-                   "avg_speed", "ascent", "descent", "avg_temp", "weight"}
+                   "avg_speed", "elev_gain", "elev_loss", "avg_temp", "weight"}
     two_decimals = {"drift_pct"}
 
     log(f"\n## {tittel.capitalize()}")
@@ -591,12 +591,12 @@ def _print_lap_table(log, tittel: str, lap_rows: list[dict[str, object]], header
         row_values = [format_value(row, key) for _, key in headers]
         log("| " + " | ".join(row_values) + " |")
 
-def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> list[str]:
+def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> None:
 
     df = fit.data_frame
-
-    max_hr = settings.get("max-hr")
-    hr_zones = parse_zone_definitions(settings.get("hr-zones"))
+    hr_settings = settings.get("heart-rate", {})
+    max_hr = hr_settings.get("max") 
+    hr_zones = parse_zone_definitions(hr_settings.get("zones"))
     autolap = settings.get("autolap")  # f.eks. "PT10M"
 
     drift_start = parse_hms(args.drift_start) if args.drift_start else None
@@ -676,8 +676,8 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
     avg_power = df["power"].dropna().mean()
     vi_value = (np_value / avg_power) if avg_power and avg_power > 0 else None
 
-    asc, desc,min,max = _calculate_elevation(df)
-    log(f"Total elevation gain¹: {asc:.1f} m")
+    elev_gain, elev_loss,min,max = _calculate_elevation(df)
+    log(f"Total elevation gain¹: {elev_gain:.1f} m")
     log(f"Max elevation: {max:.1f} masl")
     log(f"Min elevation: {min:.1f} masl")
     log(f"Speed (average): {fit.workout._distance/duration_sec*3.6:.1f} km/h")
@@ -782,8 +782,8 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
                     "max_power": stats["max_power"],
                     "max_hr": stats["max_hr"],
                     "avg_speed" : stats["avg_speed"],
-                    "ascent" : stats["ascent"],
-                    "descent" : stats["descent"],
+                    "elev_gain" : stats["elev_gain"],
+                    "elev_loss" : stats["elev_loss"],
                     "avg_temp" : stats["avg_temp"],
                     "distance" : stats["distance"],
                     "description": description or "-"
@@ -804,8 +804,8 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
                 ("Max W", "max_power"),
                 ("Max HR", "max_hr"),
                 ("Avg km/h", "avg_speed"),
-                ("Elevation¹ ↑", "ascent"),
-                ("Elevation¹ ↓", "descent"),
+                ("Elevation gain¹", "elev_gain"),
+                ("Elevation loss¹", "elev_loss"),
                 ("Avg ℃", "avg_temp"),
                 ("Description", "description")
                 ]
@@ -814,7 +814,7 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
             log("Found laps, but no valid data in these segments.")
 
         log("--------")
-        log(" ¹ - Elevation is approximately calculated. Does not match 100% with TP and Strava")
+        log(" ¹ - Elevation gain/loss may be inaccurate. Does not match 100% with TP and Strava. Zwift delivers a more reliable elevation profile.")
    
 
 # ---------------------------------------------------------------------------
