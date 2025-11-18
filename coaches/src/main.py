@@ -2,6 +2,7 @@
 
 import argparse
 from datetime import datetime
+from coaches.src.tools.athlete_reader import create_athlete_reader_tool
 from crewai import Task, Crew
 from roles.config import config
 from roles.loader import CoachLoader
@@ -27,7 +28,12 @@ def main():
     parser.add_argument("--coach",
                         default="daily_analysis_coach",
                         help="Coach name to use for analysis (default: daily_analysis_coach)")
-    
+
+    parser.add_argument("--athletes-file", "-a"
+                        default="./athletes.yaml",
+                        help="Athletes database file. Defaults to ./athletes.yaml")
+
+
     args = parser.parse_args()
     
     # Validate date format
@@ -44,16 +50,23 @@ def main():
         
         # Create a workout reader tool configured with the specified directory
         workout_tool = create_workout_reader_tool(args.workout_dir)
+        athlete_loader = create_athlete_reader_tool(args.athletes_file)
         
         # Create the specified coach agent with tools
-        agent = loader.load_agent_from_file(args.coaches_config, args.coach, [workout_tool])
+        agent = loader.load_agent_from_file(args.coaches_config, args.coach, [workout_tool, athlete_loader])
         
         print(f"Created {args.coach} agent for analysis date: {args.date}")
         print(f"Workout directory: {args.workout_dir}")
-        
+        athlete = "Helge"
         # Create a task for the agent
         analysis_task = Task(
-            description=f"Analyze workout data for {args.date} from directory {args.workout_dir}. Use the workout_file_reader tool to retrieve the workout records and provide a comprehensive analysis report.",
+            description=f"""
+            Analyze workout data for athlete {athlete} at {args.date}. 
+            Follwoing tools may be used:
+            - workout_file_reader provides workouts for the given day and athlete
+            - athlete_lookup provides information about the athlete
+            Please rovide a comprehensive analysis report.
+            """,
             agent=agent,
             expected_output="A detailed performance analysis report, in markdown format, including session overview, quantitative summary, qualitative assessment, progress indicators, risk flags, and coach recommendations.",
         )

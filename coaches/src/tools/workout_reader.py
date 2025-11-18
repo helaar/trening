@@ -14,7 +14,7 @@ class WorkoutFileReaderTool(BaseTool):
     description: str = "Read detailed workout records from local files. Files are expected to be prefixed with the date (YYYY-MM-DD format)."
     workout_files_directory: str = Field(default="workout_data", description="Directory path where workout files are stored")
     
-    def _run(self, date: str) -> str:
+    def _run(self, date: str, athlete: str) -> str:
         """
         Read workout file(s) for a specific date.
         

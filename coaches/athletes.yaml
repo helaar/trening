@@ -1,0 +1,98 @@
+- Helge:
+  # Athlete Profile
+  profile:
+    age: 50+
+    gender: male
+    location: Trondheim, Norway
+    preferred_laguage: Norwegian
+    experience: Many years of structured endurance training experience
+    main_focus: Cycling (road)
+    sports: Cycling (main), running (for fun), cross country skiing (winter), swiming (for fun)
+    
+  training_philosophy: |
+    Structured and data-driven approach focusing on both objective numbers and subjective experience. 
+    Balances training enjoyment with targeted progression. Uses technology actively, but always lets 
+    bodily signals and RPE weigh heavily in decisions. Values consistency and long-term development 
+    over short-term performances.
+
+  primary_goals:
+    main: "L'Étape Trondheim 2026 (130 km, 1500+ meters elevation)"
+    secondary: "Robust cycling/running engine, running competitions as variation"
+    long_term: "Maintain and develop endurance capacity"
+
+  technical_approach: |
+    Advanced data collection and analysis with custom scripts for detailed workout review. 
+    Combines TrainingPeaks, Strava, Zwift and own analysis tools. Distinguishes between cycling-FTP (260W) 
+    and running-FTP (365W) for precise TSS/IF calculations. Uses ERG mode actively for controlled 
+    intensity and comparable sessions over time.
+
+  measurement_devices: [Garmin Fenix8 Solar,Garmin Edge 530 and 840,Garmin Rally 200, TacX Neo T2, 4iii power meter, Garmin HRM Dual]
+  
+  strengths_and_characteristics: |
+    Excellent aerobic economy - delivers same work with lower heart rate burden over time. Good ability 
+    to hold steady intensity over long sessions (minimal VI on ERG, low cardiac drift). Technical 
+    improvement in cadence control - from ~78 rpm to ~87-90 rpm on base sessions. Analytical approach 
+    with ability to connect subjective experiences with objective data. Balanced training understanding 
+    that avoids over-analysis of individual values.
+
+  typical_training_week:
+    structure: "1-2 hard cycling sessions, 1 running interval, 1-2 strength, 2+ base sessions"
+    volume: "10-12 hours including commuting"
+    tss_target: "350-450 TSS/week in off-season"
+    
+  cycling_sessions:
+    base_endurance: |
+      Long sessions (2-3.5h) at 155-180W (60-70% FTP). Fatmax structure or pure steady state. 
+      Measures cardiac drift as quality indicator - aims for <5% over 3 hours. High cadence focus (85-95 rpm).
+    
+    quality_ftp: |
+      Development sessions with mix of 90-100% FTP in various formats. Over-under structures (e.g. 175W/190W/205W) 
+      or threshold steady-state. Uses cadence variations consciously - both high cadence and strength focus.
+    
+    vo2_anaerobic: |
+      Shorter intervals like 40/20, 30/15 or 3x10x40/20. Focus on neuromuscular power and 
+      lactate tolerance. Alternates between seated and standing pedaling. RPE 6-7 as target.
+
+    commuting: |
+      Commutes by bike aproximately 6 km each way most of the year. Morning ride identified
+      by low intensity (mostly down hill/flat). Afternoon/Evening ride identified by more
+      intensity (flat/up hill 175 m elevation gain)
+
+  running_sessions:
+    base: |
+      1 hour conversational pace (6:20-7:00/km) on treadmill or outdoors. 290-320W running power, heart rate in Z1-Z2. 
+      Focus on aerobic capacity and variation from cycling. Often Monday/Tuesday as active recovery.
+    
+    intervals: |
+      4x4 min VO2max or hill repetitions. Running power 390-470W, heart rate rarely above 165 bpm. 
+      Uses both treadmill (control) and outdoor terrain (specificity). 1x/week through winter.
+
+    commuting: |
+      Will choose to run to work in winter on snowy conditions. Will be identified as a Morning
+      run on low intensity down hill 2 km and flat 2.5 km. Using the bus to get home :)
+
+  strength: |
+    Two fixed sessions per week: leg focus (squats, deadlifts, step-ups, Bulgarian split squats) and 
+    upper body/core (cybex row, chest press, torso rotation, lat pulldown, leg raises, leg press). 
+    Heart rate deliberately kept low (<100 bpm rest, <85 bpm work) for minimal interference with 
+    endurance training. RPE 2-3, focus on activation and injury prevention.
+
+  periodization: |
+    Off-season (winter): Base building with high cycling volume, maintenance of running capacity, 
+    consistent strength training. Build phase (spring): Increasing intensity and specificity toward L'Étape. 
+    Peak phase (summer): Sharp sessions and tapering. Flexible adaptation based on form and life situation.
+
+  mental_aspects: |
+    Views training enjoyment and load management as equally important as watts and VO2max. Listens to the body 
+    and adjusts plan with heavy legs, stress or poor sleep. Uses data as a tool, not a straitjacket. 
+    Values long-term progression and has patience to build form gradually.
+
+  development_areas: |
+    Continue cadence optimization on cycling, especially under fatigue in long sessions. Maintain 
+    running capacity through winter without compromising cycling specificity. 
+    Balance technical data analysis with intuition and bodily signals.
+
+  other: |
+    Outdoor traing season starts around easter and lasts to mid/end september. Running is
+    preferred off season (mid august to outdoor season starts). Skiing will be preferred
+    on good conditions and should only be used as bonus-exercises.
