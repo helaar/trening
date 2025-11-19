@@ -2,7 +2,7 @@
 
 import argparse
 from datetime import datetime
-from coaches.src.tools.athlete_reader import create_athlete_reader_tool
+from tools.athlete_reader import create_athlete_reader_tool
 from crewai import Task, Crew
 from roles.config import config
 from roles.loader import CoachLoader
@@ -29,7 +29,7 @@ def main():
                         default="daily_analysis_coach",
                         help="Coach name to use for analysis (default: daily_analysis_coach)")
 
-    parser.add_argument("--athletes-file", "-a"
+    parser.add_argument("--athletes-file", "-a",
                         default="./athletes.yaml",
                         help="Athletes database file. Defaults to ./athletes.yaml")
 

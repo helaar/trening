@@ -819,7 +819,7 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
 
         log("--------")
         log(" ¹ - Elevation gain/loss may be inaccurate. Does not match 100% with TP and Strava. Zwift delivers a more reliable elevation profile.")
-        log(" ² - Zero measurements are removed on overall statistics, but not on laps")
+        log(" ² - Zeroes are removed on overall statistics, but not on laps")
    
 
 # ---------------------------------------------------------------------------

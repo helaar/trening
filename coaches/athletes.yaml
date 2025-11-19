@@ -4,20 +4,20 @@
     gender: male
     location: Trondheim, Norway
     preferred_laguage: Norwegian
-    experience: Many years of structured endurance training experience
+    experience: Amateur, excerciser. Started training on regular basis aproximately 10 years ago. 
     main_focus: Cycling (road)
-    sports: Cycling (main), running (for fun), cross country skiing (winter), swiming (for fun)
+    sports: Cycling (main), running (for fun), cross country skiing (winter), swiming and hiking(for fun)
     
   training_philosophy: |
     Structured and data-driven approach focusing on both objective numbers and subjective experience. 
     Balances training enjoyment with targeted progression. Uses technology actively, but always lets 
     bodily signals and RPE weigh heavily in decisions. Values consistency and long-term development 
-    over short-term performances.
+    over short-term performances. Motivated by measureable progress.
 
   primary_goals:
-    main: "L'Étape Trondheim 2026 (130 km, 1500+ meters elevation)"
-    secondary: "Robust cycling/running engine, running competitions as variation"
-    long_term: "Maintain and develop endurance capacity"
+    main: L'Étape Trondheim 2026 (130 km, 1500+ meters elevation)
+    secondary: Robust cycling/running engine, running competitions as variation
+    long_term: Maintain and develop endurance capacity
 
   technical_approach: |
     Advanced data collection and analysis with custom scripts for detailed workout review. 
