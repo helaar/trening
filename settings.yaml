@@ -1,7 +1,8 @@
 application:
-  output-dir: /home/helge/dev/privat/trening/ENV/exchange
+  output-dir: ../ENV/exchange
 heart-rate:
   max: 191
+  lt: 165
   measured-activity: cycling/vo2max-test
   date: 2024-11-02
   zones:

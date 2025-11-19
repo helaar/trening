@@ -81,7 +81,7 @@ class Workout(BaseModel):
         return self._distance / 1000.0
 
     @property
-    def category(self) -> Literal["cycling","running","strength","other"] :
+    def category(self) -> Literal["cycling","running","skiing","strength","other"] :
         match self.sport:
             case "cycling" | "running":
                 return self.sport
@@ -91,6 +91,8 @@ class Workout(BaseModel):
                     return "strength"
                 else:
                     return "other"
+            case "cross_country_skiing":
+                return "skiing"
             case _:
                 return "other"
 

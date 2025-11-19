@@ -189,6 +189,45 @@ def parse_hms(value: str) -> float:
         h, m, s = 0, 0, parts[0]
     return float(h * 3600 + m * 60 + s)
 
+def estimate_hr_tss(df : pd.DataFrame, lthr: float) -> tuple[float | None,float | None]:
+
+    hr_series = df["heart_rate"]
+    
+    # Soneintervaller (TrainingPeaks-standard ift LTHR)
+    zones = [
+        (0.00, 0.81, 0.5),
+        (0.81, 0.90, 0.7),
+        (0.90, 0.94, 0.9),
+        (0.94, 1.00, 1.0),
+        (1.00, float("inf"), 1.1),
+    ]
+
+    series = hr_series.dropna()
+    if series.empty:
+        return (None,None)
+
+    diffs = series.index.to_series().diff().dt.total_seconds().dropna()
+    sample_interval = float(diffs.median()) if not diffs.empty else 1.0
+    total_valid_time = len(series) * sample_interval
+
+    total_weighted_time = 0.0
+    for low, high, weight in zones:
+        threshold_low = low * lthr
+        threshold_high = high * lthr
+
+        mask = (series >= threshold_low) & (series < threshold_high)
+        zone_seconds = mask.sum() * sample_interval
+
+        total_weighted_time += zone_seconds * weight
+
+    if total_valid_time == 0:
+        return (None,None)
+
+    hr_if = total_weighted_time / total_valid_time
+    hr_tss = (total_weighted_time / 36.0) 
+
+    return (hr_tss, hr_if)
+
 
 def compute_zone_durations(
     series: pd.Series,
@@ -341,33 +380,26 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float, window: int = 30) -
     duration_sec = (segment.index[-1] - segment.index[0]).total_seconds()
     stats["duration_sec"] = duration_sec
 
-    avg_power = segment["power"].dropna().mean()
+    avg_power = segment["power"].dropna().mean() if "power" in segment.columns else None
     stats["avg_power"] = float(avg_power) if pd.notna(avg_power) else None
-
-    try:
-        if segment["power"].dropna().empty:
-            np_value = None
-        else:
-            np_value = normalized_power(segment["power"], window=window)
-    except Exception:
-        np_value = None
+    np_value = normalized_power(segment["power"], window=window) if "power" in segment.columns else None
 
     stats["np"] = float(np_value) if np_value is not None else None
 
     stats["vi"] = (stats["np"] / stats["avg_power"]) if stats["np"] and stats["avg_power"] else None
     stats["if"] = (stats["np"] / ftp) if stats["np"] and ftp > 0 else None
+    stats["max_power"] = float(segment["power"].dropna().max()) if "power" in segment.columns and not segment["power"].dropna().empty else None    
+    drift = compute_heart_rate_drift(segment) if "power" in segment.columns else None
+    stats["drift_pct"] = drift["drift_pct"] if drift else None
+
 
     avg_hr = segment["heart_rate"].dropna().mean()
     stats["avg_hr"] = float(avg_hr) if pd.notna(avg_hr) else None
 
-    avg_cad = segment["cadence"].dropna().mean()
-    stats["avg_cad"] = float(avg_cad) if pd.notna(avg_cad) else None
+    avg_cad = segment["cadence"].dropna().mean() if "cadence" in segment.columns else None
+    stats["avg_cad"] = float(avg_cad) if avg_cad and pd.notna(avg_cad) else None
 
-    stats["max_power"] = float(segment["power"].dropna().max()) if not segment["power"].dropna().empty else None
     stats["max_hr"] = float(segment["heart_rate"].dropna().max()) if not segment["heart_rate"].dropna().empty else None
-
-    drift = compute_heart_rate_drift(segment)
-    stats["drift_pct"] = drift["drift_pct"] if drift else None
 
     elev_gain, elev_loss, min, max = _calculate_elevation(segment)
     stats["elev_gain"] = float(elev_gain) if pd.notna(elev_gain) else None
@@ -387,7 +419,7 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float, window: int = 30) -
 
 
     return stats
-
+from datetime import timedelta
 
 def split_into_autolaps(df: pd.DataFrame, autolap_seconds: float) -> list[dict[str, pd.Timestamp]]:
     """
@@ -599,9 +631,11 @@ def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFil
     df = fit.data_frame
     hr_settings = settings.get("heart-rate", {})
     max_hr = hr_settings.get("max") 
+    lt_hr = hr_settings.get("lt")
     hr_zones = parse_zone_definitions(hr_settings.get("zones"))
     autolap = settings.get("autolap")  # f.eks. "PT10M"
 
+    hr_tss, hr_if = estimate_hr_tss(df=df, lthr=lt_hr)
     drift_start = parse_hms(args.drift_start) if args.drift_start else None
     drift_duration = parse_hms(args.drift_duration) if args.drift_duration else None
 
@@ -612,14 +646,12 @@ def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFil
     duration_sec = sample_interval * len(df)
 
     hr_stats = series_stats(df["heart_rate"])
-#   if_value = intensity_factor(np_value, ftp)
-#   tss_value = training_stress_score(duration_sec, np_value, if_value, ftp)
 
     if df.get("temparature"): log(f"Temperature (average): {df["temperature"].dropna().mean():.1f} ℃")
     log(f"Data points: {len(df)}")
     log(f"Estimated sampling interval: {sample_interval:.2f} s")
-#   log(f"Intensity Factor (IF): {if_value:.3f}")
-#   log(f"Training Stress Score (TSS): {tss_value:.1f}")
+    if hr_if: log(f"Intensity Factor (hrIF): {hr_if:.3f}")
+    if hr_tss: log(f"Training Stress Score (hrTSS): {hr_tss:.1f}")
 
     log("\n# Heart Rate (bpm)")
     _print_stats(log, hr_stats)
@@ -643,19 +675,20 @@ def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFil
         _print_lap_table(log,"strength sets", sets_summary, headers)
     
 
-def _power_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> list[str]:
+def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> list[str]:
     
     # TODO: Temporary solution. Should refactor the rest as well
     df = fit.data_frame
     laps = fit.laps
 
-    ftp = settings.get(fit.workout.category).get("ftp")
-    if ftp is None:
-        raise ValueError("FTP must be specified via --ftp or in settings.yaml.")
+    cat_settings = settings.get(fit.workout.category)
+    ftp = cat_settings.get("ftp") if cat_settings else None
 
-    max_hr = settings.get("max-hr")
-    power_zones = parse_zone_definitions(settings.get(fit.workout.category).get("power-zones"))
-    hr_zones = parse_zone_definitions(settings.get("hr-zones"))
+    hr_settings = settings.get("heart-rate")
+    max_hr = hr_settings.get("max")
+    lt_hr = hr_settings.get("lt")
+    power_zones = parse_zone_definitions(cat_settings.get("power-zones")) if cat_settings else None
+    hr_zones = parse_zone_definitions(hr_settings.get("hr-zones"))
     autolap = settings.get("autolap")  # f.eks. "PT10M"
 
     drift_start = parse_hms(args.drift_start) if args.drift_start else None
@@ -667,18 +700,23 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
 
     duration_sec = sample_interval * len(df)
 
+    has_power = "power" in df.columns
+    has_hr = "heart_rate" in df.columns
+    has_cadence = "cadence" in df.columns
     drop_nulls = True 
-    power_stats = series_stats(df["power"], drop_nulls=drop_nulls)
-    hr_stats = series_stats(df["heart_rate"], drop_nulls=drop_nulls)
-    cad_stats = series_stats(df["cadence"], drop_nulls=drop_nulls)
+    power_stats = series_stats(df["power"], drop_nulls=drop_nulls) if has_power else None
+    hr_stats = series_stats(df["heart_rate"], drop_nulls=drop_nulls) if has_hr else None
+    cad_stats = series_stats(df["cadence"], drop_nulls=drop_nulls) if has_cadence else None
     # speed_stats = series_stats(df["speed"])
 
-    np_value = normalized_power(df["power"], window=args.window)
-    if_value = intensity_factor(np_value, ftp)
-    tss_value = training_stress_score(duration_sec, np_value, if_value, ftp)
+    np_value = normalized_power(df["power"], window=args.window) if has_power else None
+    if_value = intensity_factor(np_value, ftp) if has_power else None
+    tss_value = training_stress_score(duration_sec, np_value, if_value, ftp) if has_power else None
 
-    avg_power = df["power"].dropna().mean()
-    vi_value = (np_value / avg_power) if avg_power and avg_power > 0 else None
+    hr_tss, hr_if = estimate_hr_tss(df=df,lthr=lt_hr) if not has_power and has_hr else (None, None)
+
+    avg_power = df["power"].dropna().mean() if has_power else None
+    vi_value = (np_value / avg_power) if has_power and avg_power and avg_power > 0 else None
 
     elev_gain, elev_loss,min,max = _calculate_elevation(df)
     log(f"Total elevation gain¹: {elev_gain:.1f} m")
@@ -688,27 +726,34 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
     if df.get("temparature"): log(f"Temperature (average): {df["temperature"].dropna().mean():.1f} ℃")
     log(f"Data points: {len(df)}")
     log(f"Estimated sampling interval: {sample_interval:.2f} s")
-    log(f"FTP: {ftp:.0f} W")
-    if max_hr:
-        log(f"Max HR (from settings): {max_hr} bpm")
+    if ftp: log(f"FTP: {ftp:.0f} W")
     
-    log("\n## Power (W)²")
-    _print_stats(log, power_stats)
-    log(f"Normalized Power (NP): {np_value:.1f} W")
-    if avg_power and avg_power > 0:
-        log(f"Average power: {avg_power:.1f} W")
-        log(f"Variability Index (VI): {vi_value:.3f}")
+    log(f"Max HR: {max_hr} bpm")
+    log(f"Lactate Threshold {lt_hr} bpm")
+    
+    if has_power:
+        log("\n## Power (W)²")
+        _print_stats(log, power_stats)
+        log(f"Normalized Power (NP): {np_value:.1f} W")
+        if avg_power and avg_power > 0:
+            log(f"Average power: {avg_power:.1f} W")
+            log(f"Variability Index (VI): {vi_value:.3f}")
+        else:
+            log("Average power: —")
+            log("Variability Index (VI): —")
+        log(f"Intensity Factor (IF): {if_value:.3f}")
+        log(f"Training Stress Score (TSS): {tss_value:.1f}")
     else:
-        log("Average power: —")
-        log("Variability Index (VI): —")
-    log(f"Intensity Factor (IF): {if_value:.3f}")
-    log(f"Training Stress Score (TSS): {tss_value:.1f}")
+        if hr_if: log(f"Intensity Factor(hrIF) {hr_if:.3f}")
+        if hr_tss: log(f"Training Stress Score (hrTSS) {hr_tss:.1f}")
 
-    log("\n## Heart Rate (bpm)²")
-    _print_stats(log, hr_stats)
+    if has_hr:
+        log("\n## Heart Rate (bpm)²")
+        _print_stats(log, hr_stats)
 
-    log("\n## Cadence (rpm)²")
-    _print_stats(log, cad_stats)
+    if has_cadence:
+        log("\n## Cadence (rpm)²")
+        _print_stats(log, cad_stats)
 
     if power_zones:
         log("\n## Time in power zones")
@@ -719,9 +764,10 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
         hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
         _print_zone_summary(log, hr_summary, "heart rate")
 
-    drift_result = compute_heart_rate_drift(df, drift_start, drift_duration)
-    log("\n## Heart Rate Drift")
+    drift_result = compute_heart_rate_drift(df, drift_start, drift_duration) if has_power and has_hr else None
+  
     if drift_result:
+        log("\n## Heart Rate Drift")
         rel_start = (drift_result["start_ts"] - df.index[0]).total_seconds()
         rel_end = (drift_result["end_ts"] - df.index[0]).total_seconds()
         log(
@@ -735,8 +781,7 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
         log(f"- HR/W (P1): {drift_result['hr_per_watt_p1']:.4f}")
         log(f"- HR/W (P2): {drift_result['hr_per_watt_p2']:.4f}")
         log(f"- HR drift: {drift_result['drift_pct']:.2f} %")
-    else:
-        log("No valid data to calculate heart rate drift for selected segment.")
+
 
     # ------------------------------------------------------------------
     # Lap details
@@ -770,7 +815,7 @@ def _power_based_summary(log, args, settings : dict[str,object], fit : FitFilePa
             intensity = lap.get("intensity")
             intensity_str = INTENSITY_NAMES.get(intensity, str(intensity) if intensity is not None else "")
             label = lap.get("label")
-            zone = Zone.get_zone(power_zones, stats["avg_power"])
+            zone = Zone.get_zone(power_zones, stats["avg_power"]) if has_power else None
             zone_name = zone.name if zone else None
             description = " / ".join([part for part in (label, intensity_str, zone_name) if part])
             lap_rows.append(
@@ -863,8 +908,8 @@ def main():
 
         
         match fit.workout.category:
-            case "running"|"cycling":
-                _power_based_summary( log, args, settings, fit)
+            case "running"|"cycling"|"skiing":
+                _endurance_based_summary( log, args, settings, fit)
             case "strength":
                 _strength_based_summary(log, args, settings, fit)
             case _:
