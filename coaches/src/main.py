@@ -61,11 +61,10 @@ def main():
         # Create a task for the agent
         analysis_task = Task(
             description=f"""
-            Analyze workout data for athlete {athlete} at {args.date}. 
+            Analyze workout data for athlete {athlete} at {args.date} and rovide a comprehensive analysis report. 
             Follwoing tools may be used:
             - workout_file_reader provides workouts for the given day and athlete
             - athlete_lookup provides information about the athlete
-            Please rovide a comprehensive analysis report.
             """,
             agent=agent,
             expected_output="A detailed performance analysis report, in markdown format, including session overview, quantitative summary, qualitative assessment, progress indicators, risk flags, and coach recommendations.",

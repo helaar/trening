@@ -31,7 +31,7 @@ class AthleteLookupTool(BaseTool):
 
         with self.yaml_path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
-
+        print(data)
         self._cache = data
         return data
 
