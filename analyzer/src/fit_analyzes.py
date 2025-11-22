@@ -189,10 +189,13 @@ def parse_hms(value: str) -> float:
         h, m, s = 0, 0, parts[0]
     return float(h * 3600 + m * 60 + s)
 
-def estimate_hr_tss(df : pd.DataFrame, lthr: float) -> tuple[float | None,float | None]:
-
+def estimate_hr_tss(df : pd.DataFrame, lthr: float, resting_hr: float | None = None) -> tuple[float | None,float | None]:
+    """
+    Estimate hrTSS using multiple formulas for debugging against TrainingPeaks.
+    If resting_hr is provided, also computes the "resting HR subtracted" variant.
+    """
     hr_series = df["heart_rate"]
-    
+
     # Soneintervaller (TrainingPeaks-standard ift LTHR)
     zones = [
         (0.00, 0.81, 0.5),
@@ -204,29 +207,79 @@ def estimate_hr_tss(df : pd.DataFrame, lthr: float) -> tuple[float | None,float 
 
     series = hr_series.dropna()
     if series.empty:
+        print("[hrTSS debug] No HR data available.")
         return (None,None)
+
+    # Total elapsed time (from first to last timestamp)
+    if not df.empty and isinstance(df.index, pd.DatetimeIndex):
+        elapsed_time = (df.index[-1] - df.index[0]).total_seconds()
+    else:
+        elapsed_time = None
+
+    # Moving/active time: count only samples where HR > 0
+    moving_mask = (df["heart_rate"] > 0) if "heart_rate" in df else None
+    moving_time = moving_mask.sum() if moving_mask is not None else None
+
+    min_hr = series.min()
+    max_hr = series.max()
 
     diffs = series.index.to_series().diff().dt.total_seconds().dropna()
     sample_interval = float(diffs.median()) if not diffs.empty else 1.0
-    total_valid_time = len(series) * sample_interval
+    duration_secs = len(series) * sample_interval
+    avg_hr = series.mean()
+
+    print(f"[hrTSS debug] Sample interval: {sample_interval}")
+    print(f"[hrTSS debug] Duration used for hrTSS (s): {duration_secs} ({duration_secs/3600:.3f} h)")
+    print(f"[hrTSS debug] Average HR used: {avg_hr}")
+    print(f"[hrTSS debug] LTHR used: {lthr}")
+    print(f"[hrTSS debug] Resting HR used: {resting_hr}")
+    print(f"[hrTSS debug] Min HR: {min_hr}")
+    print(f"[hrTSS debug] Max HR: {max_hr}")
 
     total_weighted_time = 0.0
-    for low, high, weight in zones:
+    for i, (low, high, weight) in enumerate(zones):
         threshold_low = low * lthr
         threshold_high = high * lthr
 
         mask = (series >= threshold_low) & (series < threshold_high)
         zone_seconds = mask.sum() * sample_interval
 
+        print(f"[hrTSS debug] Zone {i+1}: {low:.2f}-{high:.2f} LTHR, weight={weight}, seconds={zone_seconds}")
         total_weighted_time += zone_seconds * weight
 
-    if total_valid_time == 0:
+    if duration_secs == 0:
+        print("[hrTSS debug] Duration is zero.")
         return (None,None)
 
-    hr_if = total_weighted_time / total_valid_time
-    hr_tss = (total_weighted_time / 36.0) 
+    hr_if = total_weighted_time / duration_secs
+    hr_tss_tp = duration_secs * (avg_hr / lthr) / 36.0
+    print(f"[hrTSS debug] hr_if (zone-weighted): {hr_if}")
+    print(f"[hrTSS debug] hr_tss (TrainingPeaks style): {hr_tss_tp}")
 
-    return (hr_tss, hr_if)
+    # Resting HR subtracted variant
+    if resting_hr is not None and lthr > resting_hr:
+        avg_hr_adj = avg_hr - resting_hr
+        lthr_adj = lthr - resting_hr
+        if lthr_adj > 0:
+            hr_tss_resting = duration_secs * (avg_hr_adj / lthr_adj) / 36.0
+            print(f"[hrTSS debug] hr_tss (resting HR subtracted): {hr_tss_resting}")
+        else:
+            hr_tss_resting = None
+    else:
+        hr_tss_resting = None
+
+    # Variant: divisor 50 (sometimes used in other platforms)
+    hr_tss_div50 = duration_secs * (avg_hr / lthr) / 50.0
+    print(f"[hrTSS debug] hr_tss (divisor 50): {hr_tss_div50}")
+
+    # Variant: non-linear scaling for low HR (experimental)
+    if avg_hr < 0.8 * lthr:
+        hr_tss_nl = duration_secs * ((avg_hr / lthr) ** 1.2) / 36.0
+        print(f"[hrTSS debug] hr_tss (nonlinear, exp=1.2): {hr_tss_nl}")
+    else:
+        hr_tss_nl = None
+
+    return (hr_tss_tp, hr_if)
 
 
 def compute_zone_durations(
@@ -357,7 +410,7 @@ def _calculate_elevation(segment: pd.DataFrame) -> tuple[float, float, float, fl
     return (delta_asc.clip(lower=0).sum(),0-delta_desc.clip(upper=0).sum(), alt.min(), alt.max())
 
 
-def compute_segment_stats(segment: pd.DataFrame, ftp: float, window: int = 30) -> dict[str, float | None]:
+def compute_segment_stats(segment: pd.DataFrame, ftp: float | None, window: int = 30) -> dict[str, float | None]:
     stats: dict[str, float] | None = {}
     if len(segment) < 2:
         stats["duration_sec"] = 0.0
@@ -387,7 +440,7 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float, window: int = 30) -
     stats["np"] = float(np_value) if np_value is not None else None
 
     stats["vi"] = (stats["np"] / stats["avg_power"]) if stats["np"] and stats["avg_power"] else None
-    stats["if"] = (stats["np"] / ftp) if stats["np"] and ftp > 0 else None
+    stats["if"] = (stats["np"] / ftp) if ftp and stats["np"] and ftp > 0 else None
     stats["max_power"] = float(segment["power"].dropna().max()) if "power" in segment.columns and not segment["power"].dropna().empty else None    
     drift = compute_heart_rate_drift(segment) if "power" in segment.columns else None
     stats["drift_pct"] = drift["drift_pct"] if drift else None
@@ -635,7 +688,7 @@ def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFil
     hr_zones = parse_zone_definitions(hr_settings.get("zones"))
     autolap = settings.get("autolap")  # f.eks. "PT10M"
 
-    hr_tss, hr_if = estimate_hr_tss(df=df, lthr=lt_hr)
+    hr_tss, hr_if = (None, None) # TODO: estimate_hr_tss(df=df, lthr=lt_hr)
     drift_start = parse_hms(args.drift_start) if args.drift_start else None
     drift_duration = parse_hms(args.drift_duration) if args.drift_duration else None
 
@@ -713,7 +766,7 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
     if_value = intensity_factor(np_value, ftp) if has_power else None
     tss_value = training_stress_score(duration_sec, np_value, if_value, ftp) if has_power else None
 
-    hr_tss, hr_if = estimate_hr_tss(df=df,lthr=lt_hr) if not has_power and has_hr else (None, None)
+    hr_tss, hr_if = (None, None) # TODO: estimate_hr_tss(df=df,lthr=lt_hr) if not has_power and has_hr else (None, None)
 
     avg_power = df["power"].dropna().mean() if has_power else None
     vi_value = (np_value / avg_power) if has_power and avg_power and avg_power > 0 else None
@@ -723,10 +776,12 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
     log(f"Max elevation: {max:.1f} masl")
     log(f"Min elevation: {min:.1f} masl")
     log(f"Speed (average): {fit.workout._distance/duration_sec*3.6:.1f} km/h")
-    if df.get("temparature"): log(f"Temperature (average): {df["temperature"].dropna().mean():.1f} ℃")
+    if "temparature" in df.columns:
+        log(f"Temperature (average): {df["temperature"].dropna().mean():.1f} ℃")
     log(f"Data points: {len(df)}")
     log(f"Estimated sampling interval: {sample_interval:.2f} s")
-    if ftp: log(f"FTP: {ftp:.0f} W")
+    if ftp:
+        log(f"FTP: {ftp:.0f} W")
     
     log(f"Max HR: {max_hr} bpm")
     log(f"Lactate Threshold {lt_hr} bpm")

@@ -5,7 +5,7 @@ heart-rate:
   lt: 165
   measured-activity: cycling/vo2max-test
   date: 2024-11-02
-  zones:
+p  zones:
   - Recovery: 0-115
   - Endurance: 115-138  
   - Tempo: 138-157
