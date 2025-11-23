@@ -2,8 +2,10 @@
 
 import argparse
 from datetime import datetime
+from pathlib import Path
+from tasks import TaskLoader
 from tools.athlete_reader import create_athlete_reader_tool
-from crewai import Task, Crew
+from crewai import Crew
 from roles.config import config
 from roles.loader import CoachLoader
 from tools.workout_reader import create_workout_reader_tool
@@ -33,6 +35,10 @@ def main():
                         default="./athletes.yaml",
                         help="Athletes database file. Defaults to ./athletes.yaml")
 
+    parser.add_argument("--tasks-file", "-t",
+                        default="./tasks.yaml",
+                        help="Tasks YAML file. Defaults to ./tasks.yaml")
+
 
     args = parser.parse_args()
     
@@ -47,39 +53,43 @@ def main():
         # Initialize configuration and loader
         
         loader = CoachLoader(config)
+        tasks = TaskLoader(Path(args.tasks_file))
         
         # Create a workout reader tool configured with the specified directory
         workout_tool = create_workout_reader_tool(args.workout_dir)
         athlete_loader = create_athlete_reader_tool(args.athletes_file)
         
         # Create the specified coach agent with tools
-        agent = loader.load_agent_from_file(args.coaches_config, args.coach, [workout_tool, athlete_loader])
-        
-        print(f"Created {args.coach} agent for analysis date: {args.date}")
+        analyzer = loader.load_agent_from_file(args.coaches_config, "performance_analysis_assistant", [workout_tool, athlete_loader])
+        head_coach = loader.load_agent_from_file(args.coaches_config, "head_coach", [athlete_loader]) 
+        translator = loader.load_agent_from_file(args.coaches_config, "translator")
+    
         print(f"Workout directory: {args.workout_dir}")
         athlete = "Helge"
         # Create a task for the agent
-        analysis_task = Task(
-            description=f"""
-            Analyze workout data for athlete {athlete} at {args.date} and rovide a comprehensive analysis report. 
-            Follwoing tools may be used:
-            - workout_file_reader provides workouts for the given day and athlete
-            - athlete_lookup provides information about the athlete
-            """,
-            agent=agent,
-            expected_output="A detailed performance analysis report, in markdown format, including session overview, quantitative summary, qualitative assessment, progress indicators, risk flags, and coach recommendations.",
-        )
+        analysis_task = tasks.create_task("dayly_analysis_task", agent=analyzer)
+        feedback_task = tasks.create_task("daily_feedback_task", agent=head_coach,context=[analysis_task])
+        translate_task = tasks.create_task("translate_task", agent=translator, context=[feedback_task])
+        
+        
+        if not analysis_task or not feedback_task or not translate_task:   
+            raise ValueError("Tasks not found in tasks file.")
         
         # Create a crew with the agent and task
-        crew = Crew(
-            agents=[agent],
-            tasks=[analysis_task],
+        crew = Crew(            
+            agents=[analyzer, head_coach, translator],
+            tasks=[analysis_task, feedback_task, translate_task],
             verbose=True
         )
         
         # Execute the analysis
-        print(f"\nStarting workout analysis for {args.date}...")
-        result = crew.kickoff()
+        print(f"\nStarting workout analysis for {athlete} on {args.date}...")
+        result = crew.kickoff(
+            inputs={
+                "athlete":athlete, 
+                "date": args.date,
+                "exchange_dir":args.workout_dir
+            })
         
         print("\n" + "="*50)
         print("WORKOUT ANALYSIS REPORT:")

@@ -1,0 +1,65 @@
+dayly_analysis_task:
+  description: |
+    Analyze all workout data for athlete {athlete} on {date}.
+
+    Use only the data provided for this date via the available tools:
+    - workout_file_reader: provides all workouts for the given date and athlete
+    - athlete_lookup: provides basic athlete profile information
+
+    1. Summarize the day's workouts clearly and concisely.
+    2. Provide a detailed analysis focused solely on performance, effort level, and notable observations from this date.
+    3. Highlight any anomalies or issues observed in today's data.
+    4. Do not make recommendations or conclusions based on trends, long‑term history, or other dates.
+    5. Avoid irrelevant information; focus on insights directly supported by today's data.
+
+  expected_output: |
+    Dayly workout report with:
+    - A short, clear summary.
+    - A structured, detailed analysis section limited to the given date.  
+  markdown: true
+#  tools: # could be declared here...
+#    - workout_file_reader
+#    - athlete_lookup
+
+daily_feedback_task:
+  description: |
+    Using the provided analysis report (for the specified date) and athlete profile information,
+    create a short, clear, and motivating feedback message for the athlete. 
+    Focus solely on the workout(s) completed on this date.
+    
+    The message should:
+    - Acknowledge today's effort.
+    - Highlight 1–2 positive aspects from the report, in plain language.
+    - Mention 1 improvement point, phrased constructively.
+    - Provide 1 concrete next step relevant to the coming day(s), without multiple options.
+    - Avoid detailed metric explanations unless essential.
+    - Avoid long-term recommendations; limit feedback to the immediate context.
+    
+    Keep the feedback concise (max ~80–100 words), so it can be read in under 30 seconds.
+    Use a warm, supportive, but professional tone.
+
+    Write in english. Your report will be translated later.
+
+  expected_output: |
+    An object containing:
+    - raw_feedback: |
+      A concise and well-structured feedback message addressed to the athlete, containing:
+      1. Greeting / quick acknowledgement of today's effort.
+      2. 1–2 positives about the workout performance.
+      3. 1 constructive improvement point.
+      4. 1 concrete next step or action for the upcoming day(s).
+      5. Short closing motivation sentence.
+    - preferred_language: The athlete's preferred language (from athlete profile).
+  
+  markdown: true
+
+translate_task:
+  description: |
+    Translate the provided coaching feedback from English into the athlete's 
+    preferred_language as given in the context.
+    Keep the tone warm, supportive, and professional.
+    Retain any sports metrics or key data exactly as presented.
+  expected_output: |
+    A fluent, natural translation of the provided feedback.
+    All technical terms should remain accurate and easy to understand.
+  output_file: "{exchange_dir}/output/{date}_{athlete}_daily.md"
