@@ -6,6 +6,7 @@ from pathlib import Path
 from tasks import TaskLoader
 from tools.athlete_reader import create_athlete_reader_tool
 from crewai import Crew
+from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from roles.config import config
 from roles.loader import CoachLoader
 from tools.workout_reader import create_workout_reader_tool
@@ -60,8 +61,8 @@ def main():
         athlete_loader = create_athlete_reader_tool(args.athletes_file)
         
         # Create the specified coach agent with tools
-        analyzer = loader.load_agent_from_file(args.coaches_config, "performance_analysis_assistant", [workout_tool, athlete_loader])
-        head_coach = loader.load_agent_from_file(args.coaches_config, "head_coach", [athlete_loader]) 
+        analyzer = loader.load_agent_from_file(args.coaches_config, "performance_analysis_assistant", [workout_tool])
+        head_coach = loader.load_agent_from_file(args.coaches_config, "head_coach", []) 
         translator = loader.load_agent_from_file(args.coaches_config, "translator")
     
         print(f"Workout directory: {args.workout_dir}")
@@ -75,10 +76,13 @@ def main():
         if not analysis_task or not feedback_task or not translate_task:   
             raise ValueError("Tasks not found in tasks file.")
         
+        athlete_knowledge = StringKnowledgeSource(content=athlete_loader._run(athlete_id=athlete))
+
         # Create a crew with the agent and task
         crew = Crew(            
             agents=[analyzer, head_coach, translator],
             tasks=[analysis_task, feedback_task, translate_task],
+            knowledge_sources=[athlete_knowledge],
             verbose=True
         )
         

@@ -1,10 +1,10 @@
 dayly_analysis_task:
   description: |
-    Analyze all workout data for athlete {athlete} on {date}.
+    Analyze all workout data for athlete {athlete} on {date}. You are provided with knowledge
+    about the athlete's profile.
 
     Use only the data provided for this date via the available tools:
     - workout_file_reader: provides all workouts for the given date and athlete
-    - athlete_lookup: provides basic athlete profile information
 
     1. Summarize the day's workouts clearly and concisely.
     2. Provide a detailed analysis focused solely on performance, effort level, and notable observations from this date.
