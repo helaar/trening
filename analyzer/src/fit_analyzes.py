@@ -795,11 +795,11 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
         log("\n## Cadence (rpm)²")
         _print_stats(log, cad_stats)
 
-    if power_zones:
+    if power_zones and has_power:
         log("\n## Time in power zones")
         power_summary = compute_zone_durations(df["power"], power_zones, sample_interval)
         _print_zone_summary(log, power_summary, "power")
-    if hr_zones:
+    if hr_zones and has_hr:
         log("\n## Time in heart rate zones")
         hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
         _print_zone_summary(log, hr_summary, "heart rate")

@@ -16,7 +16,8 @@ dayly_analysis_task:
     Dayly workout report with:
     - A short, clear summary.
     - A structured, detailed analysis section limited to the given date.  
-  markdown: true
+    markdown: true
+  output_file: "{output_dir}/daily/{date}_{athlete}_details.md"
 #  tools: # could be declared here...
 #    - workout_file_reader
 #    - athlete_lookup
@@ -35,23 +36,20 @@ daily_feedback_task:
     - Avoid detailed metric explanations unless essential.
     - Avoid long-term recommendations; limit feedback to the immediate context.
     
-    Keep the feedback concise (max ~80–100 words), so it can be read in under 30 seconds.
+    Keep the feedback concise (max ~100–150 words), so it can be read in less than a minute.
     Use a warm, supportive, but professional tone.
 
-    Write in english. Your report will be translated later.
+    Write in the athlete's preferred language.   
 
   expected_output: |
-    An object containing:
-    - raw_feedback: |
       A concise and well-structured feedback message addressed to the athlete, containing:
       1. Greeting / quick acknowledgement of today's effort.
       2. 1–2 positives about the workout performance.
       3. 1 constructive improvement point.
       4. 1 concrete next step or action for the upcoming day(s).
       5. Short closing motivation sentence.
-    - preferred_language: The athlete's preferred language (from athlete profile).
-  
   markdown: true
+  output_file: "{output_dir}/daily/{date}_{athlete}_feedback.md"
 
 translate_task:
   description: |

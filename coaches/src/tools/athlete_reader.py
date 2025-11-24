@@ -16,14 +16,13 @@ class AthleteLookupTool(BaseTool):
     yaml_path: Path
     _cache: dict[str,object] | None = None
 
-    def _run(self, athlete_id: str) -> str:
+    def _run(self, athlete: str) -> str:
         data = self._load_yaml()
-        athlete = data[athlete_id]
-        if not athlete_id:
-            return f"Athlete {athlete_id} not found."
-
-        formatted = "\n".join(f"{k}: {v}" for k, v in athlete.items())
-        return formatted
+        athlete_dict = data[athlete]
+        if not athlete_dict:
+            return f"Athlete {athlete} not found."
+        
+        return f"{athlete_dict}"
 
     def _load_yaml(self) -> dict[str, object]:
         if self._cache is not None:

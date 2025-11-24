@@ -1,0 +1,16 @@
+"""Pydantic models for coach role definitions."""
+
+from pydantic import BaseModel
+
+class Coach(BaseModel):
+    """Model for a single coach role definition."""
+    role: str
+    goal: str
+    backstory: str
+
+class TaskDescription(BaseModel):
+    """Class representing a task description loaded from YAML."""
+    description: str
+    expected_output: str 
+    markdown: bool | None = False
+    output_file: str | None = None

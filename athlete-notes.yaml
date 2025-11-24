@@ -1,0 +1,43 @@
+  cycling_sessions:
+    base_endurance: |
+      Long sessions (2-3.5h) at 155-180W (60-70% FTP). Fatmax structure or pure steady state. 
+      Measures cardiac drift as quality indicator - aims for <5% over 3 hours. High cadence focus (85-95 rpm).
+    
+    quality_ftp: |
+      Development sessions with mix of 90-100% FTP in various formats. Over-under structures (e.g. 175W/190W/205W) 
+      or threshold steady-state. Uses cadence variations consciously - both high cadence and strength focus.
+    
+    vo2_anaerobic: |
+      Shorter intervals like 40/20, 30/15 or 3x10x40/20. Focus on neuromuscular power and 
+      lactate tolerance. Alternates between seated and standing pedaling. RPE 6-7 as target.
+
+    commuting: |
+      Commutes by bike aproximately 6 km each way most of the year. Morning ride identified
+      by low intensity (mostly down hill/flat). Afternoon/Evening ride identified by more
+      intensity (flat/up hill 175 m elevation gain)
+
+  running_sessions:
+    base: |
+      1 hour conversational pace (6:20-7:00/km) on treadmill or outdoors. 290-320W running power, heart rate in Z1-Z2. 
+      Focus on aerobic capacity and variation from cycling. Often Monday/Tuesday as active recovery.
+    
+    intervals: |
+      4x4 min VO2max or hill repetitions. Running power 390-470W, heart rate rarely above 165 bpm. 
+      Uses both treadmill (control) and outdoor terrain (specificity). 1x/week through winter.
+
+    commuting: |
+      Will choose to run to work in winter on snowy conditions. Will be identified as a Morning
+      run on low intensity down hill 2 km and flat 2.5 km. Using the bus to get home :)
+
+  strength: |
+    Two fixed sessions per week: leg focus (squats, deadlifts, step-ups, Bulgarian split squats) and 
+    upper body/core (cybex row, chest press, torso rotation, lat pulldown, leg raises, leg press). 
+    Heart rate deliberately kept low (<100 bpm rest, <85 bpm work) for minimal interference with 
+    endurance training. RPE 2-3, focus on activation and injury prevention.
+
+  periodization: |
+    Off-season (winter): Base building with high cycling volume, maintenance of running capacity, 
+    consistent strength training. Build phase (spring): Increasing intensity and specificity toward L'Étape. 
+    Peak phase (summer): Sharp sessions and tapering. Flexible adaptation based on form and life situation.
+
+ 
