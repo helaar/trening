@@ -136,14 +136,38 @@ class StravaClient:
         except requests.exceptions.RequestException as e:
             print(f"Warning: Could not fetch streams for activity {activity_id}: {e}")
             return {}
+    
+    def get_activity_laps(self, activity_id: int) -> List[Dict[str, Any]]:
+        """
+        Get lap data for an activity.
+        
+        Args:
+            activity_id: Strava activity ID
+            
+        Returns:
+            List of lap dictionaries
+        """
+        url = f"{self.BASE_URL}/activities/{activity_id}/laps"
+        
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            laps_data = response.json()
+            
+            return laps_data if isinstance(laps_data, list) else []
+        
+        except requests.exceptions.RequestException as e:
+            print(f"Warning: Could not fetch laps for activity {activity_id}: {e}")
+            return []
 
 
 class StravaDataParser:
     """Parser to convert Strava data to format compatible with existing analysis."""
     
-    def __init__(self, activity: StravaActivity, streams: Dict[str, StravaStream] | None = None):
+    def __init__(self, activity: StravaActivity, streams: Dict[str, StravaStream] | None = None, laps: List[Dict[str, Any]] | None = None):
         self.activity = activity
         self.streams = streams or {}
+        self.strava_laps = laps or []
         self.data_frame = self._create_dataframe()
         self.workout = self._create_workout()
         self.laps = self._create_laps()
@@ -236,19 +260,53 @@ class StravaDataParser:
         return workout
     
     def _create_laps(self) -> List[Dict[str, Any]]:
-        """Create lap data. Strava doesn't always have detailed laps, so we'll create a single lap for the entire activity."""
-        if not self.data_frame.empty:
-            start_time = self.data_frame.index[0]
-            end_time = self.data_frame.index[-1]
+        """Create lap data from Strava laps API or fallback to single lap for entire activity."""
+        if not self.strava_laps:
+            # Fallback to single lap for entire activity
+            if not self.data_frame.empty:
+                start_time = self.data_frame.index[0]
+                end_time = self.data_frame.index[-1]
+                
+                return [{
+                    'start': start_time,
+                    'end': end_time,
+                    'label': 'Full Activity',
+                    'intensity': None
+                }]
+            else:
+                return []
+        
+        # Convert Strava lap data to format expected by analysis
+        laps = []
+        base_start = self.activity.start_date_local or self.activity.start_date
+        
+        for i, strava_lap in enumerate(self.strava_laps):
+            # Extract lap timing info
+            elapsed_time = strava_lap.get('elapsed_time', 0)
+            start_index = strava_lap.get('start_index', i * 1000)  # Fallback estimation
             
-            return [{
-                'start': start_time,
-                'end': end_time,
-                'label': 'Full Activity',
-                'intensity': None
-            }]
-        else:
-            return []
+            # Calculate lap timestamps
+            if i == 0:
+                lap_start = base_start
+            else:
+                # Use elapsed time to estimate start relative to previous laps
+                prev_elapsed = sum(lap.get('elapsed_time', 0) for lap in self.strava_laps[:i])
+                lap_start = base_start + timedelta(seconds=prev_elapsed)
+            
+            lap_end = lap_start + timedelta(seconds=elapsed_time)
+            
+            # Create lap entry
+            lap_entry = {
+                'start': pd.Timestamp(lap_start),
+                'end': pd.Timestamp(lap_end),
+                'label': f"Lap {i + 1}",
+                'intensity': None,  # Strava doesn't provide intensity in same format as Garmin
+                'strava_data': strava_lap  # Keep original Strava data for additional metrics
+            }
+            
+            laps.append(lap_entry)
+        
+        return laps
 
 
 def download_strava_workouts(target_date: date) -> List[StravaDataParser]:
@@ -266,9 +324,18 @@ def download_strava_workouts(target_date: date) -> List[StravaDataParser]:
     
     parsers = []
     for activity in activities:
-        print(f"Downloading streams for activity: {activity.name} ({activity.id})")
+        print(f"Downloading data for activity: {activity.name} ({activity.id})")
+        
+        # Download streams and laps data
         streams = client.get_activity_streams(activity.id)
-        parser = StravaDataParser(activity, streams)
+        laps = client.get_activity_laps(activity.id)
+        
+        if laps:
+            print(f"  Found {len(laps)} lap(s)")
+        else:
+            print(f"  No laps found, using entire activity as single lap")
+        
+        parser = StravaDataParser(activity, streams, laps)
         parsers.append(parser)
     
     return parsers

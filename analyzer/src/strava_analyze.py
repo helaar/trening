@@ -17,8 +17,73 @@ from tools.calculations import (
     Zone, normalized_power, intensity_factor, training_stress_score,
     series_stats, parse_zone_definitions, compute_zone_durations,
     compute_heart_rate_drift, infer_sample_interval, parse_hms, seconds_to_hms,
-    format_range, compute_segment_stats, _print_stats, _print_zone_summary
+    format_range, compute_segment_stats, _print_stats, _print_zone_summary,
+    parse_iso8601_duration, split_into_autolaps
 )
+
+
+def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]]) -> None:
+    """
+    Print a markdown table showing lap information for Strava workouts.
+    Adapted from fit_analyzes.py _print_lap_table function.
+    """
+    no_decimals = {"duration_sec", "repetitions", "lap"}
+    one_decimal = {"distance", "np", "avg_power", "avg_hr", "avg_cad", "max_power", "max_hr",
+                   "avg_speed", "elev_gain", "elev_loss", "avg_temp", "weight"}
+    two_decimals = {"drift_pct"}
+
+    log(f"\n## {title.capitalize()}")
+    if not lap_rows:
+        log(f"No {title}.")
+        return
+
+    def fmt_float(value: float | None, decimals: int = 1) -> str:
+        return f"{value:.{decimals}f}" if value is not None else "—"
+
+    def format_value(row: dict, key: str) -> str:
+        value = row.get(key)
+        if key.endswith("_str"):
+            return str(value) if value is not None else ""
+        if isinstance(value, (float, int)):
+            if key in one_decimal:
+                return fmt_float(value, 1)
+            if key in no_decimals:
+                return fmt_float(value, 0)
+            if key in two_decimals:
+                return fmt_float(value, 2)
+            return fmt_float(value, 1)
+        return str(value) if value is not None else ""
+
+    # Define headers for Strava lap table
+    headers = [
+        ("Lap", "lap"),
+        ("Start", "start_str"),
+        ("Duration", "duration_str"),
+        ("Distance km", "distance"),
+        ("NP", "np"),
+        ("Avg W", "avg_power"),
+        ("Avg HR", "avg_hr"),
+        ("Avg Cad", "avg_cad"),
+        ("HR Drift %", "drift_pct"),
+        ("Max W", "max_power"),
+        ("Max HR", "max_hr"),
+        ("Avg km/h", "avg_speed"),
+        ("Elevation gain", "elev_gain"),
+        ("Elevation loss", "elev_loss"),
+        ("Avg ℃", "avg_temp"),
+        ("Description", "description")
+    ]
+
+    header_titles = [header for header, _ in headers]
+    header_row = "| " + " | ".join(header_titles) + " |"
+    separator_row = "| " + " | ".join("---" for _ in headers) + " |"
+
+    log(header_row)
+    log(separator_row)
+
+    for row in lap_rows:
+        row_values = [format_value(row, key) for _, key in headers]
+        log("| " + " | ".join(row_values) + " |")
 
 
 def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object], args) -> list[str]:
@@ -212,6 +277,80 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
                             log(f"{label}: {value:.1f}{unit}")
             except Exception as e:
                 log(f"Warning: Could not format heart rate drift results: {e}")
+    
+    # ------------------------------------------------------------------
+    # Lap Analysis
+    # ------------------------------------------------------------------
+    autolap_seconds = None
+    autolap = settings.get("autolap")  # e.g. "PT10M"
+    if autolap:
+        autolap_seconds = parse_iso8601_duration(str(autolap))
+
+    # If no (or only one) lap in data file and autolap is defined, or if user specified autolap:
+    if autolap_seconds and (len(laps) <= 2 or args.autolap):
+        autolaps = split_into_autolaps(df, autolap_seconds)
+        if autolaps:
+            log(
+                f"Autolap enabled {autolap}({seconds_to_hms(autolap_seconds)}). "
+                f"Generating {len(autolaps)} laps automatically."
+            )
+            laps = autolaps
+
+    if not laps:
+        log("No laps (nor autolap) found in session.")
+    else:
+        lap_rows = []
+        
+        # Map intensity names (though Strava doesn't provide this like Garmin)
+        intensity_names = {
+            0: "active",
+            1: "rest",
+            2: "warmup",
+            3: "cooldown",
+            4: "recovery",
+            5: "interval",
+        }
+        
+        for idx, lap in enumerate(laps, start=1):
+            start_ts = lap["start"]
+            end_ts = lap["end"]
+            lap_segment = df.loc[start_ts:end_ts].dropna(how="all")
+            if lap_segment.empty:
+                continue
+
+            stats = compute_segment_stats(lap_segment, ftp=ftp, window=args.window)
+            intensity = lap.get("intensity")
+            intensity_str = intensity_names.get(intensity, str(intensity) if intensity is not None else "") if isinstance(intensity, int) else ""
+            label = lap.get("label", "")
+            
+            # Get power zone if available
+            zone = Zone.get_zone(power_zones, stats["avg_power"]) if has_power and power_zones and stats["avg_power"] else None
+            zone_name = zone.name if zone else None
+            description = " / ".join([str(part) for part in (label, intensity_str, zone_name) if part])
+            
+            lap_rows.append({
+                "lap": idx,
+                "start_str": seconds_to_hms((start_ts - df.index[0]).total_seconds()),
+                "duration_str": seconds_to_hms(stats["duration_sec"]) if stats["duration_sec"] else "—",
+                "np": stats["np"],
+                "avg_power": stats["avg_power"],
+                "avg_hr": stats["avg_hr"],
+                "avg_cad": stats["avg_cad"],
+                "drift_pct": stats["drift_pct"],
+                "max_power": stats["max_power"],
+                "max_hr": stats["max_hr"],
+                "avg_speed": stats["avg_speed"],
+                "elev_gain": stats["elev_gain"],
+                "elev_loss": stats["elev_loss"],
+                "avg_temp": stats["avg_temp"],
+                "distance": stats["distance"],
+                "description": description or "-"
+            })
+
+        if lap_rows:
+            _print_strava_lap_table(log, "laps", lap_rows)
+        else:
+            log("Found laps, but no valid data in these segments.")
     
     log("\nGenerated by Strava analyzer (adapted from fit-analyzer)")
 
