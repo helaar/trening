@@ -33,7 +33,7 @@ class CoachLoader(YamlLoader[Coach]):
         super().__init__(Path(config.coaches), Coach)
         self.model_name = config.model_name
 
-    def create_coach_agent(self, coach_name: str, tools: list | None = None) -> Agent:
+    def create_coach_agent(self, coach_name: str, memory, reasoning:bool | None=False, tools: list | None = None) -> Agent:
         """Create a CrewAI Agent from a coach definition."""
         try:
             # Extract CrewAI parameters
@@ -41,6 +41,7 @@ class CoachLoader(YamlLoader[Coach]):
             if not coach:
                 raise ValueError(f"Coach '{coach_name}' not found in configuration.")
             
+            reasoning_steps = 3 if reasoning else 0
             # Create and return the agent
             return Agent(
                 role=coach.role,
@@ -49,7 +50,10 @@ class CoachLoader(YamlLoader[Coach]):
                 verbose=True,
                 allow_delegation=False,
                 llm=self.model_name,
-                tools=tools or []
+                tools=tools or [],
+                memory=memory,
+                reasoning=reasoning,
+                reasoning_max_steps=reasoning_steps
             )
             
         except ValueError as e:

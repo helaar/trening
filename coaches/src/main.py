@@ -4,6 +4,8 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+
+from crew.memory import SimpleFileMemory
 from tools.athlete_reader import create_athlete_reader_tool
 from crewai import Crew
 from crew.config import config
@@ -14,7 +16,8 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     """Function to perform daily workout analysis using AI coach agents."""
 
     # Initialize configuration and loader
-    
+    analyst_memory = SimpleFileMemory(Path(config.exchange_dir) / f"{athlete}_analyst.json")
+    main_coach_memory = SimpleFileMemory(Path(config.exchange_dir) / f"{athlete}_main_coach.json")
     coach_loader = CoachLoader(config)
     task_loader = TaskLoader(config)
     
@@ -23,12 +26,11 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     athlete_reader = create_athlete_reader_tool(config.athletes)
     
     # Create the specified coach agent with toos
-    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", [workout_tool, athlete_reader])
-    head_coach = coach_loader.create_coach_agent("head_coach", [athlete_reader]) 
+    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", analyst_memory, tools=[workout_tool, athlete_reader])
+    head_coach = coach_loader.create_coach_agent("head_coach", main_coach_memory, reasoning=True, tools=[athlete_reader]) 
     
 
 
-    athlete = "Helge"
     # Create a task for the agent
     analysis_task = task_loader.create_task("dayly_analysis_task", agent=analyzer)
     feedback_task = task_loader.create_task("daily_feedback_task", agent=head_coach,context=[analysis_task])
@@ -42,7 +44,7 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     crew = Crew(            
         agents=[analyzer, head_coach],
         tasks=[analysis_task, feedback_task],
-        verbose=True
+        verbose=True,
     )
     
     # Execute the analysis
@@ -54,6 +56,9 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
             "output_dir":output_dir
         })
     
+    main_coach_memory._save()
+    analyst_memory._save()
+
     print("\n" + "="*50)
     print("WORKOUT ANALYSIS REPORT:")
     print("="*50)
@@ -90,7 +95,7 @@ def main():
         
         
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error: {e} {str(e.args)}")
         return 1
 
 
