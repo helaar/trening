@@ -4,34 +4,26 @@ Calculates NP, IF, TSS, VI, zone distribution, heart rate drift and lap details 
 from a FIT file. All output is logged both to terminal and to <fitfile>-analysis.txt.
 """
 import argparse
-import re
-from dataclasses import dataclass
-from datetime import timedelta, date
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
-import yaml
-from pydantic import BaseModel, Field
 
 from format.garmin_fit import FitFileParser
 from format.utils import ModelFormatter
+from tools.settings import load_settings, ApplicationSettings
+from tools.calculations import (
+    Zone, normalized_power, intensity_factor, training_stress_score,
+    series_stats, parse_zone_definitions, compute_zone_durations,
+    compute_heart_rate_drift, infer_sample_interval, parse_hms,
+    parse_iso8601_duration, seconds_to_hms, format_range,
+    compute_segment_stats, split_into_autolaps, calculate_elevation,
+    _print_stats, _print_zone_summary
+)
 
 
 # ---------------------------------------------------------------------------
-# Settings models
-# ---------------------------------------------------------------------------
-class ApplicationSettings(BaseModel):
-    output_dir: str = Field(default=".", alias="output-dir")
-    
-    def get_output_path(self) -> Path:
-        """Get the configured output directory as a Path object."""
-        output_path = Path(self.output_dir).expanduser().resolve()
-        output_path.mkdir(parents=True, exist_ok=True)
-        return output_path
-
-
-# ---------------------------------------------------------------------------
-# Data classes and helper functions
+# Local constants and helper functions
 # ---------------------------------------------------------------------------
 INTENSITY_NAMES = {
     0: "active",
@@ -42,152 +34,13 @@ INTENSITY_NAMES = {
     5: "interval",
 }
 
-@dataclass
-class Zone:
-    name: str
-    low: float | None = None
-    high: float | None = None
-
-    def in_zone(self,value:float) -> bool:
-        low = self.low or value
-        high = self.high or value
-
-        return low <= value <= high
-    
-    @staticmethod
-    def get_zone(zones : list['Zone'], value: float) -> 'Zone | None':
-        for z in zones:
-            if z.in_zone(value):
-                return z
-        return None
-
-
 
 def _safe_float(value: float | None) -> float | None:
     try:
         return float(value) if value is not None else None
     except (TypeError, ValueError):
         return None
-    
-    
 
-
-
-
-def normalized_power(power: pd.Series, window: int = 30) -> float | None:
-    valid_power = power.dropna()
-    if valid_power.empty:
-        raise ValueError("No power data available to calculate NP from.")
-
-    rolling_mean = valid_power.rolling(window=window, min_periods=window).mean().dropna()
-    if rolling_mean.empty:
-        return None
-
-    np_value = (rolling_mean.pow(4).mean()) ** 0.25
-    return float(np_value)
-
-
-def intensity_factor(np_value: float, ftp: float) -> float:
-    if ftp <= 0:
-        raise ValueError("FTP must be > 0.")
-    return np_value / ftp
-
-
-def training_stress_score(duration_sec: float, np_value: float, if_value: float, ftp: float) -> float:
-    return (duration_sec * np_value * if_value) / (ftp * 3600) * 100
-
-
-def series_stats(series: pd.Series, drop_nulls: bool | None = False ) -> dict[str, float | None]:
-    valid = series.dropna()
-    if valid.empty:
-        return {"min": None, "max": None, "mean": None, "std": None}
-
-    if drop_nulls:
-        valid = valid[valid != 0.0]
-
-    return {
-        "min": float(valid.min()),
-        "max": float(valid.max()),
-        "mean": float(valid.mean()),
-        "std": float(valid.std(ddof=0)),
-    }
-
-
-def load_settings(path: str) -> dict[str, object]:
-    with open(path, "r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
-    return data
-
-
-def parse_zone_definitions(raw: list[dict[str, str]] | None) -> list[Zone]:
-    if not raw:
-        return []
-
-    zones: list[Zone] = []
-    for entry in raw:
-        if not isinstance(entry, dict) or len(entry) != 1:
-            raise ValueError(f"Invalid zone definition: {entry!r}")
-        name, range_spec = next(iter(entry.items()))
-        low, high = parse_range(range_spec)
-        zones.append(Zone(name=name, low=low, high=high))
-    return zones
-
-
-def parse_range(range_spec: str) -> tuple[float|None, float|None]:
-    parts = str(range_spec).split("-", 1)
-    if len(parts) != 2:
-        raise ValueError(f"Could not parse range: {range_spec!r}")
-
-    low_str, high_str = parts[0].strip(), parts[1].strip()
-    low = float(low_str) if low_str else None
-    high = float(high_str) if high_str else None
-    return low, high
-
-
-def parse_iso8601_duration(value: str) -> float:
-    """
-    Parses an ISO 8601 duration (e.g. PT10M) to seconds.
-    """
-    pattern = (
-        r"^P(?:(?P<days>\d+)D)?"
-        r"(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+(?:\.\d+)?)S)?)?$"
-    )
-    match = re.fullmatch(pattern, value)
-    if not match:
-        raise ValueError(f"Invalid ISO 8601 duration: {value!r}")
-
-    days = float(match.group("days") or 0)
-    hours = float(match.group("hours") or 0)
-    minutes = float(match.group("minutes") or 0)
-    seconds = float(match.group("seconds") or 0)
-    return ((days * 24 + hours) * 60 + minutes) * 60 + seconds
-
-
-def infer_sample_interval(index: pd.DatetimeIndex) -> float:
-    if len(index) < 2:
-        return 0.0
-    deltas = index.to_series().diff().dropna().dt.total_seconds()
-    if deltas.empty:
-        return 0.0
-    return float(deltas.median())
-
-
-def parse_hms(value: str) -> float:
-    """
-    Parses HH:MM:SS, MM:SS or SS to seconds.
-    """
-    parts = value.strip().split(":")
-    if not parts or len(parts) > 3:
-        raise ValueError(f"Invalid time format: {value!r}")
-
-    parts = [int(p) for p in parts]
-    if len(parts) == 3:
-        h, m, s = parts
-    elif len(parts) == 2:
-        h, m, s = 0, parts[0], parts[1]
-    else:
-        h, m, s = 0, 0, parts[0]
-    return float(h * 3600 + m * 60 + s)
 
 def estimate_hr_tss(df : pd.DataFrame, lthr: float, resting_hr: float | None = None) -> tuple[float | None,float | None]:
     """
@@ -267,220 +120,31 @@ def estimate_hr_tss(df : pd.DataFrame, lthr: float, resting_hr: float | None = N
     return (hr_tss_tp, hr_if)
 
 
-def compute_zone_durations(
-    series: pd.Series,
-    zones: list[Zone],
-    sample_interval: float | None = None,
-) -> dict[str, object]:
-    if not zones:
-        return {"total_seconds": 0.0, "sample_interval": 0.0, "zones": []}
-
-    if sample_interval is None or sample_interval <= 0:
-        sample_interval = infer_sample_interval(series.index)
-        if sample_interval <= 0:
-            sample_interval = 1.0  # Fallback
-
-    valid_mask = series.notna()
-    total_samples = int(valid_mask.sum())
-    total_seconds = total_samples * sample_interval
-
-    results = []
-    for i, zone in enumerate(zones):
-        low = zone.low if zone.low is not None else float("-inf")
-        high = zone.high if zone.high is not None else float("inf")
-
-        if zone.high is None or i == len(zones) - 1:
-            mask = (series >= low) & (series <= high)
-        else:
-            mask = (series >= low) & (series < high)
-
-        mask = mask & valid_mask
-        zone_seconds = float(mask.sum() * sample_interval)
-        percent = (zone_seconds / total_seconds * 100.0) if total_seconds else 0.0
-
-        results.append(
-            {
-                "name": zone.name,
-                "lower": zone.low,
-                "upper": zone.high,
-                "seconds": zone_seconds,
-                "percent": percent,
-            }
-        )
-
-    return {
-        "total_seconds": total_seconds,
-        "sample_interval": sample_interval,
-        "zones": results,
-    }
-
-
-def compute_heart_rate_drift(
-    df: pd.DataFrame,
-    start_offset: float | None = None,
-    duration: float | None = None,
-) -> dict[str, object] | None:
-    if "heart_rate" not in df or "power" not in df:
-        return None
-
-    start_ts = df.index[0]
-    end_ts = df.index[-1]
-
-    if start_offset:
-        start_ts = df.index[0] + pd.to_timedelta(start_offset, unit="s")
-    if duration:
-        end_ts = start_ts + pd.to_timedelta(duration, unit="s")
-
-    start_ts = max(start_ts, df.index[0])
-    end_ts = min(end_ts, df.index[-1])
-
-    if end_ts <= start_ts:
-        return None
-
-    segment = df.loc[start_ts:end_ts, ["heart_rate", "power"]].dropna()
-    if len(segment) < 4:
-        return None
-
-    midpoint = len(segment) // 2
-    if midpoint == 0 or midpoint == len(segment):
-        return None
-
-    p1 = segment.iloc[:midpoint]
-    p2 = segment.iloc[midpoint:]
-
-    avg_power_p1 = p1["power"].mean()
-    avg_power_p2 = p2["power"].mean()
-
-    if avg_power_p1 <= 0 or avg_power_p2 <= 0:
-        return None
-
-    avg_hr_p1 = p1["heart_rate"].mean()
-    avg_hr_p2 = p2["heart_rate"].mean()
-
-    hr_per_watt_p1 = avg_hr_p1 / avg_power_p1
-    hr_per_watt_p2 = avg_hr_p2 / avg_power_p2
-
-    drift_pct = ((hr_per_watt_p2 - hr_per_watt_p1) / hr_per_watt_p1) * 100.0
-
-    return {
-        "start_ts": segment.index[0],
-        "end_ts": segment.index[-1],
-        "duration": (segment.index[-1] - segment.index[0]).total_seconds(),
-        "samples": len(segment),
-        "avg_hr_p1": float(avg_hr_p1),
-        "avg_hr_p2": float(avg_hr_p2),
-        "avg_power_p1": float(avg_power_p1),
-        "avg_power_p2": float(avg_power_p2),
-        "hr_per_watt_p1": float(hr_per_watt_p1),
-        "hr_per_watt_p2": float(hr_per_watt_p2),
-        "drift_pct": float(drift_pct),
-    }
-
-def _find_col(df: pd.DataFrame, name:str) -> str | None:
+def _find_col(df: pd.DataFrame, name: str) -> str | None:
     for c in df.columns.tolist():
-        if name in c: return c
+        if name in c: 
+            return c
     return None    
-    
+     
 
 def _calculate_elevation(segment: pd.DataFrame) -> tuple[float, float, float, float]:
     altcol = _find_col(segment, "altitude")
     if not altcol:
-        return (0.0, 0.0, 0.0,0.0)
+        return (0.0, 0.0, 0.0, 0.0)
     
-    alt = segment[altcol].replace(0,None).dropna().astype(float).rolling(window=1,min_periods=1,center=True).median()
-    delta = alt.diff()
+    alt = segment[altcol].replace(0, None).dropna().astype(float).rolling(window=1, min_periods=1, center=True).median()
+    delta = alt.diff().astype(float)
     delta_asc = delta.where(delta >= 0.1, other=0.0)
     delta_desc = delta.where(delta <= -0.1, other=0.0)
 
-    return (delta_asc.clip(lower=0).sum(),0-delta_desc.clip(upper=0).sum(), alt.min(), alt.max())
-
-
-def compute_segment_stats(segment: pd.DataFrame, ftp: float | None, window: int = 30) -> dict[str, float | None]:
-    stats: dict[str, float] | None = {}
-    if len(segment) < 2:
-        stats["duration_sec"] = 0.0
-        stats["avg_power"] = None
-        stats["np"] = None
-        stats["vi"] = None
-        stats["if"] = None
-        stats["avg_hr"] = None
-        stats["avg_cad"] = None
-        stats["max_power"] = None
-        stats["max_hr"] = None
-        stats["drift_pct"] = None
-        stats["dist"]  = None
-        stats["avg_speed"] = None
-        stats["elev_gain"] = None
-        stats["elev_loss"] = None
-        stats["avg_temp"] = None
-        return stats
-
-    duration_sec = (segment.index[-1] - segment.index[0]).total_seconds()
-    stats["duration_sec"] = duration_sec
-
-    avg_power = segment["power"].dropna().mean() if "power" in segment.columns else None
-    stats["avg_power"] = float(avg_power) if pd.notna(avg_power) else None
-    np_value = normalized_power(segment["power"], window=window) if "power" in segment.columns else None
-
-    stats["np"] = float(np_value) if np_value is not None else None
-
-    stats["vi"] = (stats["np"] / stats["avg_power"]) if stats["np"] and stats["avg_power"] else None
-    stats["if"] = (stats["np"] / ftp) if ftp and stats["np"] and ftp > 0 else None
-    stats["max_power"] = float(segment["power"].dropna().max()) if "power" in segment.columns and not segment["power"].dropna().empty else None    
-    drift = compute_heart_rate_drift(segment) if "power" in segment.columns else None
-    stats["drift_pct"] = drift["drift_pct"] if drift else None
-
-
-    avg_hr = segment["heart_rate"].dropna().mean()
-    stats["avg_hr"] = float(avg_hr) if pd.notna(avg_hr) else None
-
-    avg_cad = segment["cadence"].dropna().mean() if "cadence" in segment.columns else None
-    stats["avg_cad"] = float(avg_cad) if avg_cad and pd.notna(avg_cad) else None
-
-    stats["max_hr"] = float(segment["heart_rate"].dropna().max()) if not segment["heart_rate"].dropna().empty else None
-
-    elev_gain, elev_loss, min, max = _calculate_elevation(segment)
-    stats["elev_gain"] = float(elev_gain) if pd.notna(elev_gain) else None
-    stats["elev_loss"] = float(elev_loss) if pd.notna(elev_loss) else None
-
-    if segment.get("temperature") is not None:
-        avg_temp = segment["temperature"].dropna().mean()
-        stats["avg_temp"] = float(avg_temp) if pd.notna(avg_temp) else None
-    else:
-        stats["avg_temp"] = None
-
-    distance = segment["distance"].dropna().max() - segment["distance"].dropna().min()
-    stats["distance"] = float(distance / 1000.0) if pd.notna(distance) else None
-
-    avg_speed = distance / duration_sec * 3.600 if pd.notna(distance) and pd.notna(duration_sec) else None
-    stats["avg_speed"] = float(avg_speed) if pd.notna(avg_speed) else None
-
-
-    return stats
-from datetime import timedelta
-
-def split_into_autolaps(df: pd.DataFrame, autolap_seconds: float) -> list[dict[str, pd.Timestamp]]:
-    """
-    Splits the session into equal segments (autolaps) of autolap_seconds.
-    """
-    if len(df) < 2 or autolap_seconds <= 0:
-        return []
-
-    autolaps: list[dict[str, pd.Timestamp]] = []
-    start_ts = df.index[0]
-    end_ts = df.index[-1]
-    current_start = start_ts
-
-    while current_start < end_ts:
-        current_end = current_start + pd.to_timedelta(autolap_seconds, unit="s")
-        if current_end > end_ts:
-            current_end = end_ts
-        autolaps.append({"start": current_start, "end": current_end})
-        current_start = current_end
-
-    return autolaps
-
-
+    try:
+        gain = float(delta_asc.clip(lower=0).sum())
+        loss = float(abs(delta_desc.clip(upper=0).sum()))
+        min_alt = float(alt.min())
+        max_alt = float(alt.max())
+        return (gain, loss, min_alt, max_alt)
+    except (TypeError, ValueError):
+        return (0.0, 0.0, 0.0, 0.0)
 
 
 def summarize_strength_sets(
@@ -540,8 +204,20 @@ def summarize_strength_sets(
             # Missing required info -> skip
             continue
 
-        start_ts = pd.to_datetime(start_ts)
-        duration_sec = float(duration_sec)
+        try:
+            # Handle various timestamp formats
+            if hasattr(start_ts, 'timestamp'):
+                start_ts = pd.Timestamp(start_ts)
+            else:
+                start_ts = pd.to_datetime(str(start_ts), errors='coerce')
+            
+            # Handle duration conversion
+            if hasattr(duration_sec, '__float__'):
+                duration_sec = float(duration_sec)
+            else:
+                duration_sec = float(str(duration_sec)) if duration_sec is not None else 0.0
+        except (TypeError, ValueError, AttributeError):
+            continue
         end_ts = start_ts + pd.to_timedelta(duration_sec, unit="s")
 
         # Extract heart rate data for the interval
@@ -574,51 +250,6 @@ def summarize_strength_sets(
         results.append(entry)
 
     return results
-
-def format_range(low: float | None, high: float | None) -> str:
-    def fmt(value: float| None) -> str:
-        if value is None:
-            return ""
-        return f"{int(value)}" if float(value).is_integer() else f"{value:g}"
-
-    if low is None and high is None:
-        return "—"
-    if low is None:
-        return f"≤{fmt(high)}"
-    if high is None:
-        return f"{fmt(low)}+"
-    return f"{fmt(low)}–{fmt(high)}"
-
-
-def seconds_to_hms(seconds: float) -> str:
-    return str(timedelta(seconds=int(round(seconds))))
-
-
-def _print_stats(log, stats: dict[str, float| None]) -> None:
-    def fmt(value: float| None) -> str:
-        return f"{value:.1f}" if value is not None else "—"
-
-    log(f"- Min : {fmt(stats['min'])}")
-    log(f"- Max: {fmt(stats['max'])}")
-    log(f"- Average: {fmt(stats['mean'])}")
-    log(f"- Std. dev. : {fmt(stats['std'])}")
-
-
-def _print_zone_summary(log, summary: dict[str, object], label: str) -> None:
-    zones = summary["zones"]
-    total = summary["total_seconds"]
-
-    if not zones or total == 0:
-        log(f"No {label} data for zone calculation.")
-        return
-
-    log(f"Total time in calculation: {seconds_to_hms(total)}")
-    for zone in zones:
-        range_str = format_range(zone["lower"], zone["upper"])
-        log(
-            f"- {zone['name']:<20} {range_str:<10} "
-            f"{seconds_to_hms(zone['seconds']):>8} ({zone['percent']:5.1f}%)"
-        ) 
 
 
 def _print_lap_table(log, tittel: str, lap_rows: list[dict[str, object]], headers: list[tuple[str, str]]) -> None:
@@ -664,43 +295,56 @@ def _print_lap_table(log, tittel: str, lap_rows: list[dict[str, object]], header
         row_values = [format_value(row, key) for _, key in headers]
         log("| " + " | ".join(row_values) + " |")
 
-def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> None:
 
+def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> None:
     df = fit.data_frame
     hr_settings = settings.get("heart-rate", {})
-    max_hr = hr_settings.get("max") 
-    lt_hr = hr_settings.get("lt")
-    hr_zones = parse_zone_definitions(hr_settings.get("zones"))
+    if isinstance(hr_settings, dict):
+        max_hr = hr_settings.get("max") 
+        lt_hr = hr_settings.get("lt")
+        hr_zones = parse_zone_definitions(hr_settings.get("hr-zones"))
+    else:
+        max_hr = None
+        lt_hr = None
+        hr_zones = []
+    
     autolap = settings.get("autolap")  # f.eks. "PT10M"
 
     hr_tss, hr_if = (None, None) # TODO: estimate_hr_tss(df=df, lthr=lt_hr)
     drift_start = parse_hms(args.drift_start) if args.drift_start else None
     drift_duration = parse_hms(args.drift_duration) if args.drift_duration else None
 
-    sample_interval = infer_sample_interval(df.index)
+    if isinstance(df.index, pd.DatetimeIndex):
+        sample_interval = infer_sample_interval(df.index)
+    else:
+        sample_interval = 1.0
     if sample_interval <= 0:
         sample_interval = 1.0
 
     duration_sec = sample_interval * len(df)
-
     hr_stats = series_stats(df["heart_rate"])
 
-    if df.get("temparature"): log(f"Temperature (average): {df["temperature"].dropna().mean():.1f} ℃")
+    if "temperature" in df.columns: 
+        log(f"Temperature (average): {df['temperature'].dropna().mean():.1f} ℃")
     log(f"Data points: {len(df)}")
     log(f"Estimated sampling interval: {sample_interval:.2f} s")
-    if hr_if: log(f"Intensity Factor (hrIF): {hr_if:.3f}")
-    if hr_tss: log(f"Training Stress Score (hrTSS): {hr_tss:.1f}")
+    if hr_if: 
+        log(f"Intensity Factor (hrIF): {hr_if:.3f}")
+    if hr_tss: 
+        log(f"Training Stress Score (hrTSS): {hr_tss:.1f}")
 
-    log("\n# Heart Rate (bpm)")
+    log("\n## Heart Rate (bpm)")
     _print_stats(log, hr_stats)
 
     if hr_zones:
-        log("\n# Time in heart rate zones")
+        log("\n## Time in heart rate zones")
         hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
         _print_zone_summary(log, hr_summary, "heart rate")
 
     if fit.sets:
-        sets_summary = summarize_strength_sets(fit.sets, fit.data_frame)
+        # Cast fit.sets to the expected type
+        sets_data = [dict(s) if hasattr(s, 'items') else s for s in fit.sets]
+        sets_summary = summarize_strength_sets(sets_data, fit.data_frame)
         headers = [
             ("#", "ordinal"),
             ("Type", "set_type"),
@@ -713,26 +357,38 @@ def _strength_based_summary(log, args, settings : dict[str,object], fit : FitFil
         _print_lap_table(log,"strength sets", sets_summary, headers)
     
 
-def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> list[str]:
-    
+def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFileParser) -> None:
     # TODO: Temporary solution. Should refactor the rest as well
     df = fit.data_frame
     laps = fit.laps
 
-    cat_settings = settings.get(fit.workout.category)
-    ftp = cat_settings.get("ftp") if cat_settings else None
+    cat_settings = settings.get(fit.workout.category, {})
+    if isinstance(cat_settings, dict):
+        ftp = cat_settings.get("ftp")
+        power_zones = parse_zone_definitions(cat_settings.get("power-zones"))
+    else:
+        ftp = None
+        power_zones = []
 
-    hr_settings = settings.get("heart-rate")
-    max_hr = hr_settings.get("max")
-    lt_hr = hr_settings.get("lt")
-    power_zones = parse_zone_definitions(cat_settings.get("power-zones")) if cat_settings else None
-    hr_zones = parse_zone_definitions(hr_settings.get("hr-zones"))
+    hr_settings = settings.get("heart-rate", {})
+    if isinstance(hr_settings, dict):
+        max_hr = hr_settings.get("max")
+        lt_hr = hr_settings.get("lt")
+        hr_zones = parse_zone_definitions(hr_settings.get("hr-zones"))
+    else:
+        max_hr = None
+        lt_hr = None
+        hr_zones = []
+        
     autolap = settings.get("autolap")  # f.eks. "PT10M"
 
     drift_start = parse_hms(args.drift_start) if args.drift_start else None
     drift_duration = parse_hms(args.drift_duration) if args.drift_duration else None
 
-    sample_interval = infer_sample_interval(df.index)
+    if isinstance(df.index, pd.DatetimeIndex):
+        sample_interval = infer_sample_interval(df.index)
+    else:
+        sample_interval = 1.0
     if sample_interval <= 0:
         sample_interval = 1.0
 
@@ -745,53 +401,64 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
     power_stats = series_stats(df["power"], drop_nulls=drop_nulls) if has_power else None
     hr_stats = series_stats(df["heart_rate"], drop_nulls=drop_nulls) if has_hr else None
     cad_stats = series_stats(df["cadence"], drop_nulls=drop_nulls) if has_cadence else None
-    # speed_stats = series_stats(df["speed"])
 
     np_value = normalized_power(df["power"], window=args.window) if has_power else None
-    if_value = intensity_factor(np_value, ftp) if has_power else None
-    tss_value = training_stress_score(duration_sec, np_value, if_value, ftp) if has_power else None
+    if_value = None
+    tss_value = None
+    
+    if has_power and np_value and ftp:
+        if_value = intensity_factor(np_value, ftp)
+        tss_value = training_stress_score(duration_sec, np_value, if_value, ftp)
 
     hr_tss, hr_if = (None, None) # TODO: estimate_hr_tss(df=df,lthr=lt_hr) if not has_power and has_hr else (None, None)
 
     avg_power = df["power"].dropna().mean() if has_power else None
-    vi_value = (np_value / avg_power) if has_power and avg_power and avg_power > 0 else None
+    vi_value = (np_value / avg_power) if has_power and np_value and avg_power and avg_power > 0 else None
 
-    elev_gain, elev_loss,min,max = _calculate_elevation(df)
+    elev_gain, elev_loss, min_elev, max_elev = _calculate_elevation(df)
     log(f"Total elevation gain¹: {elev_gain:.1f} m")
-    log(f"Max elevation: {max:.1f} masl")
-    log(f"Min elevation: {min:.1f} masl")
+    log(f"Max elevation: {max_elev:.1f} masl")
+    log(f"Min elevation: {min_elev:.1f} masl")
     log(f"Speed (average): {fit.workout._distance/duration_sec*3.6:.1f} km/h")
-    if "temparature" in df.columns:
-        log(f"Temperature (average): {df["temperature"].dropna().mean():.1f} ℃")
+    if "temperature" in df.columns:
+        log(f"Temperature (average): {df['temperature'].dropna().mean():.1f} ℃")
     log(f"Data points: {len(df)}")
     log(f"Estimated sampling interval: {sample_interval:.2f} s")
     if ftp:
         log(f"Athlete FTP: {ftp:.0f} W")
     
-    log(f"Athlete Max HR: {max_hr} bpm")
-    log(f"Athlete Lactate Threshold {lt_hr} bpm")
+    if max_hr:
+        log(f"Athlete Max HR: {max_hr} bpm")
+    if lt_hr:
+        log(f"Athlete Lactate Threshold {lt_hr} bpm")
     
-    if has_power:
+    if has_power and power_stats:
         log("\n## Power (W)²")
         _print_stats(log, power_stats)
-        log(f"Normalized Power (NP): {np_value:.1f} W")
+        if np_value:
+            log(f"Normalized Power (NP): {np_value:.1f} W")
         if avg_power and avg_power > 0:
             log(f"Average power: {avg_power:.1f} W")
-            log(f"Variability Index (VI): {vi_value:.3f}")
+            if vi_value:
+                log(f"Variability Index (VI): {vi_value:.3f}")
         else:
             log("Average power: —")
             log("Variability Index (VI): —")
-        log(f"Intensity Factor (IF): {if_value:.3f}")
-        log(f"Training Stress Score (TSS): {tss_value:.1f}")
+        if if_value:
+            log(f"Intensity Factor (IF): {if_value:.3f}")
+        if tss_value:
+            log(f"Training Stress Score (TSS): {tss_value:.1f}")
     else:
-        if hr_if: log(f"Intensity Factor(hrIF) {hr_if:.3f}")
-        if hr_tss: log(f"Training Stress Score (hrTSS) {hr_tss:.1f}")
+        if hr_if: 
+            log(f"Intensity Factor(hrIF) {hr_if:.3f}")
+        if hr_tss: 
+            log(f"Training Stress Score (hrTSS) {hr_tss:.1f}")
 
-    if has_hr:
+    if has_hr and hr_stats:
         log("\n## Heart Rate (bpm)²")
         _print_stats(log, hr_stats)
 
-    if has_cadence:
+    if has_cadence and cad_stats:
         log("\n## Cadence (rpm)²")
         _print_stats(log, cad_stats)
 
@@ -799,6 +466,7 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
         log("\n## Time in power zones")
         power_summary = compute_zone_durations(df["power"], power_zones, sample_interval)
         _print_zone_summary(log, power_summary, "power")
+        
     if hr_zones and has_hr:
         log("\n## Time in heart rate zones")
         hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
@@ -808,12 +476,31 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
   
     if drift_result:
         log("\n## Heart Rate Drift")
-        rel_start = (drift_result["start_ts"] - df.index[0]).total_seconds()
-        rel_end = (drift_result["end_ts"] - df.index[0]).total_seconds()
-        log(
-            f"Segment: {seconds_to_hms(rel_start)} → {seconds_to_hms(rel_end)} "
-            f"({seconds_to_hms(drift_result['duration'])})"
-        )
+        try:
+            # Handle drift result timestamps
+            start_ts_obj = drift_result["start_ts"]
+            end_ts_obj = drift_result["end_ts"]
+            
+            if hasattr(start_ts_obj, 'timestamp'):
+                start_ts = pd.Timestamp(start_ts_obj)
+            else:
+                start_ts = pd.to_datetime(str(start_ts_obj), errors='coerce')
+                
+            if hasattr(end_ts_obj, 'timestamp'):
+                end_ts = pd.Timestamp(end_ts_obj)
+            else:
+                end_ts = pd.to_datetime(str(end_ts_obj), errors='coerce')
+            
+            rel_start = float((start_ts - df.index[0]).total_seconds())
+            rel_end = float((end_ts - df.index[0]).total_seconds())
+            duration = float(drift_result['duration']) if isinstance(drift_result['duration'], (int, float)) else 0.0
+            log(
+                f"Segment: {seconds_to_hms(rel_start)} → {seconds_to_hms(rel_end)} "
+                f"({seconds_to_hms(duration)})"
+            )
+        except (TypeError, ValueError, KeyError):
+            log("Heart rate drift calculation failed")
+            return
         log(f"- Avg HR (P1): {drift_result['avg_hr_p1']:.1f} bpm")
         log(f"- Avg HR (P2): {drift_result['avg_hr_p2']:.1f} bpm")
         log(f"- Avg power (P1): {drift_result['avg_power_p1']:.1f} W")
@@ -821,7 +508,6 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
         log(f"- HR/W (P1): {drift_result['hr_per_watt_p1']:.4f}")
         log(f"- HR/W (P2): {drift_result['hr_per_watt_p2']:.4f}")
         log(f"- HR drift: {drift_result['drift_pct']:.2f} %")
-
 
     # ------------------------------------------------------------------
     # Lap details
@@ -853,16 +539,16 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
 
             stats = compute_segment_stats(lap_segment, ftp=ftp, window=args.window)
             intensity = lap.get("intensity")
-            intensity_str = INTENSITY_NAMES.get(intensity, str(intensity) if intensity is not None else "")
+            intensity_str = INTENSITY_NAMES.get(intensity, str(intensity) if intensity is not None else "") if isinstance(intensity, int) else ""
             label = lap.get("label")
-            zone = Zone.get_zone(power_zones, stats["avg_power"]) if has_power else None
+            zone = Zone.get_zone(power_zones, stats["avg_power"]) if has_power and power_zones and stats["avg_power"] else None
             zone_name = zone.name if zone else None
-            description = " / ".join([part for part in (label, intensity_str, zone_name) if part])
+            description = " / ".join([str(part) for part in (label, intensity_str, zone_name) if part])
             lap_rows.append(
                 {
                     "lap": idx,
                     "start_str": seconds_to_hms((start_ts - df.index[0]).total_seconds()),
-                    "duration_str": seconds_to_hms(stats["duration_sec"]),
+                    "duration_str": seconds_to_hms(stats["duration_sec"]) if stats["duration_sec"] else "—",
                     "np": stats["np"],
                     "avg_power": stats["avg_power"],
                     "avg_hr": stats["avg_hr"],
@@ -907,7 +593,7 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
         log(" ² - Zeroes in heart rate, cadence and power are removed on overall statistics, but not on laps")
         log("") # newline
         log("Generated by our own fit-analyzer script (beta)")
-   
+
 
 # ---------------------------------------------------------------------------
 # Main program
@@ -983,7 +669,11 @@ def main():
         if log_lines:
             # Use fallback for error case
             try:
-                app_config_data = settings.get("application", {}) if 'settings' in locals() else {}
+                # Check if settings exists and has content
+                if locals().get('settings') and isinstance(locals().get('settings'), dict):
+                    app_config_data = locals()['settings'].get("application", {})
+                else:
+                    app_config_data = {}
                 app_settings = ApplicationSettings.model_validate(app_config_data)
                 output_path = app_settings.get_output_path()
             except Exception:

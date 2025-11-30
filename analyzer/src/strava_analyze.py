@@ -1,0 +1,361 @@
+#!/usr/bin/env python3
+"""
+Strava workout analyzer that downloads workouts from Strava and performs 
+similar analysis to FIT file analysis.
+"""
+import argparse
+import os
+from datetime import date, datetime
+from pathlib import Path
+from dotenv import load_dotenv
+import pandas as pd
+
+from strava.client import download_strava_workouts, StravaDataParser
+from tools.settings import load_settings, ApplicationSettings
+from format.utils import ModelFormatter
+from tools.calculations import (
+    Zone, normalized_power, intensity_factor, training_stress_score,
+    series_stats, parse_zone_definitions, compute_zone_durations,
+    compute_heart_rate_drift, infer_sample_interval, parse_hms, seconds_to_hms,
+    format_range, compute_segment_stats, _print_stats, _print_zone_summary
+)
+
+
+def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object], args) -> list[str]:
+    """
+    Analyze a single Strava workout using adapted analysis logic for Strava data.
+    
+    Args:
+        parser: StravaDataParser with workout data
+        settings: Analysis settings from YAML
+        args: Command line arguments
+        
+    Returns:
+        List of analysis output lines
+    """
+    log_lines: list[str] = []
+
+    def log(msg: str = "") -> None:
+        log_lines.append(msg)
+        print(msg)
+
+    log("## Session Information (Strava)")
+    formatter = ModelFormatter()
+    formatter.format(log, parser.workout)
+    log("")  # newline
+    
+    # Determine analysis type based on workout category
+    match parser.workout.category:
+        case "running" | "cycling" | "skiing":
+            _strava_endurance_analysis(log, args, settings, parser)
+        case "strength":
+            _strava_strength_analysis(log, args, settings, parser)
+        case _:
+            log(f"Uncategorized sport {parser.workout.sport}/{parser.workout.sub_sport}")
+            # Default to endurance analysis
+            _strava_endurance_analysis(log, args, settings, parser)
+    
+    return log_lines
+
+
+def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: StravaDataParser) -> None:
+    """Endurance-focused analysis for Strava data."""
+    df = parser.data_frame
+    laps = parser.laps
+    workout = parser.workout
+    
+    if df.empty:
+        log("No detailed stream data available from Strava for this activity.")
+        log("Analysis limited to activity summary data.")
+        return
+    
+    # Get settings for sport category
+    cat_settings = settings.get(workout.category, {})
+    if isinstance(cat_settings, dict):
+        ftp = cat_settings.get("ftp")
+        power_zones = parse_zone_definitions(cat_settings.get("power-zones"))
+    else:
+        ftp = None
+        power_zones = None
+    
+    hr_settings = settings.get("heart-rate", {})
+    if isinstance(hr_settings, dict):
+        max_hr = hr_settings.get("max")
+        lt_hr = hr_settings.get("lt")
+        hr_zones = parse_zone_definitions(hr_settings.get("hr-zones"))
+    else:
+        max_hr = None
+        lt_hr = None
+        hr_zones = None
+    
+    # Ensure DatetimeIndex for sample interval calculation
+    if isinstance(df.index, pd.DatetimeIndex):
+        sample_interval = infer_sample_interval(df.index)
+    else:
+        sample_interval = 1.0
+    if sample_interval <= 0:
+        sample_interval = 1.0
+    
+    duration_sec = sample_interval * len(df)
+    
+    # Check available data
+    has_power = "power" in df.columns and not df["power"].isna().all()
+    has_hr = "heart_rate" in df.columns and not df["heart_rate"].isna().all()
+    has_cadence = "cadence" in df.columns and not df["cadence"].isna().all()
+    
+    # Calculate basic stats
+    power_stats = series_stats(df["power"], drop_nulls=True) if has_power else None
+    hr_stats = series_stats(df["heart_rate"], drop_nulls=True) if has_hr else None
+    cad_stats = series_stats(df["cadence"], drop_nulls=True) if has_cadence else None
+    
+    # Power analysis
+    np_value = None
+    if_value = None
+    tss_value = None
+    vi_value = None
+    
+    if has_power:
+        try:
+            np_value = normalized_power(df["power"], window=args.window)
+            if np_value and ftp:
+                if_value = intensity_factor(np_value, ftp)
+                tss_value = training_stress_score(duration_sec, np_value, if_value, ftp)
+            
+            avg_power = df["power"].dropna().mean()
+            if np_value and avg_power and avg_power > 0:
+                vi_value = np_value / avg_power
+        except Exception as e:
+            log(f"Warning: Power analysis failed: {e}")
+    
+    # Basic activity info
+    log(f"Total distance: {workout.distance}")
+    log(f"Moving time: {seconds_to_hms(duration_sec)}")
+    log(f"Data points: {len(df)}")
+    log(f"Estimated sampling interval: {sample_interval:.2f} s")
+    
+    if ftp:
+        log(f"Athlete FTP: {ftp:.0f} W")
+    if max_hr:
+        log(f"Athlete Max HR: {max_hr} bpm")
+    if lt_hr:
+        log(f"Athlete Lactate Threshold: {lt_hr} bpm")
+    
+    # Power analysis output
+    if has_power and power_stats:
+        log("\n## Power (W)")
+        _print_stats(log, power_stats)
+        if np_value:
+            log(f"Normalized Power (NP): {np_value:.1f} W")
+        avg_power = power_stats.get("mean")
+        if avg_power:
+            log(f"Average power: {avg_power:.1f} W")
+        if vi_value:
+            log(f"Variability Index (VI): {vi_value:.3f}")
+        if if_value:
+            log(f"Intensity Factor (IF): {if_value:.3f}")
+        if tss_value:
+            log(f"Training Stress Score (TSS): {tss_value:.1f}")
+    
+    # Heart rate analysis
+    if has_hr and hr_stats:
+        log("\n## Heart Rate (bpm)")
+        _print_stats(log, hr_stats)
+    
+    # Cadence analysis
+    if has_cadence and cad_stats:
+        log("\n## Cadence (rpm)")
+        _print_stats(log, cad_stats)
+    
+    # Zone analysis
+    if power_zones and has_power:
+        log("\n## Time in power zones")
+        power_summary = compute_zone_durations(df["power"], power_zones, sample_interval)
+        _print_zone_summary(log, power_summary, "power")
+    
+    if hr_zones and has_hr:
+        log("\n## Time in heart rate zones")
+        hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
+        _print_zone_summary(log, hr_summary, "heart rate")
+    
+    # Heart rate drift
+    if has_power and has_hr:
+        drift_start = parse_hms(args.drift_start) if args.drift_start else None
+        drift_duration = parse_hms(args.drift_duration) if args.drift_duration else None
+        drift_result = compute_heart_rate_drift(df, drift_start, drift_duration)
+        
+        if drift_result:
+            log("\n## Heart Rate Drift")
+            try:
+                # Handle potential type issues with dict values
+                duration = drift_result.get('duration', 0)
+                if duration and isinstance(duration, (int, float)):
+                    log(f"Analysis duration: {seconds_to_hms(float(duration))}")
+                
+                # Print drift metrics with safe conversion
+                for key, label in [
+                    ('avg_hr_p1', '- Avg HR (P1)'),
+                    ('avg_hr_p2', '- Avg HR (P2)'),
+                    ('avg_power_p1', '- Avg power (P1)'),
+                    ('avg_power_p2', '- Avg power (P2)'),
+                    ('hr_per_watt_p1', '- HR/W (P1)'),
+                    ('hr_per_watt_p2', '- HR/W (P2)'),
+                    ('drift_pct', '- HR drift')
+                ]:
+                    value = drift_result.get(key)
+                    if value is not None:
+                        if key == 'drift_pct':
+                            log(f"{label}: {value:.2f} %")
+                        elif 'hr_per_watt' in key:
+                            log(f"{label}: {value:.4f}")
+                        else:
+                            unit = " bpm" if "HR" in label else " W"
+                            log(f"{label}: {value:.1f}{unit}")
+            except Exception as e:
+                log(f"Warning: Could not format heart rate drift results: {e}")
+    
+    log("\nGenerated by Strava analyzer (adapted from fit-analyzer)")
+
+
+def _strava_strength_analysis(log, args, settings: dict[str, object], parser: StravaDataParser) -> None:
+    """Strength training analysis for Strava data."""
+    df = parser.data_frame
+    workout = parser.workout
+    
+    hr_settings = settings.get("heart-rate", {})
+    if isinstance(hr_settings, dict):
+        max_hr = hr_settings.get("max")
+        lt_hr = hr_settings.get("lt")
+        hr_zones = parse_zone_definitions(hr_settings.get("hr-zones"))
+    else:
+        max_hr = None
+        lt_hr = None
+        hr_zones = None
+    
+    if df.empty:
+        log("No detailed stream data available for strength training analysis.")
+        return
+    
+    # Ensure DatetimeIndex for sample interval calculation
+    if isinstance(df.index, pd.DatetimeIndex):
+        sample_interval = infer_sample_interval(df.index)
+    else:
+        sample_interval = 1.0
+    if sample_interval <= 0:
+        sample_interval = 1.0
+    
+    duration_sec = sample_interval * len(df)
+    has_hr = "heart_rate" in df.columns and not df["heart_rate"].isna().all()
+    
+    log(f"Data points: {len(df)}")
+    log(f"Estimated sampling interval: {sample_interval:.2f} s")
+    log(f"Total duration: {seconds_to_hms(duration_sec)}")
+    
+    if has_hr:
+        hr_stats = series_stats(df["heart_rate"])
+        log("\n## Heart Rate (bpm)")
+        _print_stats(log, hr_stats)
+        
+        if hr_zones:
+            log("\n## Time in heart rate zones")
+            hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
+            _print_zone_summary(log, hr_summary, "heart rate")
+    
+    log("\nNote: Detailed strength set analysis not available from Strava stream data.")
+    log("Generated by Strava analyzer (adapted from fit-analyzer)")
+
+
+def main():
+
+    env_file = Path(__file__).parent.parent / '.env'
+    print(f"Loading environment variables from: {env_file}")
+    load_dotenv(dotenv_path=env_file)
+    parser = argparse.ArgumentParser(
+        description="Download and analyze Strava workouts for a given date."
+    )
+    parser.add_argument(
+        "--date", 
+        required=True, 
+        help="Date to download workouts for (YYYY-MM-DD format)"
+    )
+    parser.add_argument("--settings", help="Path to settings.yaml.")
+    parser.add_argument("--ftp", type=float, help="Override FTP (watts).")
+    parser.add_argument("--window", type=int, default=30, help="Window length (s) for NP. Default 30.")
+    parser.add_argument("--drift-start", help="Start point for heart rate drift (HH:MM:SS, MM:SS or SS).")
+    parser.add_argument("--drift-duration", help="Duration for heart rate drift (HH:MM:SS, MM:SS or SS).")
+    parser.add_argument("--autolap", type=bool, required=False, help="Autolap for entire session")
+    
+    args = parser.parse_args()
+    
+    # Parse target date
+    try:
+        target_date = datetime.strptime(args.date, "%Y-%m-%d").date()
+    except ValueError:
+        print(f"Invalid date format: {args.date}. Use YYYY-MM-DD format.")
+        return 1
+    
+    # Load settings
+    settings: dict[str, object] = {}
+    if args.settings:
+        settings = load_settings(args.settings)
+    
+    # Parse application settings
+    app_config_data = settings.get("application", {})
+    app_settings = ApplicationSettings.model_validate(app_config_data)
+    
+    try:
+        print(f"Downloading Strava workouts for {target_date}...")
+        
+        # Check for access token
+        if not os.getenv('STRAVA_ACCESS_TOKEN'):
+            print("ERROR: STRAVA_ACCESS_TOKEN environment variable not found.")
+            print("Please create a .env file with your Strava API credentials:")
+            print("STRAVA_ACCESS_TOKEN=your_access_token_here")
+            print("\nTo get an access token:")
+            print("1. Go to https://www.strava.com/settings/api")
+            print("2. Create an application")
+            print("3. Use the API to get an access token")
+            return 1
+        
+        # Download workouts
+        workout_parsers = download_strava_workouts(target_date)
+        
+        if not workout_parsers:
+            print(f"No workouts found for {target_date}")
+            return 0
+        
+        print(f"Found {len(workout_parsers)} workout(s) for {target_date}")
+        
+        # Analyze each workout
+        output_path = app_settings.get_output_path()
+        
+        for i, workout_parser in enumerate(workout_parsers, 1):
+            print(f"\nAnalyzing workout {i}/{len(workout_parsers)}: {workout_parser.workout.name}")
+            
+            # Analyze workout
+            analysis_lines = analyze_strava_workout(workout_parser, settings, args)
+            
+            # Create filename
+            workout_name = workout_parser.workout.name or f"workout_{i}"
+            # Sanitize filename
+            safe_name = "".join(c for c in workout_name if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_name = safe_name.replace(' ', '_')
+            
+            date_prefix = target_date.strftime("%Y-%m-%d")
+            filename = f"{date_prefix}_strava_{safe_name}-analysis.md"
+            
+            # Write analysis to file
+            analysis_text = "\n".join(analysis_lines)
+            analysis_path = output_path / filename
+            analysis_path.write_text(analysis_text, encoding="utf-8")
+            
+            print(f"Analysis saved to: {analysis_path}")
+    
+    except Exception as exc:
+        print(f"ERROR: {exc}")
+        return 1
+    
+    return 0
+
+
+if __name__ == "__main__":
+    exit(main())

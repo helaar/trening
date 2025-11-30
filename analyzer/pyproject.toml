@@ -13,9 +13,12 @@ numpy = "*"
 pydantic = "^2.0.0"
 fitparse = "^1.2.0"
 pyyaml = "^6.0"
+requests = "^2.31.0"
+python-dotenv = "^1.0.0"
 
 [tool.poetry.scripts]
 fit-analyze = "fit_analyzes:main"
+strava-analyze = "strava_analyze:main"
 
 [build-system]
 requires = ["poetry-core"]
