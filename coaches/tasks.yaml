@@ -8,9 +8,10 @@ dayly_analysis_task:
 
     1. Summarize the day's workouts clearly and concisely.
     2. Provide a detailed analysis focused solely on performance, effort level, and notable observations from this date.
-    3. Highlight any anomalies or issues observed in today's data.
-    4. Do not make recommendations or conclusions based on trends, long‑term history, or other dates.
-    5. Avoid irrelevant information; focus on insights directly supported by today's data.
+    3. Do not give workouts that appear to be just commutes or non-training activities too much attention.
+    4. Highlight any anomalies or issues observed in today's data.
+    5. Do not make recommendations or conclusions based on trends, long‑term history, or other dates.
+    6. Avoid irrelevant information; focus on insights directly supported by today's data.
 
   expected_output: |
     Dayly workout report with:
