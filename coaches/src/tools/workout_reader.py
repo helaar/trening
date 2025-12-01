@@ -7,6 +7,56 @@ from crewai.tools import BaseTool
 from pydantic import Field
 
 
+class WorkoutFileListerTool(BaseTool):
+    """Tool for listing workout files for a specific date without reading their content."""
+    
+    name: str = "workout_file_lister"
+    description: str = "List all workout files for a specific date. Files are expected to be prefixed with the date (YYYY-MM-DD format)."
+    workout_files_directory: str = Field(default="workout_data", description="Directory path where workout files are stored")
+    
+    def _run(self, date: str) -> str:
+        """
+        List all workout files for a specific date.
+        
+        Args:
+            date: Date in YYYY-MM-DD format to search for workout files
+            
+        Returns:
+            String containing the list of files or error message
+        """
+        try:
+            # Validate date format
+            datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            return f"Error: Invalid date format '{date}'. Expected YYYY-MM-DD format."
+        
+        workout_dir = Path(self.workout_files_directory)
+        
+        if not workout_dir.exists():
+            return f"Error: Workout directory '{workout_dir}' does not exist."
+        
+        # Find files that start with the given date
+        matching_files = []
+        for file_path in workout_dir.iterdir():
+            if file_path.is_file() and file_path.name.startswith(date):
+                matching_files.append(file_path.name)
+        
+        if not matching_files:
+            return f"No workout files found for date {date} in directory '{workout_dir}'."
+        
+        # Sort files for consistent output
+        matching_files.sort()
+        
+        # Format the result
+        result = f"Workout files for {date}:\n"
+        result += f"Found {len(matching_files)} file(s) in '{workout_dir}':\n\n"
+        
+        for filename in matching_files:
+            result += f"- {filename}\n"
+        
+        return result
+
+
 class WorkoutFileReaderTool(BaseTool):
     """Tool for reading workout records from local disk files prefixed with dates."""
     
@@ -88,6 +138,11 @@ class WorkoutFileReaderTool(BaseTool):
             result += "\n"
         
         return result
+
+
+def create_workout_lister_tool(workout_directory: str = "workout_data") -> WorkoutFileListerTool:
+    """Factory function to create a workout file lister tool."""
+    return WorkoutFileListerTool(workout_files_directory=workout_directory)
 
 
 def create_workout_reader_tool(workout_directory: str = "workout_data") -> WorkoutFileReaderTool:

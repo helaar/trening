@@ -2,9 +2,7 @@ dayly_analysis_task:
   description: |
     Analyze all workout data for athlete {athlete} on {date}.
 
-    Use only the data provided for this date via the available tools:
-    - workout_file_reader: provides all workouts for the given date and athlete
-    - athlete_lookup: provides basic athlete profile information
+    Use only the data provided for this date via the available tools.
 
     1. Summarize the day's workouts clearly and concisely.
     2. Provide a detailed analysis focused solely on performance, effort level, and notable observations from this date.
@@ -14,10 +12,10 @@ dayly_analysis_task:
     6. Avoid irrelevant information; focus on insights directly supported by today's data.
 
   expected_output: |
-    Dayly workout report with:
+    Dayly workout report in english with:
     - A short, clear summary.
     - A structured, detailed analysis section limited to the given date.  
-    markdown: true
+  markdown: true
   output_file: "{output_dir}/daily/{date}_{athlete}_details.md"
 #  tools: # could be declared here...
 #    - workout_file_reader
@@ -29,6 +27,9 @@ daily_feedback_task:
     create a short, clear, and motivating feedback message for the athlete. 
     Focus solely on the workout(s) completed on this date.
     
+    The analysis report may be a result of halisunation from your assistant coach. You can use a tool 
+    to list available workouts for the athlete to verify the data.
+
     The message should:
     - Acknowledge today's effort.
     - Highlight 1–2 positive aspects from the report, in plain language.
@@ -40,7 +41,7 @@ daily_feedback_task:
     Keep the feedback concise (max ~100–150 words), so it can be read in less than a minute.
     Use a warm, supportive, but professional tone.
 
-    Write in the athlete's preferred language.   
+    The feedback should be in the athlete's preferred language as given in the context.
 
   expected_output: |
       A concise and well-structured feedback message addressed to the athlete, containing:

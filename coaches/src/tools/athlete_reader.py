@@ -1,6 +1,7 @@
 """ Tool to read a athlete's profile from a file """
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -14,7 +15,7 @@ class AthleteLookupTool(BaseTool):
         "Returns data in a textual, JSON-like form."
     )
     yaml_path: Path
-    _cache: dict[str,object] | None = None
+    _cache: dict[str,Any] | None = None
 
     def _run(self, athlete: str) -> str:
         data = self._load_yaml()
@@ -24,7 +25,12 @@ class AthleteLookupTool(BaseTool):
         
         return f"{athlete_dict}"
 
-    def _load_yaml(self) -> dict[str, object]:
+    def athlete_as_dict(self, athlete: str) -> dict[str, Any] | None:
+        data = self._load_yaml()
+        athlete_dict = data.get(athlete)
+        return athlete_dict
+
+    def _load_yaml(self) -> dict[str, Any]:
         if self._cache is not None:
             return self._cache
 
