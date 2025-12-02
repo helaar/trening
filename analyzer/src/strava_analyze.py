@@ -22,7 +22,7 @@ from tools.calculations import (
 )
 
 
-def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]]) -> None:
+def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]], workout_category: str = "") -> None:
     """
     Print a markdown table showing lap information for Strava workouts.
     Adapted from fit_analyzes.py _print_lap_table function.
@@ -54,6 +54,9 @@ def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]]) 
             return fmt_float(value, 1)
         return str(value) if value is not None else ""
 
+    # Define cadence label based on workout category
+    cadence_label = "Avg spm" if workout_category == "running" else "Avg Cad"
+
     # Define headers for Strava lap table
     headers = [
         ("Lap", "lap"),
@@ -63,7 +66,7 @@ def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]]) 
         ("NP", "np"),
         ("Avg W", "avg_power"),
         ("Avg HR", "avg_hr"),
-        ("Avg Cad", "avg_cad"),
+        (cadence_label, "avg_cad"),
         ("HR Drift %", "drift_pct"),
         ("Max W", "max_power"),
         ("Max HR", "max_hr"),
@@ -228,7 +231,8 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
     
     # Cadence analysis
     if has_cadence and cad_stats:
-        log("\n## Cadence (rpm)")
+        cadence_title = "Steps (spm)" if workout.category == "running" else "Cadence (rpm)"
+        log(f"\n## {cadence_title}")
         _print_stats(log, cad_stats)
     
     # Zone analysis
@@ -348,7 +352,7 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
             })
 
         if lap_rows:
-            _print_strava_lap_table(log, "laps", lap_rows)
+            _print_strava_lap_table(log, "laps", lap_rows, workout.category)
         else:
             log("Found laps, but no valid data in these segments.")
     

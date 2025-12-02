@@ -459,7 +459,8 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
         _print_stats(log, hr_stats)
 
     if has_cadence and cad_stats:
-        log("\n## Cadence (rpm)²")
+        cadence_title = "Steps (spm)²" if fit.workout.category == "running" else "Cadence (rpm)²"
+        log(f"\n## {cadence_title}")
         _print_stats(log, cad_stats)
 
     if power_zones and has_power:
@@ -566,6 +567,9 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
             )
 
         if lap_rows:
+            # Define cadence label based on workout category
+            cadence_label = "Avg spm" if fit.workout.category == "running" else "Avg Cad"
+            
             headers = [
                 ("Lap", "lap"),
                 ("Start", "start_str"),
@@ -574,7 +578,7 @@ def _endurance_based_summary(log, args, settings : dict[str,object], fit : FitFi
                 ("NP", "np"),
                 ("Avg W", "avg_power"),
                 ("Avg HR", "avg_hr"),
-                ("Avg Cad", "avg_cad"),
+                (cadence_label, "avg_cad"),
                 ("HR Drift %", "drift_pct"),
                 ("Max W", "max_power"),
                 ("Max HR", "max_hr"),
