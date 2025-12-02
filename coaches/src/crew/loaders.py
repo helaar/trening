@@ -1,10 +1,10 @@
 """Coach loader utility for parsing YAML and creating CrewAI agents."""
-
+from datetime import date, timedelta
 from pydantic import BaseModel
 import yaml
 from pathlib import Path
 from crewai import Agent, Task
-from .models import Coach, CommonKnowledge, TaskDescription
+from .models import Coach, CommonKnowledge, Plan, TaskDescription
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from .config import Config
 
@@ -94,3 +94,31 @@ class KnowledgeLoader(YamlLoader[CommonKnowledge]):
 
         return StringKnowledgeSource(content=ck.knowledge) 
             
+class PlansLoader(YamlLoader[Plan]):
+    def __init__(self, config: Config) -> None:
+        super().__init__(Path(config.plans), Plan)
+
+    def get_plan(self, athlete:str, plan_date:str) -> list[str] | None:
+        athlete_plan = self.find(athlete)
+
+        if athlete_plan:
+            return athlete_plan.get(plan_date)
+        
+        return None
+    
+    def get_plans(self, athlete: str, start:date, end: date) -> dict[str, list[str]]:
+        athlete_plan = self.find(athlete)
+        if not athlete_plan:
+            return {}
+
+        s = min(start,end)
+        e = max(start,end)
+
+        plan:dict[str,list[str]] = {}
+        while s <= e:
+            d = s.strftime("%Y-%m-%d")
+            p = athlete_plan.find(d)
+            if p:
+                plan[d] = p
+            s = s + timedelta(days=1)
+        return plan

@@ -18,3 +18,7 @@ class TaskDescription(BaseModel):
 class CommonKnowledge(BaseModel):
 
     knowledge: str
+
+
+class Plan(BaseModel):
+    plan: dict[str,list[str]] = Field(default_factory=dict)

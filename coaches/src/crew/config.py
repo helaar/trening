@@ -14,6 +14,7 @@ class Config(BaseSettings):
     tasks: str = "./tasks.yaml"
     athletes: str = "./athletes.yaml"
     knowledge: str = "./knowledge.yaml"
+    plans: str = "./plans.yaml"
     exchange_dir: str = "../ENV/exchange"
     @property
     def workouts(self) -> str:
