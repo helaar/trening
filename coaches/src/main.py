@@ -9,7 +9,7 @@ from crew.memory import SimpleFileStorage
 from tools.athlete_reader import create_athlete_reader_tool
 from crewai import Crew
 from crew.config import config
-from crew.loaders import CoachLoader, TaskLoader
+from crew.loaders import CoachLoader, TaskLoader, KnowledgeLoader
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from tools.workout_reader import create_workout_lister_tool, create_workout_reader_tool
 
@@ -21,6 +21,7 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     main_coach_memory = SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete}_main_coach.json")
     coach_loader = CoachLoader(config)
     task_loader = TaskLoader(config)
+    knowledge_loader = KnowledgeLoader(config)
     
     # Create a workout reader tool configured with the specified directory
     workout_tool = create_workout_reader_tool(config.workouts)
@@ -28,6 +29,8 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     athlete_reader = create_athlete_reader_tool(config.athletes)
     
     athlete_knowledge = StringKnowledgeSource(content=athlete_reader._run(athlete=athlete))
+    common_knowledge = knowledge_loader.get_knowledge()
+
     
     # Create the specified coach agent with toos
     analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[workout_tool])
@@ -46,7 +49,7 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     crew = Crew(            
         agents=[analyzer, head_coach],
         tasks=[analysis_task, feedback_task],
-        knowledge_sources=[athlete_knowledge],
+        knowledge_sources=[athlete_knowledge, common_knowledge],
         verbose=True,
         
     )

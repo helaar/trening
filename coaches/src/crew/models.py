@@ -1,6 +1,6 @@
 """Pydantic models for coach role definitions."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class Coach(BaseModel):
     """Model for a single coach role definition."""
@@ -14,3 +14,7 @@ class TaskDescription(BaseModel):
     expected_output: str 
     markdown: bool | None = False
     output_file: str | None = None
+
+class CommonKnowledge(BaseModel):
+
+    knowledge: str

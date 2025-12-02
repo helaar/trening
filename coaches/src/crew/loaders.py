@@ -4,7 +4,8 @@ from pydantic import BaseModel
 import yaml
 from pathlib import Path
 from crewai import Agent, Task
-from .models import Coach, TaskDescription
+from .models import Coach, CommonKnowledge, TaskDescription
+from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from .config import Config
 
 
@@ -79,3 +80,17 @@ class TaskLoader(YamlLoader[TaskDescription]):
             context=kwargs.get("context")
         )
         
+class KnowledgeLoader(YamlLoader[CommonKnowledge]):
+    """Utility class for loading knowledge source definitions from YAML."""
+    
+    def __init__(self, config: Config) -> None:
+        super().__init__(Path(config.knowledge), CommonKnowledge)
+
+    def get_knowledge(self) -> StringKnowledgeSource:
+        ck = self.find("common_knowledge")
+
+        if not ck or not ck.knowledge:
+            raise ValueError("No common knowledge found in configuration.")
+
+        return StringKnowledgeSource(content=ck.knowledge) 
+            

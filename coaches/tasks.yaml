@@ -4,17 +4,20 @@ dayly_analysis_task:
 
     Use only the data provided for this date via the available tools.
 
-    1. Summarize the day's workouts clearly and concisely.
-    2. Provide a detailed analysis focused solely on performance, effort level, and notable observations from this date.
-    3. Do not give workouts that appear to be just commutes or non-training activities too much attention.
-    4. Highlight any anomalies or issues observed in today's data.
-    5. Do not make recommendations or conclusions based on trends, long‑term history, or other dates.
-    6. Avoid irrelevant information; focus on insights directly supported by today's data.
+    Focus only on relevant, context-appropriate observations for the sport type recorded.
+
+    Guidelines:
+    - Ignore minor data spikes or dropouts in sensor streams (these are common and not relevant unless they dominate large portions of the file).
+    - For cycling, cadence is in RPM and power values can be compared directly to FTP etc.
+    - For running, cadence is in steps per minute (SPM). Do not confuse running cadence with cycling cadence.
+    - Running "power" from a GPS watch or foot pod is not directly comparable to cycling power; only give comments on running power in the context of running norms (e.g., relative steady output, changes over terrain, etc.).
+    - Ignore one-off abnormal values at activity start (low power/cadence during GPS lock-on, etc.).
+    - Flag genuine anomalies only if they might materially affect interpretation of today's session.
 
   expected_output: |
-    Dayly workout report in english with:
-    - A short, clear summary.
-    - A structured, detailed analysis section limited to the given date.  
+    A short summary and relevant detailed analysis of today's workouts.
+    Flag anomalies only where they could materially change understanding of the session effort or execution.
+    Avoid irrelevant technical warnings unrelated to performance.
   markdown: true
   output_file: "{output_dir}/daily/{date}_{athlete}_details.md"
 #  tools: # could be declared here...
