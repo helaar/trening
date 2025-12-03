@@ -40,4 +40,7 @@
     consistent strength training. Build phase (spring): Increasing intensity and specificity toward L'Étape. 
     Peak phase (summer): Sharp sessions and tapering. Flexible adaptation based on form and life situation.
 
- 
+  typical_training_week:
+    structure: "1-2 hard cycling sessions, 1 running interval, 1-2 strength, 2+ base sessions"
+    volume: "10-12 hours including commuting"
+    tss_target: "350-450 TSS/week in off-season"

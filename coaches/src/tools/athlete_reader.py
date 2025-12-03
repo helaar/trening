@@ -1,11 +1,15 @@
 """ Tool to read a athlete's profile from a file """
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel
 import yaml
 
 from crewai.tools import BaseTool
+
+from crew.loaders import PlansLoader
 
 class AthleteLookupTool(BaseTool):
     """Tool that retrieves a single athlete's information from a YAML file."""
@@ -40,5 +44,24 @@ class AthleteLookupTool(BaseTool):
         self._cache = data
         return data
 
-def create_athlete_reader_tool(athlete_file : str | Path) -> AthleteLookupTool:
-    return AthleteLookupTool(yaml_path=Path(athlete_file))
+class AthletePlanArgs(BaseModel):
+    athlete: str
+    start_date: date
+    end_date: date
+
+class AthletePlanTool(BaseTool):
+    """Tool that retrieves an athlete's training plan from a YAML file."""
+    args_schema: type = AthletePlanArgs
+    def __init__(self, loader: PlansLoader) -> None:
+        super().__init__(
+            name="athlete_plan_lookup",
+            description="Use this tool to retrieve an athlete's training plan for a given date range. Returns data in a textual, JSON-like form."
+        )
+        self._loader = loader
+
+    def _run(self, athlete: str, start_date: date, end_date: date) -> str:
+        plans_dict = self._loader.get_plans(athlete, start_date, end_date)
+        
+        return f"{plans_dict}"
+
+

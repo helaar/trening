@@ -6,10 +6,10 @@ from pathlib import Path
 
 
 from crew.memory import SimpleFileStorage
-from tools.athlete_reader import create_athlete_reader_tool
+from tools.athlete_reader import AthleteLookupTool, AthletePlanTool
 from crewai import Crew
 from crew.config import config
-from crew.loaders import CoachLoader, TaskLoader, KnowledgeLoader
+from crew.loaders import CoachLoader, PlansLoader, TaskLoader, KnowledgeLoader
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from tools.workout_reader import create_workout_lister_tool, create_workout_reader_tool
 
@@ -26,15 +26,16 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     # Create a workout reader tool configured with the specified directory
     workout_tool = create_workout_reader_tool(config.workouts)
     workout_lister_tool = create_workout_lister_tool(config.workouts)
-    athlete_reader = create_athlete_reader_tool(config.athletes)
+    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
+    plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
     
     athlete_knowledge = StringKnowledgeSource(content=athlete_reader._run(athlete=athlete))
     common_knowledge = knowledge_loader.get_knowledge()
 
     
     # Create the specified coach agent with toos
-    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[workout_tool])
-    head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, reasoning=True, tools=[workout_lister_tool]) 
+    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[workout_tool, plans_reader_tool])
+    head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, reasoning=True, tools=[workout_lister_tool,plans_reader_tool]) 
     
     # Create a task for the agent
     analysis_task = task_loader.create_task("dayly_analysis_task", agent=analyzer)
@@ -80,14 +81,14 @@ def main():
     
     parser.add_argument("--period", "-p",
                         default="daily",
-                        choices=["daily","weekly"],
+                        choices=["daily","weekly", "test"],
                         help="Perform analysis for the given period ending on the specified date (default: P1D for one day)")
     
     args = parser.parse_args()
     
     # Validate date format
     try:
-        datetime.strptime(args.date, "%Y-%m-%d")
+        datetime.fromisoformat(args.date)
     except ValueError:
         print(f"Error: Invalid date format '{args.date}'. Expected YYYY-MM-DD format.")
         return 1
@@ -96,7 +97,11 @@ def main():
         match args.period:
             case "daily":
                 daily_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir)
-        
+            case "test" :
+                loader=PlansLoader(config)
+                result = loader.find("Helge")
+                print(f"Test result: {result}")
+            
         
     except Exception as e:
         print(f"Error: {e} {str(e.args)}")

@@ -102,23 +102,31 @@ class PlansLoader(YamlLoader[Plan]):
         athlete_plan = self.find(athlete)
 
         if athlete_plan:
-            return athlete_plan.get(plan_date)
+            return athlete_plan.plan.get(plan_date)
         
         return None
     
-    def get_plans(self, athlete: str, start:date, end: date) -> dict[str, list[str]]:
+    def get_plans(self, athlete: str, start:date|str, end: date|str) -> dict[str, list[str]]:
         athlete_plan = self.find(athlete)
         if not athlete_plan:
             return {}
-
+        start = self._date(start)
+        end = self._date(end)
         s = min(start,end)
         e = max(start,end)
 
         plan:dict[str,list[str]] = {}
         while s <= e:
-            d = s.strftime("%Y-%m-%d")
-            p = athlete_plan.find(d)
+            d = s.isoformat()
+            p = athlete_plan.plan.get(d)
             if p:
+                print( f"Found plan for {d}: {p}")
                 plan[d] = p
             s = s + timedelta(days=1)
         return plan
+
+    @staticmethod
+    def _date(dt: str | date) -> date:
+        if isinstance(dt, date):
+            return dt
+        return date.fromisoformat(dt)
