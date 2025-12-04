@@ -1,5 +1,6 @@
 """Coach loader utility for parsing YAML and creating CrewAI agents."""
 from datetime import date, timedelta
+from typing import override
 from pydantic import BaseModel
 import yaml
 from pathlib import Path
@@ -20,11 +21,21 @@ class YamlLoader[T: BaseModel]:
             data = yaml.safe_load(f) or {}
         return data
     
-    def find(self, key: str) -> T | None:
+    def find(self, key: str) -> list[T] :
         maybe_dict = self.config.get(key)
         if maybe_dict and isinstance(maybe_dict, dict) :
-            return self.model_class(**maybe_dict) 
-        return None 
+            return [self.model_class(**maybe_dict)] 
+        if maybe_dict and isinstance(maybe_dict, list):
+            return [ self.model_class(**i) for i in maybe_dict]
+        return []
+    
+    def get(self, key: str) -> T | None:
+        items = self.find(key)
+        if items:
+            return items[0]
+        return None
+    
+
 
 
 class CoachLoader(YamlLoader[Coach]):
@@ -38,7 +49,7 @@ class CoachLoader(YamlLoader[Coach]):
         """Create a CrewAI Agent from a coach definition."""
         try:
             # Extract CrewAI parameters
-            coach = self.find(coach_name)
+            coach = self.get(coach_name)
             if not coach:
                 raise ValueError(f"Coach '{coach_name}' not found in configuration.")
             
@@ -66,7 +77,7 @@ class TaskLoader(YamlLoader[TaskDescription]):
         super().__init__(Path(config.tasks), TaskDescription)
     
     def create_task(self, task_name: str, **kwargs) -> Task | None:
-        task = self.find(task_name)
+        task = self.get(task_name)
         if not task:
             return None
         
@@ -89,27 +100,44 @@ class KnowledgeLoader(YamlLoader[CommonKnowledge]):
     def get_knowledge(self) -> StringKnowledgeSource:
         ck = self.find("common_knowledge")
 
-        if not ck or not ck.knowledge:
-            raise ValueError("No common knowledge found in configuration.")
-
-        return StringKnowledgeSource(content=ck.knowledge) 
+        return StringKnowledgeSource(content="\n\n".join([f"Rule: {k.rule}\nAccept: {k.accept}\nReject: {k.reject}" for k in ck])) 
             
 class PlansLoader(YamlLoader[Plan]):
     def __init__(self, config: Config) -> None:
         super().__init__(Path(config.plans), Plan)
 
-    def get_plan(self, athlete:str, plan_date:str) -> list[str] | None:
-        athlete_plan = self.find(athlete)
-
-        if athlete_plan:
-            return athlete_plan.plan.get(plan_date)
+    @override
+    def find(self, key: str) -> list[Plan]:
+        """Override find to transform date keys into Plan instances."""
+        athlete_plans = self.config.get(key)
+        if not athlete_plans or not isinstance(athlete_plans, dict):
+            return []
         
-        return None
+        plans = []
+        for date_key, activities in athlete_plans.items():
+            if isinstance(activities, list):
+                # Remove 'd' prefix from date key (e.g., 'd2025-12-04' -> '2025-12-04')
+                clean_date = date_key.lstrip('d') if date_key.startswith('d') else date_key
+                plans.append(Plan(date=clean_date, activities=activities))
+        return plans
+
+    def get_plan(self, athlete:str, plan_date:str) -> list[str] | None:
+        plans = self.find(athlete)
+        if not plans:
+            return None
+
+        activities = []
+        for p in plans:
+            
+            if p.date == plan_date:
+                activities.extend(p.activities)
+        
+        if not activities:
+            return None
+        return activities
     
     def get_plans(self, athlete: str, start:date|str, end: date|str) -> dict[str, list[str]]:
-        athlete_plan = self.find(athlete)
-        if not athlete_plan:
-            return {}
+
         start = self._date(start)
         end = self._date(end)
         s = min(start,end)
@@ -118,7 +146,7 @@ class PlansLoader(YamlLoader[Plan]):
         plan:dict[str,list[str]] = {}
         while s <= e:
             d = s.isoformat()
-            p = athlete_plan.plan.get(d)
+            p = self.get_plan(athlete, d)
             if p:
                 print( f"Found plan for {d}: {p}")
                 plan[d] = p

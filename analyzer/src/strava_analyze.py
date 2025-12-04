@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Strava workout analyzer that downloads workouts from Strava and performs 
+Strava workout analyzer that downloads workouts from Strava and performs
 similar analysis to FIT file analysis.
 """
 import argparse
@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import pandas as pd
 
 from strava.client import download_strava_workouts, StravaDataParser
+from strava_auth import StravaTokenManager
 from tools.settings import load_settings, ApplicationSettings
 from format.utils import ModelFormatter
 from tools.calculations import (
@@ -408,10 +409,18 @@ def _strava_strength_analysis(log, args, settings: dict[str, object], parser: St
 
 
 def main():
-
     env_file = Path(__file__).parent.parent / '.env'
     print(f"Loading environment variables from: {env_file}")
     load_dotenv(dotenv_path=env_file)
+    
+    # Ensure valid Strava token
+    if not StravaTokenManager.ensure_valid_token(env_file):
+        print("ERROR: Could not obtain valid Strava access token")
+        return 1
+    
+    # Reload environment if token was refreshed
+    load_dotenv(dotenv_path=env_file, override=True)
+    
     parser = argparse.ArgumentParser(
         description="Download and analyze Strava workouts for a given date."
     )

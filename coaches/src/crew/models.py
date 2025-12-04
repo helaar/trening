@@ -17,8 +17,11 @@ class TaskDescription(BaseModel):
 
 class CommonKnowledge(BaseModel):
 
-    knowledge: str
+    rule: str
+    accept: str
+    reject: str
 
 
 class Plan(BaseModel):
-    plan: dict[str,list[str]] = Field(default_factory=dict)
+    date: str
+    activities: list[str] = Field(default_factory=list)

@@ -1,6 +1,20 @@
 common_knowledge:
-  knowledge: |
-    - Commuting activities can be identfied by repeated routes of similar speed, duration, and distance, often occurring during typical commute hours.
-    - Start and end of activities may cause inconsistent data. If standard deviations are low you should not put too much weight on these.
-    - Zwift activities with stable power data and low stdandard deviations may indicate virtual ride in ERG mode.
-    - Strava does not provide details on strength training sessions. This is beyond control of the athlete. Strength training sessions should be considered as information and not be analyzed in detail.
+  - rule: "Commuting activities"
+    accept: "Only mention if they affect the training plan or intensity distribution."
+    reject: "Do not bring up if it is merely a recognized pattern and has no training relevance."
+
+  - rule: "Start/end anomalies"
+    accept: "Only include if start/end irregularities last more than 5 minutes or affect the main part of the session."
+    reject: "Ignore minor sensor spikes/dropouts at start or end; these are common and without significance."
+
+  - rule: "Zwift ERG rides"
+    accept: "Only note if the goal was to train without ERG and the data pattern reveals unintentional ERG mode."
+    reject: "Do not report stable ERG data as a finding if it is clearly intentional."
+
+  - rule: "Strength training data from Strava"
+    accept: "Only confirm that a strength session was completed."
+    reject: "No detailed analysis or quality assessment; data is not available."
+
+  - rule: "Cadence & power modality"
+    accept: "Compare only within the correct modality: Running = SPM, Cycling = RPM. Running power should only be considered relative to running norms."
+    reject: "Do not compare running power directly to cycling power, and do not confuse SPM with RPM."

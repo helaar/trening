@@ -1,27 +1,26 @@
 Helge:
-  plan:
-    "2025-12-01":
-      - Running easy pace 40 minutes
-      - Strength core/legs 60 minutes
-    "2025-12-02":
-      - Cycling/zwift SubLT 3x10 min @82%, total 96 min
-    "2025-12-03":
-      - Running easy pace 40 minutes
-      - Strength core 45 minutes
-    "2025-12-04":
-      - Cycling/zwift LT1-LT2 2x(15 min @82% + 5 min @100%) total 85 min
-    "2025-12-05":
-      - Optional strength core for 60 minutes or recovery
-    "2025-12-06":
-      - Cycling/zwift LT1-LT2 5x3 min @82% + 5x1 @90%, total 90 min
-    "2025-12-07":
-      - Cycling/zwift Endurance 180 min
-    "2025-12-08":
-      - Running easy pace 40 minutes
-      - Strength core/legs 60 minutes
-    "2025-12-09":
-      - Cycling/zwift LT1-LT2 3x6 @ 91% + 15 @80%, total 95 min
-    "2025-12-10":
-      - Cycling/zwift Endurance, total 75 min
-    "2025-12-11":
-      - Cycling/zwift SubLT 3x10 min @82%, total 96 min
+  d2025-12-01:
+    - Running easy pace 40 minutes
+    - Strength core/legs 60 minutes
+  d2025-12-02:
+    - Cycling/zwift SubLT 3x10 min @82%, total 96 min
+  d2025-12-03:
+    - Running easy pace 40 minutes
+    - Strength core 45 minutes
+  d2025-12-04:
+    - Cycling/zwift LT1-LT2 2x(15 min @82% + 5 min @100%) total 85 min
+  d2025-12-05:
+    - Optional strength core for 60 minutes or recovery
+  d2025-12-06:
+    - Cycling/zwift LT1-LT2 5x3 min @82% + 5x1 @90%, total 90 min
+  d2025-12-07:
+    - Cycling/zwift Endurance 180 min
+  d2025-12-08:
+    - Running easy pace 40 minutes
+    - Strength core/legs 60 minutes
+  d2025-12-09:
+    - Cycling/zwift LT1-LT2 3x6 @ 91% + 15 @80%, total 95 min
+  d2025-12-10:
+    - Cycling/zwift Endurance, total 75 min
+  d2025-12-11:
+    - Cycling/zwift SubLT 3x10 min @82%, total 96 min

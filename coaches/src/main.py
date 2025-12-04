@@ -98,8 +98,8 @@ def main():
             case "daily":
                 daily_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir)
             case "test" :
-                loader=PlansLoader(config)
-                result = loader.find("Helge")
+                loader = KnowledgeLoader(config)
+                result = loader.get_knowledge().content
                 print(f"Test result: {result}")
             
         
