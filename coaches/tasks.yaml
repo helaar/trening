@@ -32,15 +32,15 @@ dayly_analysis_task:
 
 daily_feedback_task:
   description: |
-    Using the provided analysis report for {date} and {athlete_id} profile information,
-    create a short, clear, and motivating feedback message for the athlete.
+    Using the provided analysis report for {athlete_id} at {date}, read profile information about the athlete and
+    the planned workouts for that date and 2 days after {date}. Then, create a short, clear, and motivating feedback 
+    message for the athlete. 
 
     **IMPORTANT:**  
-    If there are no workouts for the given date, *immediately* state this fact and end the response.  
-    Do not speculate about possible activities, do not provide generic advice, and do not attempt to
-    fill in missing details. Simply inform the athlete that there is no data for the date in question.
-
-    You may use a tool to list planned workouts for the athlete to give advice on training sessions and load.
+    If there are no analysis report or workouts for the given date, *immediately* state this fact and 
+    end the response. Do not speculate about possible activities, do not provide generic advice, and 
+    do not attempt to fill in missing details. Simply inform the athlete that there is no data for 
+    the date in question.
 
     Verify that the analysis report corresponds to the date in question by listing available workouts for the athlete.
 
@@ -58,7 +58,7 @@ daily_feedback_task:
     - The feedback should be in the athlete's preferred language as given in the context.
 
   expected_output: |
-    The entire message should be in the athlete's preferred language.
+    The entire message should be written in the athlete's preferred language.
     If there is no data for the given date, output ONLY:
     "No workout data is available for [date]."
     Otherwise, output a concise, well-structured feedback message addressed to the athlete, containing:

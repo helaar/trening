@@ -3,8 +3,9 @@
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Type
 from crewai.tools import BaseTool
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 
 class WorkoutFileListerTool(BaseTool):
@@ -55,13 +56,16 @@ class WorkoutFileListerTool(BaseTool):
             result += f"- {filename}\n"
         
         return result
-
+class FindWorkoutArgs(BaseModel):
+    date: str = Field(description="Date in YYYY-MM-DD format to search for workout files")
+    athlete: str = Field(description="Unique identifier of the athlete")
 
 class WorkoutFileReaderTool(BaseTool):
     """Tool for reading workout records from local disk files prefixed with dates."""
     
     name: str = "workout_file_reader"
     description: str = "Read detailed workout records from local files. Files are expected to be prefixed with the date (YYYY-MM-DD format)."
+    args_schema: Type[BaseModel] = FindWorkoutArgs
     workout_files_directory: str = Field(default="workout_data", description="Directory path where workout files are stored")
     
     def _run(self, date: str, athlete: str) -> str:

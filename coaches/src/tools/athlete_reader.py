@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import yaml
 
 from crewai.tools import BaseTool
@@ -46,9 +46,9 @@ class AthleteLookupTool(BaseTool):
         return data
 
 class AthletePlanArgs(BaseModel):
-    athlete_id: str
-    start_date: date
-    end_date: date
+    athlete_id: str = Field(description="Unique identifier of the athlete")
+    start_date: date = Field(description="Start date of the plan range")
+    end_date: date = Field(description="End date of the plan range")
 
 class AthletePlanTool(BaseTool):
     """Tool that retrieves an athlete's training plan from a YAML file."""

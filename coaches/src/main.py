@@ -51,7 +51,7 @@ def daily_analysis(athlete_id: str, date: str, output_dir: str) -> None:
         agents=[analyzer, head_coach],
         tasks=[analysis_task, feedback_task],
         knowledge_sources=[common_knowledge],
-        verbose=True,
+        verbose=False,
         
     )
     
