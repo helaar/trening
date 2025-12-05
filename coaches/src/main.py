@@ -10,15 +10,15 @@ from tools.athlete_reader import AthleteLookupTool, AthletePlanTool
 from crewai import Crew
 from crew.config import config
 from crew.loaders import CoachLoader, PlansLoader, TaskLoader, KnowledgeLoader
-from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
+
 from tools.workout_reader import create_workout_lister_tool, create_workout_reader_tool
 
-def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
+def daily_analysis(athlete_id: str, date: str, output_dir: str) -> None:
     """Function to perform daily workout analysis using AI coach agents."""
 
     # Initialize configuration and loader
-    analyst_memory = SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete}_analyst.json")
-    main_coach_memory = SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete}_main_coach.json")
+    analyst_memory = False # SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete_id}_analyst.json")
+    main_coach_memory = False #SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete_id}_main_coach.json")
     coach_loader = CoachLoader(config)
     task_loader = TaskLoader(config)
     knowledge_loader = KnowledgeLoader(config)
@@ -29,13 +29,13 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
     plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
     
-    athlete_knowledge = StringKnowledgeSource(content=athlete_reader._run(athlete=athlete))
+    #athlete_knowledge = StringKnowledgeSource(content=athlete_reader._run(athlete=athlete))
     common_knowledge = knowledge_loader.get_knowledge()
 
     
     # Create the specified coach agent with toos
-    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[workout_tool, plans_reader_tool])
-    head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, reasoning=True, tools=[workout_lister_tool,plans_reader_tool]) 
+    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[athlete_reader, workout_tool, plans_reader_tool])
+    head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, reasoning=True, tools=[athlete_reader, workout_lister_tool,plans_reader_tool]) 
     
     # Create a task for the agent
     analysis_task = task_loader.create_task("dayly_analysis_task", agent=analyzer)
@@ -50,16 +50,16 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     crew = Crew(            
         agents=[analyzer, head_coach],
         tasks=[analysis_task, feedback_task],
-        knowledge_sources=[athlete_knowledge, common_knowledge],
+        knowledge_sources=[common_knowledge],
         verbose=True,
         
     )
     
     # Execute the analysis
-    print(f"\nStarting daily workout analysis for {athlete} on {date}...")
+    print(f"\nStarting daily workout analysis for {athlete_id} on {date}...")
     result = crew.kickoff(
         inputs={
-            "athlete":athlete, 
+            "athlete_id":athlete_id, 
             "date": date,
             "output_dir":output_dir
         })
@@ -96,10 +96,10 @@ def main():
     try:
         match args.period:
             case "daily":
-                daily_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir)
+                daily_analysis(athlete_id="Helge", date=args.date, output_dir=config.exchange_dir)
             case "test" :
-                loader = KnowledgeLoader(config)
-                result = loader.get_knowledge().content
+                loader = AthleteLookupTool(yaml_path=Path(config.athletes))
+                result = loader._run(athlete="Helge")
                 print(f"Test result: {result}")
             
         

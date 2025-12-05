@@ -1,60 +1,75 @@
 dayly_analysis_task:
   description: |
-    Analyze all workout data for athlete {athlete} on {date}.
+    Analyze all workout data for athlete {athlete_id} on {date}.
+    Use only the data provided for this date via the available tools. 
 
-    Use only the data provided for this date via the available tools.
+    **STOP RULE:**  
+    If there is no workout data for this date, *do not* perform any analysis.  
+    Output a message to the head coach stating that data for {date} is missing.  
+    Do not attempt to infer or invent activity details.
 
-    Focus only on relevant, context-appropriate observations for the sport type recorded.
+    You may find a tool to list planned workouts for the athlete useful to verify the data and coming training stress.
 
-    Guidelines:
-    - Ignore minor data spikes or dropouts in sensor streams (these are common and not relevant unless they dominate large portions of the file).
-    - For cycling, cadence is in RPM and power values can be compared directly to FTP etc.
-    - For running, cadence is in steps per minute (SPM). Do not confuse running cadence with cycling cadence.
-    - Running "power" from a GPS watch or foot pod is not directly comparable to cycling power; only give comments on running power in the context of running norms (e.g., relative steady output, changes over terrain, etc.).
+    When data is present:
+    - Focus only on relevant, context-appropriate observations for the recorded sport type.
+    - Ignore minor data spikes or dropouts in sensor streams unless they dominate large portions of the file.
+    - For cycling, cadence is in RPM and power values compared to FTP etc.
+    - For running, cadence is in steps per minute (SPM); do not confuse running cadence with cycling cadence.
+    - Running "power" from a GPS watch or foot pod is not directly comparable to cycling power; only comment on running power in the context of running norms.
     - Ignore one-off abnormal values at activity start (low power/cadence during GPS lock-on, etc.).
     - Flag genuine anomalies only if they might materially affect interpretation of today's session.
 
   expected_output: |
-    A short summary and relevant detailed analysis of today's workouts.
-    Flag anomalies only where they could materially change understanding of the session effort or execution.
-    Avoid irrelevant technical warnings unrelated to performance.
+    If no data is available for {date}, output ONLY:
+    "No workout data available for {athlete_id} on {date}."
+    If data is available:
+    - Provide a short summary of the day's planned and completed workouts in English.
+    - Give relevant detailed analysis focused on performance and execution.
+    - Flag anomalies only where they could materially change understanding of the session.
+    - Avoid irrelevant technical warnings unrelated to performance.
   markdown: true
-  output_file: "{output_dir}/daily/{date}_{athlete}_details.md"
-#  tools: # could be declared here...
-#    - workout_file_reader
-#    - athlete_lookup
+  output_file: "{output_dir}/daily/{date}_{athlete_id}_details.md"
 
 daily_feedback_task:
   description: |
-    Using the provided analysis report (for the specified date) and athlete profile information,
-    create a short, clear, and motivating feedback message for the athlete. 
-    Focus solely on the workout(s) completed on this date.
-    
-    The analysis report may be a result of halisunation from your assistant coach. You can use a tool 
-    to list available workouts for the athlete to verify the data.
+    Using the provided analysis report for {date} and {athlete_id} profile information,
+    create a short, clear, and motivating feedback message for the athlete.
 
-    The message should:
+    **IMPORTANT:**  
+    If there are no workouts for the given date, *immediately* state this fact and end the response.  
+    Do not speculate about possible activities, do not provide generic advice, and do not attempt to
+    fill in missing details. Simply inform the athlete that there is no data for the date in question.
+
+    You may use a tool to list planned workouts for the athlete to give advice on training sessions and load.
+
+    Verify that the analysis report corresponds to the date in question by listing available workouts for the athlete.
+
+    When data *is* present:
+    - Focus solely on the workout(s) completed on this date.
+    - Optionally use a tool to list available workouts for the athlete to verify the report.
     - Acknowledge today's effort.
     - Highlight 1–2 positive aspects from the report, in plain language.
     - Mention 1 improvement point, phrased constructively.
     - Provide 1 concrete next step relevant to the coming day(s), without multiple options.
     - Avoid detailed metric explanations unless essential.
     - Avoid long-term recommendations; limit feedback to the immediate context.
-    
-    Keep the feedback concise (max ~100–150 words), so it can be read in less than a minute.
-    Use a warm, supportive, but professional tone.
-
-    The feedback should be in the athlete's preferred language as given in the context.
+    - Keep the feedback concise (max ~100–150 words), so it can be read in less than a minute.
+    - Use a warm, supportive, but professional tone.
+    - The feedback should be in the athlete's preferred language as given in the context.
 
   expected_output: |
-      A concise and well-structured feedback message addressed to the athlete, containing:
-      1. Greeting / quick acknowledgement of today's effort.
-      2. 1–2 positives about the workout performance.
-      3. 1 constructive improvement point.
-      4. 1 concrete next step or action for the upcoming day(s).
-      5. Short closing motivation sentence.
+    The entire message should be in the athlete's preferred language.
+    If there is no data for the given date, output ONLY:
+    "No workout data is available for [date]."
+    Otherwise, output a concise, well-structured feedback message addressed to the athlete, containing:
+    1. Greeting / quick acknowledgement of today's effort.
+    2. 1–2 positives about the workout performance.
+    3. 1 constructive improvement point.
+    4. 1 concrete next step or action for the upcoming day(s).
+    5. Short closing motivation sentence.
+    
   markdown: true
-  output_file: "{output_dir}/daily/{date}_{athlete}_feedback.md"
+  output_file: "{output_dir}/daily/{date}_{athlete_id}_feedback.md"
 
 translate_task:
   description: |
@@ -65,4 +80,4 @@ translate_task:
   expected_output: |
     A fluent, natural translation of the provided feedback.
     All technical terms should remain accurate and easy to understand.
-  output_file: "{exchange_dir}/output/{date}_{athlete}_daily.md"
+  output_file: "{exchange_dir}/output/{date}_{athlete_id}_daily.md"

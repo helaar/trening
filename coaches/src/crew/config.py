@@ -9,6 +9,8 @@ class Config(BaseSettings):
     
     openai_api_key: SecretStr = Field(..., description="OpenAI API key")
     crewai_storage_dir: str = Field(..., description="CrewAI storage directory")
+    crewai_tracing_enabled: bool = Field(..., description="Enable CrewAI tracing")
+    
     model_name: str = "gpt-3.5-turbo"
     coaches: str = "./coaches.yaml"
     tasks: str = "./tasks.yaml"
