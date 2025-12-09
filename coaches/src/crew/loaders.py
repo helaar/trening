@@ -76,10 +76,10 @@ class TaskLoader(YamlLoader[TaskDescription]):
     def __init__(self, config: Config) -> None:
         super().__init__(Path(config.tasks), TaskDescription)
     
-    def create_task(self, task_name: str, **kwargs) -> Task | None:
+    def create_task(self, task_name: str, **kwargs) -> Task :
         task = self.get(task_name)
         if not task:
-            return None
+            raise ValueError(f"Task '{task_name}' not found in configuration.")
         
         return Task(
             name=task_name,
@@ -158,3 +158,38 @@ class PlansLoader(YamlLoader[Plan]):
         if isinstance(dt, date):
             return dt
         return date.fromisoformat(dt)
+    
+class WorkoutsLoader:
+    """Utility class for loading workout files for athletes."""
+    
+    def __init__(self, workouts_directory: Path) -> None:
+        self.workouts_directory = workouts_directory
+
+    def get_workout_files(self, athlete: str, workout_date: date) -> list[Path]:
+        """List workout files for a specific athlete and date."""
+        athlete_dir = self.workouts_directory # / athlete
+        if not athlete_dir.exists() or not athlete_dir.is_dir():
+            return []
+        
+        matching_files = []
+        for file_path in athlete_dir.iterdir():
+            if file_path.is_file() and file_path.name.startswith(workout_date.isoformat()):
+                matching_files.append(file_path)
+        
+        return matching_files
+    
+    def read_workouts(self, athlete: str, end_date:date, days_history:int=1) -> list[str]:
+        """Read workout files for an athlete over a range of dates."""
+        workouts = []
+        for delta in range(days_history):
+            workout_date = end_date - timedelta(days=delta)
+            files = self.get_workout_files(athlete, workout_date)
+            for file_path in files:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        workouts.append(f"`File:{file_path.name}`\n\n"+content)
+                except Exception as e:
+                    workouts.append(f"Error reading file {file_path.name}: {str(e)}")
+        
+        return workouts

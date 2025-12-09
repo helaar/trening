@@ -16,7 +16,7 @@ class AthleteLookupTool(BaseTool):
     """Tool that retrieves a single athlete's information from a YAML file."""
     name: str = "athlete_lookup"
     description: str = (
-        "Use this tool to retrieve information about an athlete by unique athlete identificator (athlete_id). "
+        "Use this tool to retrieve information about an athlete by unique athlete identificator (athlete). "
         "Returns data in a textual, JSON-like form."
     )
     yaml_path: Path
@@ -46,7 +46,7 @@ class AthleteLookupTool(BaseTool):
         return data
 
 class AthletePlanArgs(BaseModel):
-    athlete_id: str = Field(description="Unique identifier of the athlete")
+    athlete: str = Field(description="Unique identifier of the athlete")
     start_date: date = Field(description="Start date of the plan range")
     end_date: date = Field(description="End date of the plan range")
 
@@ -60,9 +60,9 @@ class AthletePlanTool(BaseTool):
         )
         self._loader = loader
 
-    def _run(self, athlete_id: str, start_date: date, end_date: date) -> str:
-        plans_dict = self._loader.get_plans(athlete_id, start_date, end_date)
+    def _run(self, athlete: str, start_date: date, end_date: date) -> str:
+        plans_dict = self._loader.get_plans(athlete, start_date, end_date)
         
-        return f"{plans_dict}\n\nHint: Unplanned workouts may be transportation/commute rides or runs not included in the plan." if plans_dict else f"No plans found for athlete {athlete_id} between {start_date} and {end_date}."
+        return f"{plans_dict}\n\nHint: Unplanned workouts may be transportation/commute rides or runs not included in the plan." if plans_dict else f"No plans found for athlete {athlete} between {start_date} and {end_date}."
 
 

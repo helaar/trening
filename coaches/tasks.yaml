@@ -1,14 +1,14 @@
 dayly_analysis_task:
   description: |
-    Analyze all workout data for athlete {athlete_id} on {date}.
-    Use only the data provided for this date via the available tools. 
+    Use the provided tools to analyze all workout data for athlete {athlete} on {date}:
+    - athlete_reader provides profile information about the athlete.
+    - daily_workout_reader reads the detailed data from each workout file for the athlete on the given date.
+    - athlete_plan_lookup lists planned workouts for the athlete.
 
-    **STOP RULE:**  
-    If there is no workout data for this date, *do not* perform any analysis.  
-    Output a message to the head coach stating that data for {date} is missing.  
+    **STOP RULE:**
+    If there is no workout data for this date, *do not* perform any analysis.
+    Output a message to the head coach stating that data for {date} is missing.
     Do not attempt to infer or invent activity details.
-
-    You may find a tool to list planned workouts for the athlete useful to verify the data and coming training stress.
 
     When data is present:
     - Focus only on relevant, context-appropriate observations for the recorded sport type.
@@ -21,18 +21,18 @@ dayly_analysis_task:
 
   expected_output: |
     If no data is available for {date}, output ONLY:
-    "No workout data available for {athlete_id} on {date}."
+    "No workout data available for {athlete} on {date}."
     If data is available:
     - Provide a short summary of the day's planned and completed workouts in English.
     - Give relevant detailed analysis focused on performance and execution.
     - Flag anomalies only where they could materially change understanding of the session.
     - Avoid irrelevant technical warnings unrelated to performance.
   markdown: true
-  output_file: "{output_dir}/daily/{date}_{athlete_id}_details.md"
+  output_file: "{output_dir}/daily/{date}_{athlete}_details.md"
 
 daily_feedback_task:
   description: |
-    Using the provided analysis report for {athlete_id} at {date}, read profile information about the athlete and
+    Using the provided analysis report for {athlete} at {date}, read profile information about the athlete and
     the planned workouts for that date and 2 days after {date}. Then, create a short, clear, and motivating feedback 
     message for the athlete. 
 
@@ -69,7 +69,7 @@ daily_feedback_task:
     5. Short closing motivation sentence.
     
   markdown: true
-  output_file: "{output_dir}/daily/{date}_{athlete_id}_feedback.md"
+  output_file: "{output_dir}/daily/{date}_{athlete}_feedback.md"
 
 translate_task:
   description: |
@@ -80,4 +80,64 @@ translate_task:
   expected_output: |
     A fluent, natural translation of the provided feedback.
     All technical terms should remain accurate and easy to understand.
-  output_file: "{exchange_dir}/output/{date}_{athlete_id}_daily.md"
+  output_file: "{exchange_dir}/output/{date}_{athlete}_daily.md"
+
+long_term_feedback_task:
+  description: |
+    Using the provided technical analysis reports and planned workouts, create a long-term feedback message for athlete {athlete}.
+    Find all analysis feedback for athlete {athlete} from the past {days_history} days up to and including {date}.
+    Also, find all planned workouts for the upcoming {days_ahead} days starting from {date}.
+
+    Using data on the athlete's training load and execution over the past {days_history} days,
+    along with a list of planned workouts for the upcoming {days_ahead} days,
+    create a clear, constructive, and motivating feedback message that addresses long-term progression.
+    You should obtain the athlete's profile, get analysis history and upcoming training plan from the relevant tools.
+
+    Guidelines:
+    - Use only the workouts provided in the historical and planned data; do not invent or assume missing information.
+    - Evaluate recent load metrics (e.g., total training time, TSS, intensity distribution, key sessions completed).
+    - Identify positive patterns or improvements over time.
+    - Highlight sustained issues or potential risks (e.g., overtraining signs, neglected training zones).
+    - Tie recommendations directly to the upcoming planned sessions.
+    - Keep suggestions relevant and actionable inside the given forward_period.
+    - Avoid deep technical details unless they affect the overall strategy.
+
+  expected_output: |
+    A well-structured message in the athlete's preferred language containing:
+    1. Short opening acknowledgement of recent efforts.
+    2. 2–3 key observations from recent training (both positives and concerns).
+    3. Evaluation of readiness or focus going into the next planned period.
+    4. 1–2 specific recommendations for upcoming sessions (adjustments or emphasis).
+    5. Short closing motivation.
+    Length ~150–225 words
+
+    A short appendix, limited to 2-3 sections going in more detail on the given specific recommendations. Give references to specific past sessions, to 
+    relevant literature or training principles.
+
+  markdown: true
+  output_file: "{output_dir}/long_term/{date}_{athlete}_feedback.md"
+
+long_term_analysis_task:
+  description: |
+      Analyze total training load and execution quality for athlete {athlete} for the past {days_history} days up to and including {date}.
+      You should obtain the workouts using relevant tools. 
+
+      As an expert:
+      - Decide which metrics or patterns are most relevant in this context.
+      - Identify clear indicators of progress or improvement (fitness, consistency, skill, etc.).
+      - Identify any risks or warnings (fatigue, imbalance, missed training types).
+      - Pinpoint areas or themes the Head Coach could address with the athlete.
+      - Ignore irrelevant minor anomalies or technical oddities unless they materially change interpretation.
+      
+      Provide a balanced analysis that the Head Coach can use for long-term feedback.
+
+  expected_output: |
+    A structured report in English containing:
+    1. Summary of key relevant metrics and observations for the period.
+    2. Progress indicators that show improvement in any aspect of training.
+    3. Risks or warnings that may require attention.
+    4. Suggested focus areas/themes for the Head Coach to discuss with the athlete.
+    Avoid unrelated technical detail.
+
+  markdown: true
+  output_file: "{output_dir}/long_term/{date}_{athlete}_analysis.md"

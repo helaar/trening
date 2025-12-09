@@ -5,33 +5,32 @@ from datetime import datetime
 from pathlib import Path
 
 
-from crew.memory import SimpleFileStorage
 from tools.athlete_reader import AthleteLookupTool, AthletePlanTool
 from crewai import Crew
 from crew.config import config
 from crew.loaders import CoachLoader, PlansLoader, TaskLoader, KnowledgeLoader
 
-from tools.workout_reader import create_workout_lister_tool, create_workout_reader_tool
+from tools.history_lister import FeedbackListerTool
+from tools.workout_reader import DailyWorkoutReaderTool, WorkoutFileListerTool
 
-def daily_analysis(athlete_id: str, date: str, output_dir: str) -> None:
+def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     """Function to perform daily workout analysis using AI coach agents."""
 
     # Initialize configuration and loader
-    analyst_memory = False # SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete_id}_analyst.json")
-    main_coach_memory = False #SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete_id}_main_coach.json")
+    analyst_memory = False # SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete}_analyst.json")
+    main_coach_memory = False #SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete}_main_coach.json")
     coach_loader = CoachLoader(config)
     task_loader = TaskLoader(config)
     knowledge_loader = KnowledgeLoader(config)
     
     # Create a workout reader tool configured with the specified directory
-    workout_tool = create_workout_reader_tool(config.workouts)
-    workout_lister_tool = create_workout_lister_tool(config.workouts)
+    workout_tool = DailyWorkoutReaderTool(workout_files_directory=config.workouts)
+    workout_lister_tool = WorkoutFileListerTool(workout_files_directory=config.workouts)
     athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
     plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
     
     #athlete_knowledge = StringKnowledgeSource(content=athlete_reader._run(athlete=athlete))
     common_knowledge = knowledge_loader.get_knowledge()
-
     
     # Create the specified coach agent with toos
     analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[athlete_reader, workout_tool, plans_reader_tool])
@@ -43,23 +42,20 @@ def daily_analysis(athlete_id: str, date: str, output_dir: str) -> None:
     
     
     
-    if not analysis_task or not feedback_task:   
-        raise ValueError("Tasks not found in tasks file.")
-    
     # Create a crew with the agent and task
     crew = Crew(            
         agents=[analyzer, head_coach],
         tasks=[analysis_task, feedback_task],
         knowledge_sources=[common_knowledge],
-        verbose=False,
+        verbose=True,
         
     )
     
     # Execute the analysis
-    print(f"\nStarting daily workout analysis for {athlete_id} on {date}...")
+    print(f"\nStarting daily workout analysis for {athlete} on {date}...")
     result = crew.kickoff(
         inputs={
-            "athlete_id":athlete_id, 
+            "athlete":athlete,
             "date": date,
             "output_dir":output_dir
         })
@@ -69,6 +65,47 @@ def daily_analysis(athlete_id: str, date: str, output_dir: str) -> None:
     print("="*50)
     print(result)
         
+
+def long_term_analysis(athlete: str, date: str, output_dir: str, days_history: int=14, days_ahead: int=7) -> None:
+    """Function to perform long-term workout analysis using AI coach agents."""
+
+
+    coach_loader = CoachLoader(config)
+    task_loader = TaskLoader(config)
+    knowledge_loader = KnowledgeLoader(config)
+    plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
+    workout_tool = DailyWorkoutReaderTool(workout_files_directory=config.workouts) #todo: create long-term workout reader tool
+    list_analysis_tool = FeedbackListerTool(feedback_dir=Path(config.exchange_dir) / "daily")
+    
+    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
+    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=False, reasoning=True, tools=[athlete_reader, workout_tool, plans_reader_tool])
+    head_coach = coach_loader.create_coach_agent("head_coach", memory=False, reasoning=True, tools=[athlete_reader, list_analysis_tool,plans_reader_tool]) 
+    analysis_task = task_loader.create_task("long_term_analysis_task", agent=analyzer)
+    feedback_task = task_loader.create_task("long_term_feedback_task", agent=head_coach, context=[analysis_task])
+    common_knowledge = knowledge_loader.get_knowledge()
+
+    
+    crew = Crew(            
+        agents=[analyzer,head_coach],
+        tasks=[analysis_task, feedback_task],
+        knowledge_sources=[common_knowledge],
+        verbose=True,
+    )
+
+    print(f"Performing long-term analysis for {athlete} up to {date}...")
+    result = crew.kickoff(
+        inputs={
+            "athlete":athlete, 
+            "date": date,
+            "output_dir":output_dir,
+            "days_history": days_history,
+            "days_ahead": days_ahead
+        })
+
+    print("\n" + "="*50)
+    print("WORKOUT ANALYSIS REPORT:")
+    print("="*50)
+    print(result)
 
 def main():
     """Main function to run the agentic AI system."""
@@ -96,10 +133,12 @@ def main():
     try:
         match args.period:
             case "daily":
-                daily_analysis(athlete_id="Helge", date=args.date, output_dir=config.exchange_dir)
+                daily_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir)
+            case "weekly":
+                long_term_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir, days_history=14, days_ahead=7)
             case "test" :
-                loader = AthleteLookupTool(yaml_path=Path(config.athletes))
-                result = loader._run(athlete="Helge")
+                list_analysis_tool = DailyWorkoutReaderTool(workout_files_directory=config.workouts)
+                result = list_analysis_tool._run(athlete="Helge", date=args.date)
                 print(f"Test result: {result}")
             
         
