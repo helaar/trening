@@ -121,6 +121,11 @@ def main():
                         choices=["daily","weekly", "test"],
                         help="Perform analysis for the given period ending on the specified date (default: P1D for one day)")
     
+    parser.add_argument("--mode", "-m",
+                        default="dev",
+                        choices=["dev", "prod"],
+                        help="LLM model mode: 'dev' for development (cheaper), 'prod' for production (more accurate) (default: dev)")
+    
     args = parser.parse_args()
     
     # Validate date format
@@ -131,6 +136,10 @@ def main():
         return 1
     
     try:
+        # Set the LLM mode on config
+        config.set_mode(args.mode)
+        print(f"Using LLM model: {config.get_model()} (mode: {args.mode})")
+        
         match args.period:
             case "daily":
                 daily_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir)

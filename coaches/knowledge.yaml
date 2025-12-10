@@ -18,3 +18,11 @@ common_knowledge:
   - rule: "Cadence & power modality"
     accept: "Compare only within the correct modality: Running = SPM, Cycling = RPM. Running power should only be considered relative to running norms."
     reject: "Do not compare running power directly to cycling power, and do not confuse SPM with RPM."
+
+  - rule: "HRV and sleep data"
+    accept: "Only mention if there are clear, significant deviations that impact training readiness."
+    reject: "Do not speculate on minor fluctuations or trends without strong evidence of impact."
+
+  - rule: "Morning HRV readings"
+    accept: "Use for context on recovery status for the previous day's training load."
+    reject: "Do not use to predict performance for the current day's workout without corroborating data."

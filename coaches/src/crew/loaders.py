@@ -43,7 +43,7 @@ class CoachLoader(YamlLoader[Coach]):
     
     def __init__(self, config: Config):
         super().__init__(Path(config.coaches), Coach)
-        self.model_name = config.model_name
+        self.model_name = config.get_model()
 
     def create_coach_agent(self, coach_name: str, memory, reasoning:bool | None=False, tools: list | None = None) -> Agent:
         """Create a CrewAI Agent from a coach definition."""
