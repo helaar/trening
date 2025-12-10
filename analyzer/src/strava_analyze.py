@@ -387,7 +387,9 @@ def _strava_strength_analysis(log, args, settings: dict[str, object], parser: St
     if sample_interval <= 0:
         sample_interval = 1.0
     
-    duration_sec = sample_interval * len(df)
+    # Use elapsed_time from Strava activity for total duration (includes rest periods)
+    # This is more accurate for strength training than calculating from data points
+    duration_sec = float(parser.activity.elapsed_time) if parser.activity.elapsed_time else sample_interval * len(df)
     has_hr = "heart_rate" in df.columns and not df["heart_rate"].isna().all()
     
     log(f"Data points: {len(df)}")
