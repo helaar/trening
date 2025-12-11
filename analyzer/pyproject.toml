@@ -19,6 +19,7 @@ python-dotenv = "^1.0.0"
 [tool.poetry.scripts]
 fit-analyze = "fit_analyzes:main"
 strava-analyze = "strava_analyze:main"
+strava-training-load = "strava_training_load:main"
 
 [build-system]
 requires = ["poetry-core"]
