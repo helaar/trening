@@ -12,6 +12,7 @@ from crew.loaders import CoachLoader, PlansLoader, TaskLoader, KnowledgeLoader
 
 from tools.history_lister import FeedbackListerTool
 from tools.workout_reader import DailyWorkoutReaderTool, WorkoutFileListerTool
+from tools.long_time_analysis_loader import LongTimeAnalysisLoaderTool
 
 def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     """Function to perform daily workout analysis using AI coach agents."""
@@ -115,13 +116,14 @@ def plan_suggestion(athlete: str, date: str, output_dir: str, days_ahead: int = 
     knowledge_loader = KnowledgeLoader(config)
     plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
     athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
+    long_analysis_tool = LongTimeAnalysisLoaderTool(load_dir=Path(config.exchange_dir) / "load")
     
     # Create specialized coach for plan suggestion with reasoning capabilities
     plan_coach = coach_loader.create_coach_agent(
         "head_coach",
         memory=False,
         reasoning=True,
-        tools=[athlete_reader, plans_reader_tool]
+        tools=[athlete_reader, plans_reader_tool, long_analysis_tool]
     )
     
     plan_task = task_loader.create_task("plan_suggestion_task", agent=plan_coach)

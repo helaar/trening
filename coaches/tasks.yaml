@@ -155,12 +155,14 @@ plan_suggestion_task:
     3. If <= {threshold} workout days are planned:
        - Use athlete_plan_lookup to get historical training patterns from past {lookback_days} days
        - Use athlete_reader to get athlete profile information
+       - Use long_time_analysis_loader to get the latest long-term analysis insights
        - Analyze training patterns, intensity distribution, and progression needs
        - Suggest new workouts in the same format as plans.yaml
     4. If > {threshold} workout days are planned, confirm sufficient planning exists
     
     **Guidelines for suggestions:**
     - Base suggestions on historical training patterns and progression
+    - Incorporate insights from the latest long-term analysis if available
     - Maintain appropriate training load and intensity distribution
     - Consider athlete's goals and current fitness level
     - Follow established periodization principles
