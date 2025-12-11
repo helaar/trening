@@ -107,6 +107,49 @@ def long_term_analysis(athlete: str, date: str, output_dir: str, days_history: i
     print("="*50)
     print(result)
 
+def plan_suggestion(athlete: str, date: str, output_dir: str, days_ahead: int = 7, threshold: int = 3, lookback_days: int = 14) -> None:
+    """Function to check and suggest training plans when insufficient workouts are planned."""
+
+    coach_loader = CoachLoader(config)
+    task_loader = TaskLoader(config)
+    knowledge_loader = KnowledgeLoader(config)
+    plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
+    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
+    
+    # Create specialized coach for plan suggestion with reasoning capabilities
+    plan_coach = coach_loader.create_coach_agent(
+        "head_coach",
+        memory=False,
+        reasoning=True,
+        tools=[athlete_reader, plans_reader_tool]
+    )
+    
+    plan_task = task_loader.create_task("plan_suggestion_task", agent=plan_coach)
+    common_knowledge = knowledge_loader.get_knowledge()
+
+    crew = Crew(
+        agents=[plan_coach],
+        tasks=[plan_task],
+        knowledge_sources=[common_knowledge],
+        verbose=True,
+    )
+
+    print(f"Checking training plan sufficiency for {athlete} from {date}...")
+    result = crew.kickoff(
+        inputs={
+            "athlete": athlete,
+            "date": date,
+            "output_dir": output_dir,
+            "days_ahead": days_ahead,
+            "threshold": threshold,
+            "lookback_days": lookback_days
+        })
+
+    print("\n" + "="*50)
+    print("TRAINING PLAN SUGGESTION REPORT:")
+    print("="*50)
+    print(result)
+
 def main():
     """Main function to run the agentic AI system."""
     parser = argparse.ArgumentParser(description="Daily workout analysis using AI coach agents")
@@ -116,10 +159,10 @@ def main():
                         default=datetime.now().strftime("%Y-%m-%d"),
                         help="Date for workout analysis in YYYY-MM-DD format (default: today)")
     
-    parser.add_argument("--period", "-p",
+    parser.add_argument("--processing", "-p",
                         default="daily",
-                        choices=["daily","weekly", "test"],
-                        help="Perform analysis for the given period ending on the specified date (default: P1D for one day)")
+                        choices=["daily","weekly", "plan","test"],
+                        help="Processing type: 'daily' for daily analysis, 'weekly' for long-term analysis, 'plan' for plan suggestion, 'test' for testing tools (default: daily)")
     
     parser.add_argument("--mode", "-m",
                         default="dev",
@@ -140,11 +183,13 @@ def main():
         config.set_mode(args.mode)
         print(f"Using LLM model: {config.get_model()} (mode: {args.mode})")
         
-        match args.period:
+        match args.processing:
             case "daily":
                 daily_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir)
             case "weekly":
                 long_term_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir, days_history=14, days_ahead=7)
+            case "plan":
+                plan_suggestion(athlete="Helge", date=args.date, output_dir=config.exchange_dir, days_ahead=7, threshold=3, lookback_days=14)
             case "test" :
                 list_analysis_tool = DailyWorkoutReaderTool(workout_files_directory=config.workouts)
                 result = list_analysis_tool._run(athlete="Helge", date=args.date)

@@ -141,3 +141,48 @@ long_term_analysis_task:
 
   markdown: true
   output_file: "{output_dir}/long_term/{date}_{athlete}_analysis.md"
+
+plan_suggestion_task:
+  description: |
+    Check if athlete {athlete} has sufficient upcoming workout days planned and suggest new training plans if needed.
+    
+    Use athlete_plan_lookup to check upcoming workouts for the next {days_ahead} days starting from {date}.
+    If there are {threshold} or fewer workout days planned, analyze historical training patterns and suggest new workouts.
+    
+    **Process:**
+    1. Check upcoming planned workouts for {days_ahead} days starting from {date}
+    2. Count the number of days with planned workouts
+    3. If <= {threshold} workout days are planned:
+       - Use athlete_plan_lookup to get historical training patterns from past {lookback_days} days
+       - Use athlete_reader to get athlete profile information
+       - Analyze training patterns, intensity distribution, and progression needs
+       - Suggest new workouts in the same format as plans.yaml
+    4. If > {threshold} workout days are planned, confirm sufficient planning exists
+    
+    **Guidelines for suggestions:**
+    - Base suggestions on historical training patterns and progression
+    - Maintain appropriate training load and intensity distribution
+    - Consider athlete's goals and current fitness level
+    - Follow established periodization principles
+    - Suggest workouts in the exact format used in plans.yaml (date: activities list)
+    - Fill gaps to ensure adequate training stimulus while avoiding overload
+    
+  expected_output: |
+    If sufficient workouts are planned (> {threshold} days):
+    "Training plan check completed. {athlete} has adequate workouts planned for the next {days_ahead} days."
+    
+    If insufficient workouts are planned (<= {threshold} days):
+    A structured report containing:
+    1. Current planning status (number of days with workouts vs threshold)
+    2. Analysis of recent training patterns and athlete profile
+    3. Suggested new workouts in plans.yaml format:
+       ```
+       d2025-MM-DD:
+         - Activity description with duration/intensity
+         - Additional activity if needed
+       ```
+    4. Rationale for each suggested workout based on training principles
+    5. Integration recommendations for the suggested workouts
+    
+  markdown: true
+  output_file: "{output_dir}/planning/{date}_{athlete}_plan_suggestion.md"
