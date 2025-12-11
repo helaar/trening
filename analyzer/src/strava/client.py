@@ -42,6 +42,8 @@ class StravaActivity:
         self.max_watts = data.get('max_watts')
         self.average_cadence = data.get('average_cadence')
         self.device_name = data.get('device_name')
+        self.manual = data.get('manual', False)
+        self.from_accepted_tag = data.get('from_accepted_tag', False)
 
 
 class StravaStream:

@@ -23,6 +23,23 @@ from tools.calculations import (
 )
 
 
+def print_source_info(log, parser: StravaDataParser) -> None:
+    """
+    Print information about the data source for a Strava activity.
+    
+    Args:
+        log: Logging function
+        parser: StravaDataParser with activity data
+    """
+    activity = parser.activity
+    
+    log("\n## Data Source Information")
+    device_name = activity.device_name or "Unknown"
+    log(f"Device: {device_name}")
+    log(f"Manual entry: {'Yes' if activity.manual else 'No'}")
+    log(f"From accepted tag: {'Yes' if activity.from_accepted_tag else 'No'}")
+
+
 def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]], workout_category: str = "") -> None:
     """
     Print a markdown table showing lap information for Strava workouts.
@@ -112,6 +129,9 @@ def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object]
     formatter = ModelFormatter()
     formatter.format(log, parser.workout)
     log("")  # newline
+    
+    # Print data source information
+    print_source_info(log, parser)
     
     # Determine analysis type based on workout category
     match parser.workout.category:
