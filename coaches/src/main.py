@@ -11,7 +11,7 @@ from crew.config import config
 from crew.loaders import CoachLoader, PlansLoader, TaskLoader, KnowledgeLoader
 
 from tools.history_lister import FeedbackListerTool
-from tools.workout_reader import DailyWorkoutReaderTool, WorkoutFileListerTool
+from tools.workout_reader import DailyWorkoutReaderTool, WorkoutFileListerTool, SelfAssessmentFileListerTool, DailySelfAssessmentReaderTool
 from tools.long_time_analysis_loader import LongTimeAnalysisLoaderTool
 
 def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
@@ -27,14 +27,15 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     # Create a workout reader tool configured with the athlete's directory
     workout_tool = DailyWorkoutReaderTool()
     workout_lister_tool = WorkoutFileListerTool()
+    self_assessments_tool = DailySelfAssessmentReaderTool()
     athlete_reader = AthleteLookupTool(yaml_path=Path(config.athlete_settings))
     plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
     
     common_knowledge = knowledge_loader.get_knowledge()
     
     # Create the specified coach agent with toos
-    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[athlete_reader, workout_tool, plans_reader_tool])
-    head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, reasoning=True, tools=[athlete_reader, workout_lister_tool,plans_reader_tool]) 
+    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[athlete_reader, workout_tool, self_assessments_tool, plans_reader_tool])
+    head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, reasoning=True, tools=[athlete_reader, workout_lister_tool, self_assessments_tool, plans_reader_tool]) 
     
     # Create a task for the agent
     analysis_task = task_loader.create_task("dayly_analysis_task", agent=analyzer)
@@ -53,10 +54,15 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     
     # Execute the analysis
     print(f"\nStarting daily workout analysis for {athlete} on {date}...")
+    # Calculate weekday for date context
+    date_obj = datetime.fromisoformat(date)
+    weekday = date_obj.strftime("%A")
+    
     result = crew.kickoff(
         inputs={
             "athlete":athlete,
             "date": date,
+            "weekday": weekday,
             "output_dir": str(config.get_athlete_daily_dir(athlete))
         })
     
@@ -92,10 +98,15 @@ def long_term_analysis(athlete: str, date: str, output_dir: str, days_history: i
     )
 
     print(f"Performing long-term analysis for {athlete} up to {date}...")
+    # Calculate weekday for date context
+    date_obj = datetime.fromisoformat(date)
+    weekday = date_obj.strftime("%A")
+    
     result = crew.kickoff(
         inputs={
             "athlete":athlete,
             "date": date,
+            "weekday": weekday,
             "output_dir": str(config.get_athlete_long_term_dir(athlete)),
             "days_history": days_history,
             "days_ahead": days_ahead
@@ -109,6 +120,7 @@ def long_term_analysis(athlete: str, date: str, output_dir: str, days_history: i
 def plan_suggestion(athlete: str, date: str, output_dir: str, days_ahead: int = 7, threshold: int = 3, lookback_days: int = 14) -> None:
     """Function to check and suggest training plans when insufficient workouts are planned."""
 
+    self_assessments_tool = DailySelfAssessmentReaderTool()
     coach_loader = CoachLoader(config)
     task_loader = TaskLoader(config)
     knowledge_loader = KnowledgeLoader(config)
@@ -121,7 +133,7 @@ def plan_suggestion(athlete: str, date: str, output_dir: str, days_ahead: int = 
         "head_coach",
         memory=False,
         reasoning=True,
-        tools=[athlete_reader, plans_reader_tool, long_analysis_tool]
+        tools=[athlete_reader, plans_reader_tool, self_assessments_tool,long_analysis_tool]
     )
     
     plan_task = task_loader.create_task("plan_suggestion_task", agent=plan_coach)
@@ -135,10 +147,15 @@ def plan_suggestion(athlete: str, date: str, output_dir: str, days_ahead: int = 
     )
 
     print(f"Checking training plan sufficiency for {athlete} from {date}...")
+    # Calculate weekday for date context
+    date_obj = datetime.fromisoformat(date)
+    weekday = date_obj.strftime("%A")
+    
     result = crew.kickoff(
         inputs={
             "athlete": athlete,
             "date": date,
+            "weekday": weekday,
             "output_dir": str(config.get_athlete_planning_dir(athlete)),
             "days_ahead": days_ahead,
             "threshold": threshold,
@@ -191,9 +208,16 @@ def main():
             case "plan":
                 plan_suggestion(athlete="helge", date=args.date, output_dir=str(config.get_athlete_planning_dir("helge")), days_ahead=7, threshold=3, lookback_days=14)
             case "test" :
-                list_analysis_tool = DailyWorkoutReaderTool()
-                result = list_analysis_tool._run(athlete="helge", start_date=args.date, end_date=args.date)
-                print(f"Test result: {result}")
+                # Test self-assessment tools
+                print("Testing Self-Assessment File Lister Tool:")
+                file_lister_tool = SelfAssessmentFileListerTool()
+                files_result = file_lister_tool._run(athlete="helge", start_date="2025-12-11", end_date="2025-12-13")
+                print(f"Files found: {files_result}")
+                
+                print("\nTesting Daily Self-Assessment Reader Tool:")
+                reader_tool = DailySelfAssessmentReaderTool()
+                content_result = reader_tool._run(athlete="helge", start_date="2025-12-11", end_date="2025-12-13")
+                print(f"Content result: {content_result}")
             
         
     except Exception as e:

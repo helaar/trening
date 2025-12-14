@@ -1,15 +1,19 @@
 dayly_analysis_task:
   description: |
+    **Anchor your timeline** to the given date {date}, which is a {weekday}.
+    Ignore any knowledge about today's real date.
+    
     Use the provided tools to analyze all workout data for athlete {athlete} on {date}:
     - athlete_reader provides profile information about the athlete.
     - daily_workout_reader reads the detailed data from each workout file for the athlete on the given date.
+    - self_assessments_tool reads the daily self-assessment data for the athlete on the given date.
     - athlete_plan_lookup lists planned workouts for the athlete. 
     Do not confuse planned workouts with completed workouts. No planned workouts should be handled as cleen slate.
 
     **STOP RULE:**
-    If there is no workout data for this date, *do not* perform any analysis.
-    Output a message to the head coach stating that data for {date} is missing.
-    Do not attempt to infer or invent activity details.
+    If there is no workout data and no self assessments for this date, *do not* perform any analysis. You may proceed
+    if there is at least one workout or self assessment data present.
+    Do not attempt to infer or invent activity details if data is missing.
 
     When data is present:
     - Focus only on relevant, context-appropriate observations for the recorded sport type.
@@ -33,9 +37,13 @@ dayly_analysis_task:
 
 daily_feedback_task:
   description: |
+    **Anchor your timeline** to the given date {date}, which is a {weekday}.
+    Ignore any knowledge about today's real date.
+    
     Using the provided analysis report for {athlete} at {date}, read profile information about the athlete and
-    the planned workouts for that date and 2 days after {date}. Then, create a short, clear, and motivating feedback 
-    message for the athlete. 
+    the planned workouts for that date and 2 days after {date}. The athlete's self assessment for {date} is 
+    available from the self_assessments_tool. Look back 2-3 days or even up to a week on signs of injury, fatigue, or sickness.
+    Then, create a short, clear, and motivating feedback message for the athlete. 
     Do not confuse planned workouts with completed workouts. No planned workouts should be handled as cleen slate.
 
     **IMPORTANT:**  
@@ -75,7 +83,10 @@ daily_feedback_task:
 
 translate_task:
   description: |
-    Translate the provided coaching feedback from English into the athlete's 
+    **Anchor your timeline** to the given date {date}, which is a {weekday}.
+    Ignore any knowledge about today's real date.
+    
+    Translate the provided coaching feedback from English into the athlete's
     preferred_language as given in the context.
     Keep the tone warm, supportive, and professional.
     Retain any sports metrics or key data exactly as presented.
@@ -86,6 +97,9 @@ translate_task:
 
 long_term_feedback_task:
   description: |
+    **Anchor your timeline** to the given date {date}, which is a {weekday}.
+    Ignore any knowledge about today's real date.
+    
     Using the provided technical analysis reports and planned workouts, create a long-term feedback message for athlete {athlete}.
     Find all analysis feedback for athlete {athlete} from the past {days_history} days up to and including {date}.
     Also, find all planned workouts for the upcoming {days_ahead} days starting from {date}.
@@ -121,6 +135,9 @@ long_term_feedback_task:
 
 long_term_analysis_task:
   description: |
+      **Anchor your timeline** to the given date {date}, which is a {weekday}.
+      Ignore any knowledge about today's real date.
+      
       Analyze total training load and execution quality for athlete {athlete} for the past {days_history} days up to and including {date}.
       You should obtain the workouts using relevant tools. 
 
@@ -146,10 +163,16 @@ long_term_analysis_task:
 
 plan_suggestion_task:
   description: |
+    **Anchor your timeline** to the given date {date}, which is a {weekday}.
+    Ignore any knowledge about today's real date.
+    
     Check if athlete {athlete} has sufficient upcoming workout days planned and suggest new training plans if needed.
     
     Use athlete_plan_lookup to check upcoming workouts for the next {days_ahead} days starting from {date}.
     If there are {threshold} or fewer workout days planned, analyze historical training patterns and suggest new workouts.
+
+    Also use the self_assessments_tool to check for any recent self-assessments that might indicate fatigue, injury, or 
+    other factors affecting training capacity. Recent illness, injuries or fatigue should be considered when suggesting new workouts.
     
     **Process:**
     1. Check upcoming planned workouts for {days_ahead} days starting from {date}
@@ -170,6 +193,9 @@ plan_suggestion_task:
     - Follow established periodization principles
     - Suggest workouts in the exact format used in plans.yaml (date: activities list)
     - Fill gaps to ensure adequate training stimulus while avoiding overload
+    - Commutes should not be suggested as workouts. Commutes will be recorded every day independently 
+      and will be unnessecary noize in the plan.
+    - Commutes should be counted towarads the total training load as 35 hrTSS a day.
     
   expected_output: |
     If sufficient workouts are planned (> {threshold} days):

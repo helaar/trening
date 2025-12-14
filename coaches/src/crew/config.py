@@ -103,6 +103,10 @@ class Config(BaseSettings):
         """Get the comments directory for a specific athlete."""
         return self.get_athlete_base_dir(athlete) / "comments"
     
+    def get_athlete_self_assessments_dir(self, athlete: str) -> Path:
+        """Get the self-assessments directory for a specific athlete."""
+        return self.get_athlete_base_dir(athlete) / "self-assessments"
+    
     def get_athlete_daily_dir(self, athlete: str) -> Path:
         """Get the daily analysis directory for a specific athlete."""
         return self.get_athlete_base_dir(athlete) / "daily"

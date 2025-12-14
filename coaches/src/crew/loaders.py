@@ -193,3 +193,38 @@ class WorkoutsLoader:
                     workouts.append(f"Error reading file {file_path.name}: {str(e)}")
         
         return workouts
+
+class SelfAssessmentLoader:
+    """Utility class for loading self-assessment files for athletes."""
+    
+    def __init__(self, self_assessment_directory: Path) -> None:
+        self.self_assessment_directory = self_assessment_directory
+
+    def get_self_assessment_files(self, athlete: str, assessment_date: date) -> list[Path]:
+        """List self-assessment files for a specific athlete and date."""
+        athlete_dir = self.self_assessment_directory # / athlete
+        if not athlete_dir.exists() or not athlete_dir.is_dir():
+            return []
+        
+        matching_files = []
+        for file_path in athlete_dir.iterdir():
+            if file_path.is_file() and file_path.name.startswith(assessment_date.isoformat()):
+                matching_files.append(file_path)
+        
+        return matching_files
+    
+    def read_self_assessments(self, athlete: str, end_date:date, days_history:int=1) -> list[str]:
+        """Read self-assessment files for an athlete over a range of dates."""
+        assessments = []
+        for delta in range(days_history):
+            assessment_date = end_date - timedelta(days=delta)
+            files = self.get_self_assessment_files(athlete, assessment_date)
+            for file_path in files:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        assessments.append(f"`File:{file_path.name}`\n\n"+content)
+                except Exception as e:
+                    assessments.append(f"Error reading file {file_path.name}: {str(e)}")
+        
+        return assessments
