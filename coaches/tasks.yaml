@@ -170,6 +170,8 @@ plan_suggestion_task:
     
     Use athlete_plan_lookup to check upcoming workouts for the next {days_ahead} days starting from {date}.
     If there are {threshold} or fewer workout days planned, analyze historical training patterns and suggest new workouts.
+    The existing plan may contain markes such as "Unavailable" or "Partial unavailable" that indicate days where
+    the athlete cannot train as usual. Take these into account when suggesting new workouts.
 
     Also use the self_assessments_tool to check for any recent self-assessments that might indicate fatigue, injury, or 
     other factors affecting training capacity. Recent illness, injuries or fatigue should be considered when suggesting new workouts.
