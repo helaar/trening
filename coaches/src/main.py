@@ -192,7 +192,7 @@ def main():
                 plan_suggestion(athlete="helge", date=args.date, output_dir=str(config.get_athlete_planning_dir("helge")), days_ahead=7, threshold=3, lookback_days=14)
             case "test" :
                 list_analysis_tool = DailyWorkoutReaderTool()
-                result = list_analysis_tool._run(athlete="helge", date=args.date)
+                result = list_analysis_tool._run(athlete="helge", start_date=args.date, end_date=args.date)
                 print(f"Test result: {result}")
             
         

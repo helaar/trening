@@ -3,7 +3,8 @@ dayly_analysis_task:
     Use the provided tools to analyze all workout data for athlete {athlete} on {date}:
     - athlete_reader provides profile information about the athlete.
     - daily_workout_reader reads the detailed data from each workout file for the athlete on the given date.
-    - athlete_plan_lookup lists planned workouts for the athlete.
+    - athlete_plan_lookup lists planned workouts for the athlete. 
+    Do not confuse planned workouts with completed workouts. No planned workouts should be handled as cleen slate.
 
     **STOP RULE:**
     If there is no workout data for this date, *do not* perform any analysis.
@@ -35,6 +36,7 @@ daily_feedback_task:
     Using the provided analysis report for {athlete} at {date}, read profile information about the athlete and
     the planned workouts for that date and 2 days after {date}. Then, create a short, clear, and motivating feedback 
     message for the athlete. 
+    Do not confuse planned workouts with completed workouts. No planned workouts should be handled as cleen slate.
 
     **IMPORTANT:**  
     If there are no analysis report or workouts for the given date, *immediately* state this fact and 
