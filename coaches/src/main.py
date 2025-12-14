@@ -18,19 +18,18 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     """Function to perform daily workout analysis using AI coach agents."""
 
     # Initialize configuration and loader
-    analyst_memory = False # SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete}_analyst.json")
-    main_coach_memory = False #SimpleFileStorage.memory(Path(config.exchange_dir) / f"{athlete}_main_coach.json")
+    analyst_memory = False 
+    main_coach_memory = False 
     coach_loader = CoachLoader(config)
     task_loader = TaskLoader(config)
     knowledge_loader = KnowledgeLoader(config)
     
-    # Create a workout reader tool configured with the specified directory
-    workout_tool = DailyWorkoutReaderTool(workout_files_directory=config.workouts)
-    workout_lister_tool = WorkoutFileListerTool(workout_files_directory=config.workouts)
-    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
+    # Create a workout reader tool configured with the athlete's directory
+    workout_tool = DailyWorkoutReaderTool()
+    workout_lister_tool = WorkoutFileListerTool()
+    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athlete_settings))
     plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
     
-    #athlete_knowledge = StringKnowledgeSource(content=athlete_reader._run(athlete=athlete))
     common_knowledge = knowledge_loader.get_knowledge()
     
     # Create the specified coach agent with toos
@@ -58,7 +57,7 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
         inputs={
             "athlete":athlete,
             "date": date,
-            "output_dir":output_dir
+            "output_dir": str(config.get_athlete_daily_dir(athlete))
         })
     
     print("\n" + "="*50)
@@ -70,15 +69,14 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
 def long_term_analysis(athlete: str, date: str, output_dir: str, days_history: int=14, days_ahead: int=7) -> None:
     """Function to perform long-term workout analysis using AI coach agents."""
 
-
     coach_loader = CoachLoader(config)
     task_loader = TaskLoader(config)
     knowledge_loader = KnowledgeLoader(config)
     plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
-    workout_tool = DailyWorkoutReaderTool(workout_files_directory=config.workouts) #todo: create long-term workout reader tool
-    list_analysis_tool = FeedbackListerTool(feedback_dir=Path(config.exchange_dir) / "daily")
+    workout_tool = DailyWorkoutReaderTool() #todo: create long-term workout reader tool
+    list_analysis_tool = FeedbackListerTool()
     
-    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
+    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athlete_settings))
     analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=False, reasoning=True, tools=[athlete_reader, workout_tool, plans_reader_tool])
     head_coach = coach_loader.create_coach_agent("head_coach", memory=False, reasoning=True, tools=[athlete_reader, list_analysis_tool,plans_reader_tool]) 
     analysis_task = task_loader.create_task("long_term_analysis_task", agent=analyzer)
@@ -96,9 +94,9 @@ def long_term_analysis(athlete: str, date: str, output_dir: str, days_history: i
     print(f"Performing long-term analysis for {athlete} up to {date}...")
     result = crew.kickoff(
         inputs={
-            "athlete":athlete, 
+            "athlete":athlete,
             "date": date,
-            "output_dir":output_dir,
+            "output_dir": str(config.get_athlete_long_term_dir(athlete)),
             "days_history": days_history,
             "days_ahead": days_ahead
         })
@@ -115,8 +113,8 @@ def plan_suggestion(athlete: str, date: str, output_dir: str, days_ahead: int = 
     task_loader = TaskLoader(config)
     knowledge_loader = KnowledgeLoader(config)
     plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
-    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athletes))
-    long_analysis_tool = LongTimeAnalysisLoaderTool(load_dir=Path(config.exchange_dir) / "load")
+    athlete_reader = AthleteLookupTool(yaml_path=Path(config.athlete_settings))
+    long_analysis_tool = LongTimeAnalysisLoaderTool()
     
     # Create specialized coach for plan suggestion with reasoning capabilities
     plan_coach = coach_loader.create_coach_agent(
@@ -141,7 +139,7 @@ def plan_suggestion(athlete: str, date: str, output_dir: str, days_ahead: int = 
         inputs={
             "athlete": athlete,
             "date": date,
-            "output_dir": output_dir,
+            "output_dir": str(config.get_athlete_planning_dir(athlete)),
             "days_ahead": days_ahead,
             "threshold": threshold,
             "lookback_days": lookback_days
@@ -187,14 +185,14 @@ def main():
         
         match args.processing:
             case "daily":
-                daily_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir)
+                daily_analysis(athlete="helge", date=args.date, output_dir=str(config.get_athlete_daily_dir("helge")))
             case "weekly":
-                long_term_analysis(athlete="Helge", date=args.date, output_dir=config.exchange_dir, days_history=14, days_ahead=7)
+                long_term_analysis(athlete="helge", date=args.date, output_dir=str(config.get_athlete_long_term_dir("helge")), days_history=14, days_ahead=7)
             case "plan":
-                plan_suggestion(athlete="Helge", date=args.date, output_dir=config.exchange_dir, days_ahead=7, threshold=3, lookback_days=14)
+                plan_suggestion(athlete="helge", date=args.date, output_dir=str(config.get_athlete_planning_dir("helge")), days_ahead=7, threshold=3, lookback_days=14)
             case "test" :
-                list_analysis_tool = DailyWorkoutReaderTool(workout_files_directory=config.workouts)
-                result = list_analysis_tool._run(athlete="Helge", date=args.date)
+                list_analysis_tool = DailyWorkoutReaderTool()
+                result = list_analysis_tool._run(athlete="helge", date=args.date)
                 print(f"Test result: {result}")
             
         

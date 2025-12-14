@@ -1,0 +1,6 @@
+# Application-wide settings
+application:
+  output-dir: ./ENV/exchange/athletes
+
+# Global autolap setting
+autolap: PT10M

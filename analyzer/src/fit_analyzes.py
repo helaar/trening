@@ -608,7 +608,9 @@ def main():
         description="Calculate NP, IF, TSS, VI, zone distribution, heart rate drift and lap details from a FIT file."
     )
     parser.add_argument("--fitfile", required=True, help="Path to FIT file.")
-    parser.add_argument("--settings", help="Path to settings.yaml.")
+    parser.add_argument("--athlete", "-a", required=True, default="helge", help="Athlete identifier")
+    parser.add_argument("--app-settings", "-s", default="../app-settings.yaml", help="Path to app-settings.yaml.")
+    parser.add_argument("--athlete-settings", "-as", default="../athlete-settings.yaml", help="Path to athlete-settings.yaml.")
     parser.add_argument("--ftp", type=float, help="Override FTP (watts).")
     parser.add_argument("--window", type=int, default=30, help="Window length (s) for NP. Default 30.")
     parser.add_argument("--drift-start", help="Start point for heart rate drift (HH:MM:SS, MM:SS or SS).")
@@ -624,9 +626,21 @@ def main():
         print(msg)
 
     try:
-        settings: dict[str, object] = {}
-        if args.settings:
-            settings = load_settings(args.settings)
+        # Load settings
+        app_settings_dict = load_settings(args.app_settings) if Path(args.app_settings).exists() else {}
+        athlete_settings_dict = load_settings(args.athlete_settings) if Path(args.athlete_settings).exists() else {}
+        
+        # Get athlete-specific settings (ensure lowercase)
+        athlete_id = args.athlete.lower()
+        athletes_data = athlete_settings_dict.get("athletes", {})
+        if isinstance(athletes_data, dict):
+            athlete_data = athletes_data.get(athlete_id, {})
+        else:
+            athlete_data = {}
+        
+        # Merge settings with athlete-specific data taking precedence
+        settings = {**app_settings_dict, **athlete_data}
+        
         fit = FitFileParser(fit_path)
 
         # Parse application settings

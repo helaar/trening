@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
+from crew.config import config
 
 
 class ListParameters(BaseModel):
@@ -23,13 +24,15 @@ class FeedbackListerTool(BaseTool):
         "Use this tool to list historical analysis files for a given athlete. "
         "Returns a list of analysis summaries in a textual form."
     )
-    feedback_dir: Path
 
     def _run(self, athlete: str, end_date: date, days_history: int, type: Literal["details", "feedback", "all"] = "feedback") -> str:
         """
-        Read all text files in the feedback directory for the given period.
-        Files are expected to be named starting with the date (e.g., YYYY-MM-DD_*.txt).
+        Read all text files in the athlete's daily directory for the given period.
+        Files are expected to be named starting with the date (e.g., YYYY-MM-DD_*.md).
         """
+
+        feedback_dir = config.get_athlete_daily_dir(athlete) 
+        
         # Calculate start date (inclusive range)
         start_date = end_date - timedelta(days=days_history - 1)
         
@@ -42,11 +45,11 @@ class FeedbackListerTool(BaseTool):
             # Find all text files starting with this date
             match type:
                 case "details" | "feedback":
-                    pattern = f"{date_str}_{athlete}_{type}.md"
+                    pattern = f"{date_str}_{type}.md"
                 case "all":
-                    pattern = f"{date_str}_{athlete}_*.md"
+                    pattern = f"{date_str}_*.md"
 
-            matching_files = list(self.feedback_dir.glob(pattern))
+            matching_files = list(feedback_dir.glob(pattern))
             
             for file_path in sorted(matching_files):
                 feedback_files.append((current_date, file_path))
@@ -54,7 +57,7 @@ class FeedbackListerTool(BaseTool):
             current_date += timedelta(days=1)
         
         if not feedback_files:
-            return f"No historical analysis files found for athlete {athlete} between {start_date} and {end_date}. Reading path: {self.feedback_dir}"
+            return f"No historical analysis files found for athlete {athlete} between {start_date} and {end_date}. Reading path: {feedback_dir}"
         
         # Read and concatenate file contents
         result_parts = []

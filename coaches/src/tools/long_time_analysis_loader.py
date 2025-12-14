@@ -1,9 +1,10 @@
-"""Tool for loading the freshest long time analysis from exchange/load folder."""
+"""Tool for loading the freshest long time analysis from athlete's load folder."""
 
 from pathlib import Path
 from typing import Type
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
+from crew.config import config
 
 
 class LongTimeAnalysisArgs(BaseModel):
@@ -11,44 +12,42 @@ class LongTimeAnalysisArgs(BaseModel):
 
 
 class LongTimeAnalysisLoaderTool(BaseTool):
-    """Tool for loading the most recent long time analysis file from exchange/load directory."""
+    """Tool for loading the most recent long time analysis file from athlete's load directory."""
     
     args_schema: Type[BaseModel] = LongTimeAnalysisArgs
     name: str = "long_time_analysis_loader"
     description: str = (
-        "Load the freshest (most recently created) long time analysis file from the exchange/load folder. "
+        "Load the freshest (most recently created) long time analysis file from the athlete's load folder. "
         "Returns the content of the most recent analysis file."
-    )
-    load_dir: Path = Field(
-        default=Path("exchange/load"), 
-        description="Directory path where long time analysis files are stored"
     )
     
     def _run(self, athlete: str) -> str:
         """
-        Load the freshest long time analysis file from exchange/load directory.
+        Load the freshest long time analysis file from athlete's load directory.
         
         Args:
-            athlete: Unique identifier of the athlete (parameter included for consistency)
+            athlete: Unique identifier of the athlete
             
         Returns:
             String containing the analysis content or error message
         """
         
-        if not self.load_dir.exists():
-            return f"Error: Exchange load directory '{self.load_dir}' does not exist."
+        load_dir = config.get_athlete_load_dir(athlete)
         
-        if not self.load_dir.is_dir():
-            return f"Error: '{self.load_dir}' is not a directory."
+        if not load_dir.exists():
+            return f"Error: Athlete load directory '{load_dir}' does not exist."
+        
+        if not load_dir.is_dir():
+            return f"Error: '{load_dir}' is not a directory."
         
         # Find all files in the directory
         analysis_files = [
-            f for f in self.load_dir.iterdir() 
+            f for f in load_dir.iterdir()
             if f.is_file() and not f.name.startswith('.')
         ]
         
         if not analysis_files:
-            return f"No analysis files found in '{self.load_dir}'."
+            return f"No analysis files found in '{load_dir}'."
         
         # Find the most recent file (by modification time)
         freshest_file = max(analysis_files, key=lambda f: f.stat().st_mtime)

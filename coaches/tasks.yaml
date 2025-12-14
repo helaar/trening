@@ -28,7 +28,7 @@ dayly_analysis_task:
     - Flag anomalies only where they could materially change understanding of the session.
     - Avoid irrelevant technical warnings unrelated to performance.
   markdown: true
-  output_file: "{output_dir}/daily/{date}_{athlete}_details.md"
+  output_file: "{output_dir}/{date}_details.md"
 
 daily_feedback_task:
   description: |
@@ -69,7 +69,7 @@ daily_feedback_task:
     5. Short closing motivation sentence.
     
   markdown: true
-  output_file: "{output_dir}/daily/{date}_{athlete}_feedback.md"
+  output_file: "{output_dir}/{date}_feedback.md"
 
 translate_task:
   description: |
@@ -80,7 +80,7 @@ translate_task:
   expected_output: |
     A fluent, natural translation of the provided feedback.
     All technical terms should remain accurate and easy to understand.
-  output_file: "{exchange_dir}/output/{date}_{athlete}_daily.md"
+  output_file: "{output_dir}/{date}_daily.md"
 
 long_term_feedback_task:
   description: |
@@ -115,7 +115,7 @@ long_term_feedback_task:
     relevant literature or training principles.
 
   markdown: true
-  output_file: "{output_dir}/long_term/{date}_{athlete}_feedback.md"
+  output_file: "{output_dir}/{date}_feedback.md"
 
 long_term_analysis_task:
   description: |
@@ -140,7 +140,7 @@ long_term_analysis_task:
     Avoid unrelated technical detail.
 
   markdown: true
-  output_file: "{output_dir}/long_term/{date}_{athlete}_analysis.md"
+  output_file: "{output_dir}/{date}_analysis.md"
 
 plan_suggestion_task:
   description: |
@@ -187,4 +187,4 @@ plan_suggestion_task:
     5. Integration recommendations for the suggested workouts
     
   markdown: true
-  output_file: "{output_dir}/planning/{date}_{athlete}_plan_suggestion.md"
+  output_file: "{output_dir}/{date}_plan_suggestion.md"

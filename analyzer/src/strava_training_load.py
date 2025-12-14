@@ -168,21 +168,22 @@ def main():
     # Reload environment if token was refreshed
     load_dotenv(dotenv_path=env_file, override=True)
     
-    # Set up directories
-    project_root = Path(__file__).parent.parent
-    exchange_dir = project_root.parent / "ENV" / "exchange"
-    load_dir = exchange_dir / "load"
-    cache_dir = load_dir / "cache"
-    
     parser = argparse.ArgumentParser(
         description="Analyze Strava training load for the last 28 days with minimal API calls."
     )
     parser.add_argument(
-        "--end-date", 
+        "--end-date", "-d",
         help="End date for analysis period (YYYY-MM-DD format). Default: today"
     )
+    parser.add_argument(
+        "--athlete", "-a",
+        required=True,
+        default="helge",
+        help="Athlete identifier"
+    )
     parser.add_argument("--days", type=int, default=28, help="Number of days to analyze (default: 28)")
-    parser.add_argument("--settings", help="Path to settings.yaml")
+    parser.add_argument("--app-settings", "-s", default="../app-settings.yaml", help="Path to app-settings.yaml")
+    parser.add_argument("--athlete-settings", "-as", default="../athlete-settings.yaml", help="Path to athlete-settings.yaml")
     parser.add_argument("--ftp", type=float, help="Override FTP for TSS calculations (watts)")
     parser.add_argument("--threshold-hr", type=float, help="Override threshold HR for HRSS calculations (bpm)")
     
@@ -199,27 +200,47 @@ def main():
         end_date = date.today()
     
     # Load settings
-    settings: dict = {}
+    app_settings_dict = load_settings(args.app_settings) if Path(args.app_settings).exists() else {}
+    athlete_settings_dict = load_settings(args.athlete_settings) if Path(args.athlete_settings).exists() else {}
+    
+    # Get athlete-specific settings (ensure lowercase)
+    athlete_id = args.athlete.lower()
+    athletes_data = athlete_settings_dict.get("athletes", {})
+    if isinstance(athletes_data, dict):
+        athlete_data = athletes_data.get(athlete_id, {})
+    else:
+        athlete_data = {}
+    
+    # Set up directories
+    app_config_data = app_settings_dict.get("application", {})
+    if isinstance(app_config_data, dict):
+        output_dir_str = app_config_data.get("output-dir", "./ENV/exchange/athletes")
+    else:
+        output_dir_str = "./ENV/exchange/athletes"
+    
+    # Resolve output path relative to the app-settings.yaml file location
+    settings_file_dir = Path(args.app_settings).parent
+    base_output_dir = (settings_file_dir / output_dir_str).resolve()
+    load_dir = base_output_dir / athlete_id / "load"
+    cache_dir = load_dir / "cache"
+    
     cycling_ftp = args.ftp  # CLI FTP overrides cycling FTP
     running_ftp = None
     threshold_hr = args.threshold_hr
     
-    if args.settings:
-        settings = load_settings(args.settings)
-        
-        # Extract sport-specific FTPs and threshold HR from settings
-        if not cycling_ftp:
-            cycling_settings = settings.get("cycling", {})
-            cycling_ftp = cycling_settings.get("ftp") if isinstance(cycling_settings, dict) else None
-        
-        # Get running FTP from settings
-        running_settings = settings.get("running", {})
-        if isinstance(running_settings, dict):
-            running_ftp = running_settings.get("ftp")
-        
-        if not threshold_hr:
-            hr_settings = settings.get("heart-rate", {})
-            threshold_hr = hr_settings.get("lt") if isinstance(hr_settings, dict) else None
+    # Extract sport-specific FTPs and threshold HR from athlete settings
+    if not cycling_ftp:
+        cycling_settings = athlete_data.get("cycling", {})
+        cycling_ftp = cycling_settings.get("ftp") if isinstance(cycling_settings, dict) else None
+    
+    # Get running FTP from settings
+    running_settings = athlete_data.get("running", {})
+    if isinstance(running_settings, dict):
+        running_ftp = running_settings.get("ftp")
+    
+    if not threshold_hr:
+        hr_settings = athlete_data.get("heart-rate", {})
+        threshold_hr = hr_settings.get("lt") if isinstance(hr_settings, dict) else None
     
     # Ensure directories exist
     load_dir.mkdir(parents=True, exist_ok=True)
@@ -253,7 +274,7 @@ def main():
         )
         
         # Generate report
-        report_lines = generate_training_load_report(analysis, settings)
+        report_lines = generate_training_load_report(analysis, athlete_data)
         
         # Create filename and save to load directory
         start_date = analysis.period_start

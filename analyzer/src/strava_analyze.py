@@ -447,11 +447,18 @@ def main():
         description="Download and analyze Strava workouts for a given date."
     )
     parser.add_argument(
-        "--date", 
-        required=True, 
+        "--date","-d",
+        required=True,
         help="Date to download workouts for (YYYY-MM-DD format)"
     )
-    parser.add_argument("--settings", help="Path to settings.yaml.")
+    parser.add_argument(
+        "--athlete","-a",
+        required=True,
+        default="helge",
+        help="Athlete identifier"
+    )
+    parser.add_argument("--app-settings", "-s", default="../app-settings.yaml", help="Path to app-settings.yaml.")
+    parser.add_argument("--athlete-settings", "-as", default="../athlete-settings.yaml", help="Path to athlete-settings.yaml.")
     parser.add_argument("--ftp", type=float, help="Override FTP (watts).")
     parser.add_argument("--window", type=int, default=30, help="Window length (s) for NP. Default 30.")
     parser.add_argument("--drift-start", help="Start point for heart rate drift (HH:MM:SS, MM:SS or SS).")
@@ -468,13 +475,26 @@ def main():
         return 1
     
     # Load settings
-    settings: dict[str, object] = {}
-    if args.settings:
-        settings = load_settings(args.settings)
+    app_settings_dict = load_settings(args.app_settings) if Path(args.app_settings).exists() else {}
+    athlete_settings_dict = load_settings(args.athlete_settings) if Path(args.athlete_settings).exists() else {}
+    
+    # Get athlete-specific settings (ensure lowercase)
+    athlete_id = args.athlete.lower()
+    athletes_data = athlete_settings_dict.get("athletes", {})
+    if isinstance(athletes_data, dict):
+        athlete_data = athletes_data.get(athlete_id, {})
+    else:
+        athlete_data = {}
+    
+    # Merge settings with athlete-specific data taking precedence
+    settings = {**app_settings_dict, **athlete_data}
     
     # Parse application settings
-    app_config_data = settings.get("application", {})
-    app_settings = ApplicationSettings.model_validate(app_config_data)
+    app_config_data = app_settings_dict.get("application", {})
+    if isinstance(app_config_data, dict):
+        app_settings = ApplicationSettings.model_validate(app_config_data)
+    else:
+        app_settings = ApplicationSettings.model_validate({})
     
     try:
         print(f"Downloading Strava workouts for {target_date}...")
@@ -500,7 +520,16 @@ def main():
         print(f"Found {len(workout_parsers)} workout(s) for {target_date}")
         
         # Analyze each workout
-        output_path = app_settings.get_output_path()
+        if isinstance(app_config_data, dict):
+            output_dir_str = app_config_data.get("output-dir", "./ENV/exchange/athletes")
+        else:
+            output_dir_str = "./ENV/exchange/athletes"
+        
+        # Resolve output path relative to the app-settings.yaml file location
+        settings_file_dir = Path(args.app_settings).parent
+        base_output_dir = (settings_file_dir / output_dir_str).resolve()
+        athlete_analyses_dir = base_output_dir / athlete_id / "analyses"
+        athlete_analyses_dir.mkdir(parents=True, exist_ok=True)
         
         for i, workout_parser in enumerate(workout_parsers, 1):
             print(f"\nAnalyzing workout {i}/{len(workout_parsers)}: {workout_parser.workout.name}")
@@ -519,7 +548,7 @@ def main():
             
             # Write analysis to file
             analysis_text = "\n".join(analysis_lines)
-            analysis_path = output_path / filename
+            analysis_path = athlete_analyses_dir / filename
             analysis_path.write_text(analysis_text, encoding="utf-8")
             
             print(f"Analysis saved to: {analysis_path}")

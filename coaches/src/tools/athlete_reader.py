@@ -24,7 +24,8 @@ class AthleteLookupTool(BaseTool):
 
     def _run(self, athlete: str) -> str:
         data = self._load_yaml()
-        athlete_dict = data[athlete]
+        athletes = data.get("athletes", {})
+        athlete_dict = athletes.get(athlete.lower())
         if not athlete_dict:
             return f"Athlete {athlete} not found."
         
@@ -32,7 +33,8 @@ class AthleteLookupTool(BaseTool):
 
     def athlete_as_dict(self, athlete: str) -> dict[str, Any] | None:
         data = self._load_yaml()
-        athlete_dict = data.get(athlete)
+        athletes = data.get("athletes", {})
+        athlete_dict = athletes.get(athlete.lower())
         return athlete_dict
 
     def _load_yaml(self) -> dict[str, Any]:
