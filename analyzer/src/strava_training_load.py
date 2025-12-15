@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from strava.client import StravaClient
 from strava.training_load import TrainingLoadAnalysis
 from strava_auth import StravaTokenManager
-from tools.settings import load_settings, ApplicationSettings
+from tools.settings import load_settings
 
 
 def format_time(seconds: int) -> str:
@@ -130,7 +130,7 @@ def generate_training_load_report(analysis: TrainingLoadAnalysis, settings: dict
         date_str = day.date.strftime("%m/%d")
         
         if not day.activities:
-            add_line(f"| {date_str} | *Rest Day* | — | — | — | — | — | — | — | — |")
+            add_line(f"| {date_str} | *No activities* | — | — | — | — | — | — | — | — |")
             continue
         
         for activity in day.activities:
