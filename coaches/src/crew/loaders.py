@@ -45,7 +45,7 @@ class CoachLoader(YamlLoader[Coach]):
         super().__init__(Path(config.coaches), Coach)
         self.model_name = config.get_model()
 
-    def create_coach_agent(self, coach_name: str, memory, reasoning:bool | None=False, tools: list | None = None) -> Agent:
+    def create_coach_agent(self, coach_name: str, memory, reasoning:bool | None=None, tools: list | None = None, knowledge : list | None = None ) -> Agent:
         """Create a CrewAI Agent from a coach definition."""
         try:
             # Extract CrewAI parameters
@@ -53,7 +53,15 @@ class CoachLoader(YamlLoader[Coach]):
             if not coach:
                 raise ValueError(f"Coach '{coach_name}' not found in configuration.")
             
-            reasoning_steps = 3 if reasoning else 0
+            # Determine reasoning steps and reasoning from coach definition
+            reasoning_steps = coach.reasoning_steps if coach.reasoning_steps is not None else None
+            reasoning = reasoning if reasoning is not None else (reasoning_steps is not None)
+            if reasoning and reasoning_steps is None:
+                reasoning_steps = 3  # default reasoning steps
+
+            llm_model = coach.llm_model if coach.llm_model and coach.llm_model.lower() != "default" else self.model_name
+
+            print(f"Creating agent for coach '{coach_name}' with LLM model '{llm_model}', reasoning={reasoning}, reasoning_steps={reasoning_steps}")  # Debug print
             # Create and return the agent
             return Agent(
                 role=coach.role,
@@ -61,11 +69,12 @@ class CoachLoader(YamlLoader[Coach]):
                 backstory=coach.backstory,
                 verbose=True,
                 allow_delegation=False,
-                llm=self.model_name,
+                llm=llm_model,
                 tools=tools or [],
                 memory=memory,
                 reasoning=reasoning,
-                reasoning_max_steps=reasoning_steps
+                reasoning_max_steps=reasoning_steps,
+                knowledge_sources=knowledge or []
             )
             
         except ValueError as e:

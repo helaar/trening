@@ -84,21 +84,25 @@ class DailyWorkoutReaderTool(BaseTool):
         if start_dt > end_dt:
             return f"Error: Start date ({start_date}) cannot be after end date ({end_date})."
         
-        analyses_dir = config.get_athlete_analyses_dir(athlete)
-        loader = WorkoutsLoader(analyses_dir)
-        
-        all_workouts = []
-        current_date = start_dt
-        while current_date <= end_dt:
-            workouts = loader.read_workouts(athlete=athlete, end_date=current_date, days_history=1)
-            if workouts:
-                all_workouts.append(f"# Workouts for {athlete} on {current_date.isoformat()}\n\n" + "\n\n".join(workouts))
-            current_date += timedelta(days=1)
-        
-        if not all_workouts:
-            return f"No workouts found for {athlete} in the date range {start_date} to {end_date}."
-        
-        return "\n\n---\n\n".join(all_workouts)
+        try:
+            analyses_dir = config.get_athlete_analyses_dir(athlete)
+            loader = WorkoutsLoader(analyses_dir)
+            
+            all_workouts = []
+            current_date = start_dt
+            while current_date <= end_dt:
+                workouts = loader.read_workouts(athlete=athlete, end_date=current_date, days_history=1)
+                if workouts:
+                    all_workouts.append(f"# Workouts for {athlete} on {current_date.isoformat()}\n\n" + "\n\n".join(workouts))
+                current_date += timedelta(days=1)
+            
+            if not all_workouts:
+                return f"No workouts found for {athlete} in the date range {start_date} to {end_date}."
+            
+            return "\n\n---\n\n".join(all_workouts)
+        except Exception as e:
+            print(f"Error reading workout data: {str(e)}")  # TODO: Temporary debug print
+            return f"Error reading workout data for {athlete} between {start_date} and {end_date}: {str(e)}"
 
 
 class SelfAssessmentFileListerTool(BaseTool):
@@ -172,20 +176,24 @@ class DailySelfAssessmentReaderTool(BaseTool):
         if start_dt > end_dt:
             return f"Error: Start date ({start_date}) cannot be after end date ({end_date})."
         
-        self_assessments_dir = config.get_athlete_self_assessments_dir(athlete)
-        loader = SelfAssessmentLoader(self_assessments_dir)
-        
-        all_assessments = []
-        current_date = start_dt
-        while current_date <= end_dt:
-            assessments = loader.read_self_assessments(athlete=athlete, end_date=current_date, days_history=1)
-            if assessments:
-                all_assessments.append(f"# Self-assessments for {athlete} on {current_date.isoformat()}\n\n" + "\n\n".join(assessments))
-            current_date += timedelta(days=1)
-        
-        if not all_assessments:
-            return f"No self-assessments found for {athlete} in the date range {start_date} to {end_date}."
-        
-        return "\n\n---\n\n".join(all_assessments)
+        try:
+            self_assessments_dir = config.get_athlete_self_assessments_dir(athlete)
+            loader = SelfAssessmentLoader(self_assessments_dir)
+            
+            all_assessments = []
+            current_date = start_dt
+            while current_date <= end_dt:
+                assessments = loader.read_self_assessments(athlete=athlete, end_date=current_date, days_history=1)
+                if assessments:
+                    all_assessments.append(f"# Self-assessments for {athlete} on {current_date.isoformat()}\n\n" + "\n\n".join(assessments))
+                current_date += timedelta(days=1)
+            
+            if not all_assessments:
+                return f"No self-assessments found for {athlete} in the date range {start_date} to {end_date}."
+            
+            return "\n\n---\n\n".join(all_assessments)
+        except Exception as e:
+            print(f"Error reading self-assessment data: {str(e)}")  # TODO: Temporary debug print
+            return f"Error reading self-assessment data for {athlete} between {start_date} and {end_date}: {str(e)}"
 
 

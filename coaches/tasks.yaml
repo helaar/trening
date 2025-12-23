@@ -3,7 +3,7 @@ dayly_analysis_task:
     **Anchor your timeline** to the given date {date}, which is a {weekday}.
     Ignore any knowledge about today's real date.
     
-    Use the provided tools to analyze all workout data for athlete {athlete} on {date}:
+    You are required to use all these tools to analyze all workout data for athlete {athlete} on {date}:
     - athlete_reader provides profile information about the athlete.
     - daily_workout_reader reads the detailed data from each workout file for the athlete on the given date.
     - self_assessments_tool reads the daily self-assessment data for the athlete on the given date.
@@ -12,7 +12,7 @@ dayly_analysis_task:
 
     **STOP RULE:**
     If there is no workout data and no self assessments for this date, *do not* perform any analysis. You may proceed
-    if there is at least one workout or self assessment data present.
+    if there is at least one workout or self assessment data present but you must explicitly state the absence of data in your output.
     Do not attempt to infer or invent activity details if data is missing.
 
     When data is present:
@@ -40,60 +40,62 @@ daily_feedback_task:
     **Anchor your timeline** to the given date {date}, which is a {weekday}.
     Ignore any knowledge about today's real date.
     
-    Using the provided analysis report for {athlete} at {date}, read profile information about the athlete and
-    the planned workouts for that date and 2 days after {date}. The athlete's self assessment for {date} is 
-    available from the self_assessments_tool. Look back 2-3 days or even up to a week on signs of injury, fatigue, or sickness.
-    Then, create a short, clear, and motivating feedback message for the athlete. 
-    Do not confuse planned workouts with completed workouts. No planned workouts should be handled as cleen slate.
-
-    **IMPORTANT:**  
-    If there are no analysis report or workouts for the given date, *immediately* state this fact and 
-    end the response. Do not speculate about possible activities, do not provide generic advice, and 
-    do not attempt to fill in missing details. Simply inform the athlete that there is no data for 
-    the date in question.
-
-    Verify that the analysis report corresponds to the date in question by listing available workouts for the athlete.
-
-    When data *is* present:
-    - Focus solely on the workout(s) completed on this date.
-    - Optionally use a tool to list available workouts for the athlete to verify the report.
-    - Acknowledge today's effort.
-    - Highlight 1–2 positive aspects from the report, in plain language.
-    - Mention 1 improvement point, phrased constructively.
-    - Provide 1 concrete next step relevant to the coming day(s), without multiple options.
-    - Avoid detailed metric explanations unless essential.
-    - Avoid long-term recommendations; limit feedback to the immediate context.
-    - Keep the feedback concise (max ~100–150 words), so it can be read in less than a minute.
-    - Use a warm, supportive, but professional tone.
-    - The feedback should be in the athlete's preferred language as given in the context.
+    **STEP 1 - Check Data Availability:**
+    If no analysis report or workouts exist for {date}, output: "No workout data is available for {date}." and STOP.
+    
+    **STEP 2 - Gather Information:**
+    - Use athlete_lookup to get athlete profile and preferred language
+    - Use daily_self_assessment_reader for {date} self-assessment
+    - Use athlete_plan_lookup for planned workouts on {date}
+    
+    **STEP 3 - Create Feedback:**
+    Write a casual, conversational coaching message (100-150 words MAX) in English like you're talking directly to the athlete:
+    
+    **Style Requirements:**
+    - Write like a friendly, supportive coach having a conversation
+    - NO headers, bullet points, or formal structure
+    - Use simple paragraphs, like you're texting or chatting
+    - Be encouraging but genuine, not overly enthusiastic
+    - Keep it under 150 words - be concise!
+    
+    **Content Requirements:**
+    1. Quick acknowledgement of today's effort
+    2. 1-2 positive things from the workout
+    3. 1 area to improve (phrased positively)
+    4. What to focus on tomorrow
+    5. Brief motivational ending
 
   expected_output: |
-    The entire message should be written in the athlete's preferred language.
-    If there is no data for the given date, output ONLY:
-    "No workout data is available for [date]."
-    Otherwise, output a concise, well-structured feedback message addressed to the athlete, containing:
-    1. Greeting / quick acknowledgement of today's effort.
-    2. 1–2 positives about the workout performance.
-    3. 1 constructive improvement point.
-    4. 1 concrete next step or action for the upcoming day(s).
-    5. Short closing motivation sentence.
+    If no data exists: "No workout data is available for {date}."
+    
+    Otherwise: A casual, conversational message (100-150 words MAX) in plain English.
+    NO headers, bullet points, or formal structure. Write like a friendly coach talking directly to the athlete.
     
   markdown: true
-  output_file: "{output_dir}/{date}_feedback.md"
+  output_file: "{output_dir}/{date}_feedback_en.md"
 
 translate_task:
   description: |
-    **Anchor your timeline** to the given date {date}, which is a {weekday}.
-    Ignore any knowledge about today's real date.
+    **Date: {date} ({weekday})**
     
-    Translate the provided coaching feedback from English into the athlete's
-    preferred_language as given in the context.
-    Keep the tone warm, supportive, and professional.
-    Retain any sports metrics or key data exactly as presented.
+    Create a natural, fluent version of the English coaching feedback in {preferred_language}.
+    
+    **Translation Style:**
+    - Focus on natural expression in {preferred_language}, NOT word-by-word translation
+    - Use idiomatic expressions and phrasing that sounds native
+    - Adapt the tone to what feels natural in {preferred_language} culture
+    - Keep the same casual, supportive coaching spirit
+    
+    **Requirements:**
+    - Preserve all sports metrics and technical data exactly
+    - Keep the same message and content, but express it naturally
+    - Make it sound like it was originally written by a native {preferred_language} speaker
+    
   expected_output: |
-    A fluent, natural translation of the provided feedback.
-    All technical terms should remain accurate and easy to understand.
-  output_file: "{output_dir}/{date}_daily.md"
+    A natural, fluent version in {preferred_language} that sounds like it was originally written by a native speaker.
+    Should feel natural and idiomatic, not like a translation. Preserve all technical data and metrics exactly.
+    
+  output_file: "{output_dir}/{date}_feedback.md"
 
 long_term_feedback_task:
   description: |

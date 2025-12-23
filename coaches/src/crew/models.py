@@ -7,6 +7,8 @@ class Coach(BaseModel):
     role: str
     goal: str
     backstory: str
+    llm_model: str | None = None
+    reasoning_steps: int | None = None
 
 class TaskDescription(BaseModel):
     """Class representing a task description loaded from YAML."""

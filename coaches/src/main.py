@@ -33,21 +33,22 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     
     common_knowledge = knowledge_loader.get_knowledge()
     
-    # Create the specified coach agent with toos
-    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[athlete_reader, workout_tool, self_assessments_tool, plans_reader_tool])
-    head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, reasoning=True, tools=[athlete_reader, workout_lister_tool, self_assessments_tool, plans_reader_tool]) 
+    # Create the specified coach agent with tools
+    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[athlete_reader, workout_tool, self_assessments_tool, plans_reader_tool],  knowledge=[common_knowledge])
+    head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, tools=[athlete_reader, workout_lister_tool, self_assessments_tool, plans_reader_tool], knowledge=[common_knowledge])
+    translator = coach_loader.create_coach_agent("translator", memory=False, tools=[])
     
     # Create a task for the agent
     analysis_task = task_loader.create_task("dayly_analysis_task", agent=analyzer)
-    feedback_task = task_loader.create_task("daily_feedback_task", agent=head_coach,context=[analysis_task])
+    feedback_task = task_loader.create_task("daily_feedback_task", agent=head_coach, context=[analysis_task])
+    translate_task = task_loader.create_task("translate_task", agent=translator, context=[feedback_task])
     
     
     
     # Create a crew with the agent and task
-    crew = Crew(            
-        agents=[analyzer, head_coach],
-        tasks=[analysis_task, feedback_task],
-        knowledge_sources=[common_knowledge],
+    crew = Crew(
+        agents=[analyzer, head_coach, translator],
+        tasks=[analysis_task, feedback_task, translate_task],
         verbose=True,
         
     )
@@ -60,10 +61,11 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     
     result = crew.kickoff(
         inputs={
-            "athlete":athlete,
+            "athlete": athlete,
             "date": date,
             "weekday": weekday,
-            "output_dir": str(config.get_athlete_daily_dir(athlete))
+            "output_dir": str(config.get_athlete_daily_dir(athlete)),
+            "preferred_language": "Norwegian"
         })
     
     print("\n" + "="*50)

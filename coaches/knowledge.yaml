@@ -1,7 +1,9 @@
 common_knowledge:
   - rule: "Commuting activities"
     accept: "Only mention if they affect the training plan or intensity distribution."
-    reject: "Do not bring up if it is merely a recognized pattern and has no training relevance."
+    reject: |
+      - Do not bring up if it is merely a recognized pattern and has no training relevance. 
+      - Appreciate presence of sensordata on commutes, but do not report them missing.
 
   - rule: "Start/end anomalies"
     accept: "Only include if start/end irregularities last more than 5 minutes or affect the main part of the session."
@@ -20,8 +22,18 @@ common_knowledge:
     reject: "Do not compare running power directly to cycling power, and do not confuse SPM with RPM."
 
   - rule: "HRV and sleep data"
-    accept: "Only mention if there are clear, significant deviations that impact training readiness."
-    reject: "Do not speculate on minor fluctuations or trends without strong evidence of impact."
+    accept: |
+      Mention only if there is a very clear, sustained deviation from the athlete's normal baseline 
+      (e.g., ≥10% HRV change lasting ≥3 consecutive days OR consistently reduced sleep duration/quality for ≥3 nights)
+      AND the change is supported by other readiness indicators (e.g., unusual fatigue, poor session execution).
+      When mentioning sleep, frame the feedback constructively without implying it can be fixed instantly.
+      Focus on actionable, non‑pressuring routines that can support rest, rather than commands to "sleep better".
+    reject: |
+      - Do not comment on single-day HRV changes under ±10% from baseline.
+      - Do not rely solely on HRV values from consumer wearables; treat them as indicative, not definitive.
+      - Avoid drawing strong conclusions about readiness from isolated poor sleep nights.
+      - Ignore minor fluctuations that are likely within normal daily variation or device noise.
+      - Do not instruct the athlete to “sleep better” without context; avoid generic sleep advice that could be stressful or unrealistic.
 
   - rule: "Morning HRV readings"
     accept: "Use for context on recovery status for the previous day's training load."

@@ -23,13 +23,17 @@ class AthleteLookupTool(BaseTool):
     _cache: dict[str,Any] | None = None
 
     def _run(self, athlete: str) -> str:
-        data = self._load_yaml()
-        athletes = data.get("athletes", {})
-        athlete_dict = athletes.get(athlete.lower())
-        if not athlete_dict:
-            return f"Athlete {athlete} not found."
-        
-        return f"{athlete_dict}"
+        try:
+            data = self._load_yaml()
+            athletes = data.get("athletes", {})
+            athlete_dict = athletes.get(athlete.lower())
+            if not athlete_dict:
+                return f"Athlete {athlete} not found."
+            
+            return f"{athlete_dict}"
+        except Exception as e:
+            print(f"Error reading athlete data: {str(e)}") #TODO: Temporary debug print
+            return f"Error reading athlete data for {athlete}: {str(e)}"
 
     def athlete_as_dict(self, athlete: str) -> dict[str, Any] | None:
         data = self._load_yaml()
@@ -63,8 +67,12 @@ class AthletePlanTool(BaseTool):
         self._loader = loader
 
     def _run(self, athlete: str, start_date: date, end_date: date) -> str:
-        plans_dict = self._loader.get_plans(athlete, start_date, end_date)
-        
-        return f"{plans_dict}\n\nHint: Unplanned workouts may be transportation/commute rides or runs not included in the plan." if plans_dict else f"No plans found for athlete {athlete} between {start_date} and {end_date}."
+        try:
+            plans_dict = self._loader.get_plans(athlete, start_date, end_date)
+            
+            return f"{plans_dict}\n\nHint: Unplanned workouts may be transportation/commute rides or runs not included in the plan." if plans_dict else f"No plans found for athlete {athlete} between {start_date} and {end_date}."
+        except Exception as e:
+            print(f"Error reading athlete plan data: {str(e)}")  # TODO: Temporary debug print
+            return f"Error reading athlete plan for {athlete} between {start_date} and {end_date}: {str(e)}"
 
 
