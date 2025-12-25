@@ -40,15 +40,20 @@ daily_feedback_task:
     **Anchor your timeline** to the given date {date}, which is a {weekday}.
     Ignore any knowledge about today's real date.
     
-    **STEP 1 - Check Data Availability:**
+    **STEP 1 - Check QA Validation:**
+    First, check the QA validation result from the previous task:
+    - If the result is "INVALID_ANALYSIS" or "HALLUCINATION_DETECTED", output: "Unable to provide feedback due to data quality issues. Please check workout data and try again." and STOP.
+    - If the validation passed, proceed with the validated analysis report.
+    
+    **STEP 2 - Check Data Availability:**
     If no analysis report or workouts exist for {date}, output: "No workout data is available for {date}." and STOP.
     
-    **STEP 2 - Gather Information:**
+    **STEP 3 - Gather Information:**
     - Use athlete_lookup to get athlete profile and preferred language
     - Use daily_self_assessment_reader for {date} self-assessment
     - Use athlete_plan_lookup for planned workouts on {date}
     
-    **STEP 3 - Create Feedback:**
+    **STEP 4 - Create Feedback:**
     Write a casual, conversational coaching message (100-150 words MAX) in English like you're talking directly to the athlete:
     
     **Style Requirements:**
@@ -66,6 +71,7 @@ daily_feedback_task:
     5. Brief motivational ending
 
   expected_output: |
+    If QA validation failed: "Unable to provide feedback due to data quality issues. Please check workout data and try again."
     If no data exists: "No workout data is available for {date}."
     
     Otherwise: A casual, conversational message (100-150 words MAX) in plain English.
@@ -220,3 +226,40 @@ plan_suggestion_task:
     
   markdown: true
   output_file: "{output_dir}/{date}_plan_suggestion.md"
+
+
+validate_analysis_task:
+  description: |
+    Review the provided analysis report against workout data, planned workouts, the athlete's self-assessments, and domain knowledge rules.
+    Use the tools to obtain all relevant data for athlete {athlete} on {date}.
+    
+    Validation criteria:
+    1. Format:
+        - Contains a clear summary of the day's workouts.
+        - Contains relevant observations based ONLY on the provided data.
+        - Avoids irrelevant anomalies, minor spikes, or technical noise unless it materially affects interpretation.
+    2. Factual accuracy:
+        - All metrics, events, and details must match the provided workout data.
+        - No invented values, fabricated events, or inferred long-term trends without supporting data.
+        - Adheres to domain knowledge reject/accept rules (e.g., HRV thresholds, commuting detection, strength training data handling).
+    3. Context relevance:
+        - Feedback and observations must relate strictly to the given date.
+        - No generic "best practice" coaching advice without a direct tie to observed data.
+
+    If VALID:
+      - Output the original analysis report unchanged.
+
+    If INVALID (format or factual issues):
+      - Output "INVALID_ANALYSIS".
+
+    If any detail clearly contradicts provided data or invents unsupported facts:
+      - Output "HALLUCINATION_DETECTED".
+
+  expected_output: |
+    One of:
+    - The original analysis text (if valid and accurate)
+    - "INVALID_ANALYSIS" (if wrong format or not based on data)
+    - "HALLUCINATION_DETECTED" (if invented/false content detected)
+
+  markdown: true
+  output_file: "{output_dir}/{date}_qa.md"

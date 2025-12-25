@@ -14,6 +14,11 @@ Helge:
     bodily signals and RPE weigh heavily in decisions. Values consistency and long-term development 
     over short-term performances. Motivated by measureable progress.
 
+  capacity:
+    weekly hours: 12-18
+    weekly_tss: 600 (off season) to 900-1100 (peak season)
+    annual_hours: 600-800
+
   primary_goals:
     main: L'Étape Trondheim 2026 (130 km, 1500+ meters elevation)
     secondary: Robust cycling/running engine, running competitions as variation
