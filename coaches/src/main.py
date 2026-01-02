@@ -34,23 +34,23 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     common_knowledge = knowledge_loader.get_knowledge()
     
     # Create the specified coach agent with tools
-    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=analyst_memory, tools=[athlete_reader, workout_tool, self_assessments_tool, plans_reader_tool],  knowledge=[common_knowledge])
-    qa_inspector = coach_loader.create_coach_agent("qa_agent", memory=False, tools=[athlete_reader, workout_tool, self_assessments_tool, plans_reader_tool], knowledge=[common_knowledge])
+    analyzer = coach_loader.create_coach_agent("performance_analysis_assistant", memory=False, tools=[athlete_reader, workout_tool, self_assessments_tool, plans_reader_tool],  knowledge=[common_knowledge])
+    #qa_inspector = coach_loader.create_coach_agent("qa_agent", memory=False, tools=[athlete_reader, workout_tool, self_assessments_tool, plans_reader_tool], knowledge=[common_knowledge])
     head_coach = coach_loader.create_coach_agent("head_coach", memory=main_coach_memory, tools=[athlete_reader, workout_lister_tool, self_assessments_tool, plans_reader_tool], knowledge=[common_knowledge])
     translator = coach_loader.create_coach_agent("translator", memory=False, tools=[])
     
     # Create a task for the agent
     analysis_task = task_loader.create_task("dayly_analysis_task", agent=analyzer)
-    validation_task = task_loader.create_task("validate_analysis_task", agent=qa_inspector, context=[analysis_task])
-    feedback_task = task_loader.create_task("daily_feedback_task", agent=head_coach, context=[validation_task])
+    #validation_task = task_loader.create_task("validate_analysis_task", agent=qa_inspector, context=[analysis_task])
+    feedback_task = task_loader.create_task("daily_feedback_task", agent=head_coach, context=[analysis_task])
     translate_task = task_loader.create_task("translate_task", agent=translator, context=[feedback_task])
     
     
     
     # Create a crew with the agent and task
     crew = Crew(
-        agents=[analyzer, qa_inspector, head_coach, translator],
-        tasks=[analysis_task, validation_task, feedback_task, translate_task],
+        agents=[analyzer,  head_coach, translator],
+        tasks=[analysis_task, feedback_task, translate_task],
         verbose=True,
         
     )
