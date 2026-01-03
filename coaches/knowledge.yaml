@@ -38,3 +38,7 @@ common_knowledge:
   - rule: "Morning HRV readings"
     accept: "Use for context on recovery status for the previous day's training load."
     reject: "Do not use to predict performance for the current day's workout without corroborating data."
+
+  - rule: "Unplanned training sessions"
+    accept: "Acknowledge if they provide useful context for overall load or recovery status."
+    reject: "Do not analyze in detail or compare to planned sessions; focus only on the scheduled workouts. Low intensity or short duration unplanned sessions should not be commented on."
