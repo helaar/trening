@@ -21,15 +21,27 @@ dayly_analysis_task:
     Do not attempt to infer or invent activity details if data is missing.
 
     **STEP 3 - Analyze Data (when data is present):**
-    For each workout, provide a structured analysis containing:
-    
-    1. **Session Name**: Use the athlete's original session name if available, otherwise use filename
-    2. **Session Overview**: Brief technical description of workout type and structure
-    3. **Quantitative Summary**: Key performance metrics with relevant comparisons to recent sessions and training targets
-    4. **Qualitative Assessment**: Interpretation of effort level, training load, zone distribution, pacing strategy, and execution quality
-    5. **Progress Indicators**: How this session fits into overall training progression; note improvements or regressions
-    6. **Risk & Alert Flags**: Signs of overload, under-recovery, unusual data patterns, or potential injury risks
-    7. **Coach Recommendations**: Suggested adjustments for upcoming sessions, recovery needs, or focus areas (coach-facing language)
+    First, provide a **Daily Summary** (maximum 150 words):
+    - Key highlight of the day
+    - Most important risk or achievement
+    - Primary recommendation for head coach
+
+    Then, for each workout, provide a structured analysis containing:
+
+    1. **Executive Summary**: 2-3 sentences with the most important takeaway for the coach
+    2. **Risk & Alert Flags**: Critical signs of overload, under-recovery, or injury risks (if any)
+    3. **Coach Recommendations**: Specific, actionable adjustments for upcoming sessions
+    4. **Session Name**: Use the athlete's original session name if available, otherwise use filename
+    5. **Session Overview**: Brief technical description of workout type and structure
+    6. **Quantitative Summary**: Key performance metrics with relevant comparisons
+    7. **Qualitative Assessment**: Interpretation of effort, load, zones, pacing, execution
+    8. **Progress Indicators**: How this session fits into overall training progression
+
+    **Length Guidelines:**
+    - Daily Summary: max 150 words
+    - Executive Summary per workout: max 50 words
+    - Risk & Alert Flags: only include if materially significant
+    - Total report: aim for 400-600 words for single workout day, 600-800 for multiple workouts
 
     **Data Interpretation Guidelines:**
     - Focus only on relevant, context-appropriate observations for the recorded sport type
@@ -40,17 +52,31 @@ dayly_analysis_task:
     - Ignore one-off abnormal values at activity start (low power/cadence during GPS lock-on, etc.)
     - Flag genuine anomalies only if they materially affect interpretation of the session
 
+    **Workout Prioritization:**
+    When multiple activities are present:
+    1. Analyze planned/key training sessions in full detail first
+    2. Briefly note commute/transport activities at the end (one sentence unless unusually significant)
+    3. If more than 3 activities, summarize non-training activities collectively
+
   expected_output: |
     If no data is available for {date}:
     "No workout data available for {athlete} on {date}."
     
-    If data is available, provide a professional analysis report in English containing:
-    - Brief summary of the day's planned and completed workouts
-    - Detailed structured analysis for each workout (see description format)
-    - Only flag anomalies that materially affect session understanding
-    - Avoid irrelevant technical warnings unrelated to performance
+    If data is available, provide a report structured as follows:
     
-    Use precise, analytical language suitable for a head coach reviewing multiple athletes.
+    **DAILY SUMMARY** (max 150 words)
+    - Key highlight and primary recommendation
+    
+    **WORKOUT ANALYSES** (in order of training importance)
+    For each significant workout:
+    - Executive Summary (most important takeaway)
+    - Risk & Alert Flags (if present)
+    - Coach Recommendations
+    - Session details (name, overview, metrics, assessment, progress)
+    
+    **SECONDARY ACTIVITIES** (brief note only)
+    
+    Use precise, analytical language. Prioritize actionable insights over comprehensive data reporting.
   markdown: true
   output_file: "{output_dir}/{date}_details.md"
 
