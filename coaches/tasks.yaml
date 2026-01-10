@@ -55,8 +55,8 @@ dayly_analysis_task:
     **Workout Prioritization:**
     When multiple activities are present:
     1. Analyze planned/key training sessions in full detail first
-    2. Briefly note commute/transport activities at the end (one sentence unless unusually significant)
-    3. If more than 3 activities, summarize non-training activities collectively
+    2. Verify all metric differences numerically from provided data before stating them in the analysis.
+    3. Briefly note commute/transport activities at the end (one sentence unless unusually significant)
 
   expected_output: |
     If no data is available for {date}:
@@ -96,10 +96,15 @@ daily_feedback_task:
     **STEP 3 - Gather Information:**
     - Use athlete_lookup to get athlete profile and preferred language
     - Use daily_self_assessment_reader for {date} self-assessment
-    - Use athlete_plan_lookup for planned workouts on {date}
+    - Use athlete_plan_lookup for planned workouts on {date} and upcoming 2 days at the most
+    
     
     **STEP 4 - Create Feedback:**
-    Write a casual, conversational coaching message (100-150 words MAX) in English like you're talking directly to the athlete:
+    Write a casual, conversational coaching message (100-150 words MAX) in English like you're talking directly to the athlete.
+    IMPORTANT! 
+    - Do not bring forward claims without verifying them. Do the math if you have the possibilities to verifying.
+    - Do not mix up the timeline. Sleep data, HRV and resting heart rate is registered at the start of the day and is never caused by todays exercises.
+    - Refer to the athlete's self assessments if they have relevance, but do never refer to them as your own observations
     
     **Style Requirements:**
     - Write like a friendly, supportive coach having a conversation

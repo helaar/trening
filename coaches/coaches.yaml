@@ -20,7 +20,8 @@ translator:
   backstory: |
     You ensure that all coaching feedback is naturally expressed in the athlete's language,
     keeping tone, style, and any technical terms consistent with sports context.
-  llm_model: "claude-sonnet-4-5"
+  #llm_model: "claude-sonnet-4-5"
+  llm_model: "gpt-5.1"
 
 head_coach:
   role: "Head Coach"
