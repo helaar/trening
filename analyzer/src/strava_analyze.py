@@ -4,6 +4,7 @@ Strava workout analyzer that downloads workouts from Strava and performs
 similar analysis to FIT file analysis.
 """
 import argparse
+import json
 import os
 from datetime import date, datetime
 from pathlib import Path
@@ -107,7 +108,7 @@ def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]], 
         log("| " + " | ".join(row_values) + " |")
 
 
-def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object], args) -> list[str]:
+def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object], args) -> tuple[list[str], dict]:
     """
     Analyze a single Strava workout using adapted analysis logic for Strava data.
     
@@ -117,9 +118,10 @@ def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object]
         args: Command line arguments
         
     Returns:
-        List of analysis output lines
+        Tuple of (list of analysis output lines, structured data dict)
     """
     log_lines: list[str] = []
+    json_data: dict = {}
 
     def log(msg: str = "") -> None:
         log_lines.append(msg)
@@ -133,21 +135,37 @@ def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object]
     # Print data source information
     print_source_info(log, parser)
     
+    # Initialize basic session info in JSON
+    json_data["session_info"] = {
+        "name": parser.workout.name,
+        "sport": parser.workout.sport,
+        "sub_sport": parser.workout.sub_sport,
+        "category": parser.workout.category,
+        "start_time": parser.workout.start_time.isoformat() if parser.workout.start_time else None,
+        "distance_km": parser.workout.distance_km,
+    }
+    
+    json_data["data_source"] = {
+        "device_name": parser.activity.device_name,
+        "manual": parser.activity.manual,
+        "from_accepted_tag": parser.activity.from_accepted_tag,
+    }
+    
     # Determine analysis type based on workout category
     match parser.workout.category:
         case "running" | "cycling" | "skiing":
-            _strava_endurance_analysis(log, args, settings, parser)
+            _strava_endurance_analysis(log, args, settings, parser, json_data)
         case "strength":
-            _strava_strength_analysis(log, args, settings, parser)
+            _strava_strength_analysis(log, args, settings, parser, json_data)
         case _:
             log(f"Uncategorized sport {parser.workout.sport}/{parser.workout.sub_sport}")
             # Default to endurance analysis
-            _strava_endurance_analysis(log, args, settings, parser)
+            _strava_endurance_analysis(log, args, settings, parser, json_data)
     
-    return log_lines
+    return log_lines, json_data
 
 
-def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: StravaDataParser) -> None:
+def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: StravaDataParser, json_data: dict | None = None) -> None:
     """Endurance-focused analysis for Strava data."""
     df = parser.data_frame
     laps = parser.laps
@@ -321,10 +339,10 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
             )
             laps = autolaps
 
+    lap_rows = []
     if not laps:
         log("No laps (nor autolap) found in session.")
     else:
-        lap_rows = []
         
         # Map intensity names (though Strava doesn't provide this like Garmin)
         intensity_names = {
@@ -377,10 +395,63 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
         else:
             log("Found laps, but no valid data in these segments.")
     
+    # Populate JSON data if provided
+    if json_data is not None:
+        json_data["analysis_type"] = "endurance"
+        json_data["duration_sec"] = duration_sec
+        json_data["data_points"] = len(df)
+        json_data["sample_interval"] = sample_interval
+        
+        if ftp:
+            json_data["athlete_ftp"] = ftp
+        if max_hr:
+            json_data["athlete_max_hr"] = max_hr
+        if lt_hr:
+            json_data["athlete_lt_hr"] = lt_hr
+        
+        # Power metrics
+        if has_power and power_stats:
+            json_data["power"] = {
+                "stats": power_stats,
+                "normalized_power": np_value,
+                "variability_index": vi_value,
+                "intensity_factor": if_value,
+                "training_stress_score": tss_value,
+            }
+        
+        # Heart rate metrics
+        if has_hr and hr_stats:
+            json_data["heart_rate"] = {"stats": hr_stats}
+        
+        # Cadence metrics
+        if has_cadence and cad_stats:
+            json_data["cadence"] = {"stats": cad_stats}
+        
+        # Zone data
+        if power_zones and has_power:
+            power_summary = compute_zone_durations(df["power"], power_zones, sample_interval)
+            json_data["power_zones"] = power_summary
+        
+        if hr_zones and has_hr:
+            hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
+            json_data["hr_zones"] = hr_summary
+        
+        # Heart rate drift
+        if has_power and has_hr:
+            drift_start = parse_hms(args.drift_start) if args.drift_start else None
+            drift_duration = parse_hms(args.drift_duration) if args.drift_duration else None
+            drift_result = compute_heart_rate_drift(df, drift_start, drift_duration)
+            if drift_result:
+                json_data["hr_drift"] = drift_result
+        
+        # Laps
+        if lap_rows:
+            json_data["laps"] = lap_rows
+    
     log("\nGenerated by Strava analyzer (adapted from fit-analyzer)")
 
 
-def _strava_strength_analysis(log, args, settings: dict[str, object], parser: StravaDataParser) -> None:
+def _strava_strength_analysis(log, args, settings: dict[str, object], parser: StravaDataParser, json_data: dict | None = None) -> None:
     """Strength training analysis for Strava data."""
     df = parser.data_frame
     workout = parser.workout
@@ -411,6 +482,7 @@ def _strava_strength_analysis(log, args, settings: dict[str, object], parser: St
     # This is more accurate for strength training than calculating from data points
     duration_sec = float(parser.activity.elapsed_time) if parser.activity.elapsed_time else sample_interval * len(df)
     has_hr = "heart_rate" in df.columns and not df["heart_rate"].isna().all()
+    hr_stats = None
     
     log(f"Data points: {len(df)}")
     log(f"Estimated sampling interval: {sample_interval:.2f} s")
@@ -425,6 +497,20 @@ def _strava_strength_analysis(log, args, settings: dict[str, object], parser: St
             log("\n## Time in heart rate zones")
             hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
             _print_zone_summary(log, hr_summary, "heart rate")
+    
+    # Populate JSON data if provided
+    if json_data is not None:
+        json_data["analysis_type"] = "strength"
+        json_data["duration_sec"] = duration_sec
+        json_data["data_points"] = len(df)
+        json_data["sample_interval"] = sample_interval
+        
+        if has_hr and hr_stats:
+            json_data["heart_rate"] = {"stats": hr_stats}
+            
+            if hr_zones:
+                hr_summary = compute_zone_durations(df["heart_rate"], hr_zones, sample_interval)
+                json_data["hr_zones"] = hr_summary
     
     log("\nNote: Detailed strength set analysis not available from Strava stream data.")
     log("Generated by Strava analyzer (adapted from fit-analyzer)")
@@ -535,7 +621,7 @@ def main():
             print(f"\nAnalyzing workout {i}/{len(workout_parsers)}: {workout_parser.workout.name}")
             
             # Analyze workout
-            analysis_lines = analyze_strava_workout(workout_parser, settings, args)
+            analysis_lines, analysis_data = analyze_strava_workout(workout_parser, settings, args)
             
             # Create filename
             workout_name = workout_parser.workout.name or f"workout_{i}"
@@ -544,14 +630,18 @@ def main():
             safe_name = safe_name.replace(' ', '_')
             
             date_prefix = target_date.strftime("%Y-%m-%d")
-            filename = f"{date_prefix}_strava_{safe_name}-analysis.md"
+            base_filename = f"{date_prefix}_strava_{safe_name}-analysis"
             
-            # Write analysis to file
+            # Write markdown analysis to file
             analysis_text = "\n".join(analysis_lines)
-            analysis_path = athlete_analyses_dir / filename
-            analysis_path.write_text(analysis_text, encoding="utf-8")
+            md_path = athlete_analyses_dir / f"{base_filename}.md"
+            md_path.write_text(analysis_text, encoding="utf-8")
+            print(f"Markdown analysis saved to: {md_path}")
             
-            print(f"Analysis saved to: {analysis_path}")
+            # Write JSON analysis to file
+            json_path = athlete_analyses_dir / f"{base_filename}.json"
+            json_path.write_text(json.dumps(analysis_data, indent=2, default=str), encoding="utf-8")
+            print(f"JSON analysis saved to: {json_path}")
     
     except Exception as exc:
         print(f"ERROR: {exc}")
