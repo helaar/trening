@@ -11,7 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import pandas as pd
 
-from strava.client import download_strava_workouts, StravaDataParser
+from strava.client import download_strava_workouts, StravaDataParser, StravaActivity
 from strava_auth import StravaTokenManager
 from tools.settings import load_settings, ApplicationSettings
 from format.utils import ModelFormatter
@@ -24,13 +24,63 @@ from tools.calculations import (
 )
 
 
-def print_source_info(log, parser: StravaDataParser) -> None:
+def is_virtual_activity(activity: StravaActivity) -> bool:
+    """
+    Check if activity is from a virtual platform (Zwift, TrainerRoad, etc.).
+    
+    Args:
+        activity: StravaActivity object
+        
+    Returns:
+        True if activity is from a virtual platform
+    """
+    sport_type = str(activity.sport_type) if activity.sport_type else ''
+    device = str(activity.device_name).lower() if activity.device_name else ''
+    
+    # Check sport type for virtual activities
+    if 'Virtual' in sport_type:
+        return True
+    
+    # Check device name for known virtual platforms
+    virtual_platforms = ['zwift', 'trainerroad', 'rouvy', 'fulgaz', 'tacx', 'wahoo systm']
+    return any(platform in device for platform in virtual_platforms)
+
+
+def detect_erg_lap(avg_power: float | None, np: float | None, threshold: float = 0.02) -> bool:
+    """
+    Detect if a lap was likely performed in ERG mode based on power consistency.
+    
+    ERG mode maintains constant power, so Normalized Power ≈ Average Power.
+    
+    Args:
+        avg_power: Average power for the lap (can be None)
+        np: Normalized power for the lap (can be None)
+        threshold: Maximum allowed relative difference (default 2%)
+        
+    Returns:
+        True if lap shows ERG mode characteristics
+    """
+    # Skip laps with no power data
+    if not avg_power or not np:
+        return False
+    
+    # Skip very low power laps (likely coasting/stopped)
+    if avg_power < 50:
+        return False
+    
+    # Calculate relative difference between NP and Avg Power
+    consistency_score = abs(np - avg_power) / avg_power
+    return consistency_score <= threshold
+
+
+def print_source_info(log, parser: StravaDataParser, erg_mode_result: str | None = None) -> None:
     """
     Print information about the data source for a Strava activity.
     
     Args:
         log: Logging function
         parser: StravaDataParser with activity data
+        erg_mode_result: Optional ERG mode detection result summary string
     """
     activity = parser.activity
     
@@ -39,6 +89,10 @@ def print_source_info(log, parser: StravaDataParser) -> None:
     log(f"Device: {device_name}")
     log(f"Manual entry: {'Yes' if activity.manual else 'No'}")
     log(f"From accepted tag: {'Yes' if activity.from_accepted_tag else 'No'}")
+    
+    # Add ERG mode detection if available
+    if erg_mode_result:
+        log(f"ERG Mode: {erg_mode_result}")
 
 
 def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]], workout_category: str = "") -> None:
@@ -93,6 +147,7 @@ def _print_strava_lap_table(log, title: str, lap_rows: list[dict[str, object]], 
         ("Elevation gain", "elev_gain"),
         ("Elevation loss", "elev_loss"),
         ("Avg ℃", "avg_temp"),
+        ("ERG", "erg_mode"),
         ("Description", "description")
     ]
 
@@ -127,14 +182,6 @@ def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object]
         log_lines.append(msg)
         print(msg)
 
-    log("## Session Information (Strava)")
-    formatter = ModelFormatter()
-    formatter.format(log, parser.workout)
-    log("")  # newline
-    
-    # Print data source information
-    print_source_info(log, parser)
-    
     # Initialize basic session info in JSON
     json_data["session_info"] = {
         "name": parser.workout.name,
@@ -152,21 +199,41 @@ def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object]
     }
     
     # Determine analysis type based on workout category
+    # Note: ERG detection will be performed during analysis and passed back to update session info
     match parser.workout.category:
         case "running" | "cycling" | "skiing":
-            _strava_endurance_analysis(log, args, settings, parser, json_data)
+            erg_result = _strava_endurance_analysis(log, args, settings, parser, json_data)
         case "strength":
-            _strava_strength_analysis(log, args, settings, parser, json_data)
+            erg_result = _strava_strength_analysis(log, args, settings, parser, json_data)
         case _:
-            log(f"Uncategorized sport {parser.workout.sport}/{parser.workout.sub_sport}")
             # Default to endurance analysis
-            _strava_endurance_analysis(log, args, settings, parser, json_data)
+            erg_result = _strava_endurance_analysis(log, args, settings, parser, json_data)
+    
+    # Now print session info with ERG detection result at the top
+    session_lines = []
+    def session_log(msg: str = "") -> None:
+        session_lines.append(msg)
+    
+    session_log("## Session Information (Strava)")
+    formatter = ModelFormatter()
+    formatter.format(session_log, parser.workout)
+    session_log("")  # newline
+    
+    # Print data source information with ERG result
+    print_source_info(session_log, parser, erg_result)
+    
+    # Insert session info at the beginning
+    log_lines = session_lines + log_lines
     
     return log_lines, json_data
 
 
-def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: StravaDataParser, json_data: dict | None = None) -> None:
-    """Endurance-focused analysis for Strava data."""
+def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: StravaDataParser, json_data: dict | None = None) -> str | None:
+    """Endurance-focused analysis for Strava data.
+    
+    Returns:
+        ERG mode detection result summary string if applicable, None otherwise
+    """
     df = parser.data_frame
     laps = parser.laps
     workout = parser.workout
@@ -194,6 +261,15 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
         max_hr = None
         lt_hr = None
         hr_zones = None
+    
+    # Get ERG detection settings
+    erg_settings = settings.get("erg-detection", {})
+    if isinstance(erg_settings, dict):
+        erg_threshold = erg_settings.get("threshold", 0.02)
+        erg_min_ratio = erg_settings.get("min-ratio", 0.6)
+    else:
+        erg_threshold = 0.02
+        erg_min_ratio = 0.6
     
     # Ensure DatetimeIndex for sample interval calculation
     if isinstance(df.index, pd.DatetimeIndex):
@@ -371,6 +447,9 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
             zone_name = zone.name if zone else None
             description = " / ".join([str(part) for part in (label, intensity_str, zone_name) if part])
             
+            # Detect ERG mode for this lap using configured threshold
+            is_erg = detect_erg_lap(stats["avg_power"], stats["np"], threshold=erg_threshold)
+            
             lap_rows.append({
                 "lap": idx,
                 "start_str": seconds_to_hms((start_ts - df.index[0]).total_seconds()),
@@ -387,6 +466,7 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
                 "elev_loss": stats["elev_loss"],
                 "avg_temp": stats["avg_temp"],
                 "distance": stats["distance"],
+                "erg_mode": "✓" if is_erg else "",
                 "description": description or "-"
             })
 
@@ -394,6 +474,23 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
             _print_strava_lap_table(log, "laps", lap_rows, workout.category)
         else:
             log("Found laps, but no valid data in these segments.")
+    
+    # ERG mode detection (moved before session info for early display)
+    erg_mode_result = None
+    erg_mode_info = None
+    if lap_rows and has_power and is_virtual_activity(parser.activity):
+        erg_laps = sum(1 for lap in lap_rows if lap.get('erg_mode') == '✓')
+        total_laps = len(lap_rows)
+        
+        if total_laps > 0:
+            erg_ratio = erg_laps / total_laps
+            is_erg_workout = erg_ratio >= erg_min_ratio
+            erg_mode_result = f"{'Likely' if is_erg_workout else 'Unlikely'} ({erg_laps}/{total_laps} laps)"
+            erg_mode_info = {
+                "is_erg_workout": is_erg_workout,
+                "erg_laps": erg_laps,
+                "total_laps": total_laps
+            }
     
     # Populate JSON data if provided
     if json_data is not None:
@@ -447,12 +544,22 @@ def _strava_endurance_analysis(log, args, settings: dict[str, object], parser: S
         # Laps
         if lap_rows:
             json_data["laps"] = lap_rows
+        
+        # ERG mode analysis
+        if erg_mode_info:
+            json_data["data_source"]["erg_mode"] = erg_mode_info
     
     log("\nGenerated by Strava analyzer (adapted from fit-analyzer)")
+    
+    return erg_mode_result
 
 
-def _strava_strength_analysis(log, args, settings: dict[str, object], parser: StravaDataParser, json_data: dict | None = None) -> None:
-    """Strength training analysis for Strava data."""
+def _strava_strength_analysis(log, args, settings: dict[str, object], parser: StravaDataParser, json_data: dict | None = None) -> dict | None:
+    """Strength training analysis for Strava data.
+    
+    Returns:
+        None (strength workouts don't have ERG detection)
+    """
     df = parser.data_frame
     workout = parser.workout
     
@@ -514,6 +621,8 @@ def _strava_strength_analysis(log, args, settings: dict[str, object], parser: St
     
     log("\nNote: Detailed strength set analysis not available from Strava stream data.")
     log("Generated by Strava analyzer (adapted from fit-analyzer)")
+    
+    return None
 
 
 def main():

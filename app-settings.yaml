@@ -4,3 +4,8 @@ application:
 
 # Global autolap setting
 autolap: PT10M
+
+# ERG mode detection settings
+erg-detection:
+  threshold: 0.02  # Maximum allowed difference between NP and Avg Power (2%)
+  min-ratio: 0.6   # Minimum ratio of ERG laps to classify workout as ERG (60%)
