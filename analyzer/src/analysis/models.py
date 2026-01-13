@@ -36,10 +36,7 @@ class StatsSummary(BaseModel):
     min: float | None = None
     max: float | None = None
     std: float | None = None
-    q25: float | None = None
-    q50: float | None = None  # median
-    q75: float | None = None
-    count: int = 0
+
 
 
 class WorkoutMetrics(BaseModel):
@@ -170,6 +167,7 @@ class ERGAnalysis(BaseModel):
     is_erg_workout: bool
     erg_laps_count: int
     total_laps_count: int
+    erg_time_sec: float
     erg_ratio: float
     detection_threshold: float = 0.02
     min_ratio_threshold: float = 0.6

@@ -5,8 +5,7 @@ This module contains the core analysis logic extracted from strava_analyze.py.
 All functions are pure computations that return structured data models without side effects.
 No logging or output formatting is performed here - only data computation.
 """
-from datetime import datetime
-from typing import Any, cast
+from typing import Any
 import pandas as pd
 
 from strava.client import StravaDataParser, StravaActivity
@@ -98,18 +97,12 @@ def _safe_int(value: Any) -> int | None:
 
 def _create_stats_summary(stats_dict: dict[str, float | None]) -> StatsSummary:
     """Create StatsSummary from series_stats dict output."""
-    count_val = stats_dict.get("count", 0)
-    count = int(count_val) if count_val is not None else 0
-    
+   
     return StatsSummary(
         mean=stats_dict.get("mean"),
         min=stats_dict.get("min"),
         max=stats_dict.get("max"),
         std=stats_dict.get("std"),
-        q25=stats_dict.get("q25"),
-        q50=stats_dict.get("q50"),
-        q75=stats_dict.get("q75"),
-        count=count
     )
 
 
@@ -375,17 +368,20 @@ def _compute_erg_analysis(lap_analyses: list[LapAnalysis], parser: StravaDataPar
     
     erg_laps_count = sum(1 for lap in lap_analyses if lap.is_erg_mode)
     total_laps_count = len(lap_analyses)
+    erg_laps_length = sum(lap.duration_sec for lap in lap_analyses if lap.is_erg_mode)
+    total_duration = sum(lap.duration_sec for lap in lap_analyses)
     
     if total_laps_count == 0:
         return None
     
-    erg_ratio = erg_laps_count / total_laps_count
+    erg_ratio = max(erg_laps_count / total_laps_count, erg_laps_length / total_duration if total_duration > 0 else 0.0)
     is_erg_workout = erg_ratio >= settings.erg_min_ratio
     
     return ERGAnalysis(
         is_erg_workout=is_erg_workout,
         erg_laps_count=erg_laps_count,
         total_laps_count=total_laps_count,
+        erg_time_sec=erg_laps_length,
         erg_ratio=erg_ratio,
         detection_threshold=settings.erg_threshold,
         min_ratio_threshold=settings.erg_min_ratio

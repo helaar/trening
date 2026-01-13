@@ -11,7 +11,7 @@ from crew.config import config
 from crew.loaders import CoachLoader, PlansLoader, TaskLoader, KnowledgeLoader
 
 from tools.history_lister import FeedbackListerTool
-from tools.workout_reader import DailyWorkoutReaderTool, WorkoutFileListerTool, SelfAssessmentFileListerTool, DailySelfAssessmentReaderTool
+from tools.workout_reader import DailyWorkoutReaderTool, WorkoutFileListerTool,  DailySelfAssessmentReaderTool
 from tools.long_time_analysis_loader import LongTimeAnalysisLoaderTool
 
 def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
@@ -25,8 +25,8 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     knowledge_loader = KnowledgeLoader(config)
     
     # Create a workout reader tool configured with the athlete's directory
-    workout_tool = DailyWorkoutReaderTool()
-    workout_lister_tool = WorkoutFileListerTool()
+    workout_tool = DailyWorkoutReaderTool(file_type="json")
+    workout_lister_tool = WorkoutFileListerTool(file_type="json")
     self_assessments_tool = DailySelfAssessmentReaderTool()
     athlete_reader = AthleteLookupTool(yaml_path=Path(config.athlete_settings))
     plans_reader_tool = AthletePlanTool(loader=PlansLoader(config))
@@ -212,15 +212,11 @@ def main():
             case "plan":
                 plan_suggestion(athlete="helge", date=args.date, output_dir=str(config.get_athlete_planning_dir("helge")), days_ahead=7, threshold=3, lookback_days=14)
             case "test" :
-                # Test self-assessment tools
-                print("Testing Self-Assessment File Lister Tool:")
-                file_lister_tool = SelfAssessmentFileListerTool()
-                files_result = file_lister_tool._run(athlete="helge", start_date="2025-12-11", end_date="2025-12-13")
-                print(f"Files found: {files_result}")
+
                 
                 print("\nTesting Daily Self-Assessment Reader Tool:")
-                reader_tool = DailySelfAssessmentReaderTool()
-                content_result = reader_tool._run(athlete="helge", start_date="2025-12-11", end_date="2025-12-13")
+                reader_tool = DailyWorkoutReaderTool()
+                content_result = reader_tool._run(athlete="helge", start_date="2026-01-11", end_date="2026-01-11")
                 print(f"Content result: {content_result}")
             
         

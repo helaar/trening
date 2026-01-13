@@ -111,7 +111,7 @@ class MarkdownFormatter:
         if analysis.erg_analysis and analysis.is_virtual_activity:
             confidence = analysis.erg_analysis.confidence_level
             result = "Likely" if analysis.erg_analysis.is_erg_workout else "Unlikely"
-            lines.append(f"ERG Mode: {result} ({analysis.erg_analysis.erg_laps_count}/{analysis.erg_analysis.total_laps_count} laps)")
+            lines.append(f"ERG Mode: {result} ({analysis.erg_analysis.erg_laps_count}/{analysis.erg_analysis.total_laps_count} laps, {TimeFormatter.seconds_to_hms(analysis.erg_analysis.erg_time_sec)} )")
         
         lines.append("")
         return lines
@@ -244,14 +244,7 @@ class MarkdownFormatter:
             lines.append(f"Max: {stats.max:.1f}")
         if stats.std is not None:
             lines.append(f"Std: {stats.std:.1f}")
-        if stats.q25 is not None:
-            lines.append(f"Q25: {stats.q25:.1f}")
-        if stats.q50 is not None:
-            lines.append(f"Median: {stats.q50:.1f}")
-        if stats.q75 is not None:
-            lines.append(f"Q75: {stats.q75:.1f}")
-        if stats.count > 0:
-            lines.append(f"Count: {stats.count}")
+
         return lines
     
     def _format_zone_distribution(self, zone_type: str, zones: ZoneDistribution) -> list[str]:
@@ -372,6 +365,9 @@ class JSONFormatter:
         
         # Session information
         data["session_info"] = self._format_session_info(analysis.session)
+
+        if analysis.is_virtual_activity and analysis.erg_analysis:
+            data["session_info"]["erg_mode"] = f"{'Likely' if analysis.erg_analysis.is_erg_workout else 'Unlikely'} ({analysis.erg_analysis.erg_laps_count}/{analysis.erg_analysis.total_laps_count} laps, {TimeFormatter.seconds_to_hms(analysis.erg_analysis.erg_time_sec)})"
         
         # Workout metrics
         data["metrics"] = self._format_workout_metrics(analysis.metrics)
@@ -458,10 +454,6 @@ class JSONFormatter:
             "min": self._round_float(stats.min, 1),
             "max": self._round_float(stats.max, 1),
             "std": self._round_float(stats.std, 1),
-            "q25": self._round_float(stats.q25, 1),
-            "q50": self._round_float(stats.q50, 1),
-            "q75": self._round_float(stats.q75, 1),
-            "count": stats.count,
         }
     
     def _format_zone_analysis(self, zones: ZoneAnalysis) -> dict[str, Any]:

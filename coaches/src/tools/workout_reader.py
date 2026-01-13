@@ -2,7 +2,7 @@
 
 from datetime import datetime, date, timedelta
 from pathlib import Path
-from typing import Type
+from typing import Type, Literal
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from crew.loaders import WorkoutsLoader, SelfAssessmentLoader
@@ -18,6 +18,7 @@ class WorkoutFileListerTool(BaseTool):
     args_schema: Type[BaseModel] = FindWorkoutArgs
     name: str = "workout_file_lister"
     description: str = "List all workout files for a date range. Files are expected to be prefixed with the date (YYYY-MM-DD format). Date range is inclusive on both ends."
+    file_type: Literal["json", "md"] = "md"
     
     def _run(self, athlete: str, start_date: str, end_date: str) -> str:
         """
@@ -42,7 +43,7 @@ class WorkoutFileListerTool(BaseTool):
             return f"Error: Start date ({start_date}) cannot be after end date ({end_date})."
         
         analyses_dir = config.get_athlete_analyses_dir(athlete)
-        loader = WorkoutsLoader(analyses_dir)
+        loader = WorkoutsLoader(analyses_dir, file_type=self.file_type)
         
         all_files = []
         current_date = start_dt
@@ -61,6 +62,7 @@ class DailyWorkoutReaderTool(BaseTool):
     name: str = "daily_workout_reader"
     description: str = "Read workout details for a date range and athlete. Date range is inclusive on both ends."
     args_schema: Type[BaseModel] = FindWorkoutArgs
+    file_type: Literal["json", "md"] = "md"
     
     def _run(self, start_date: str, end_date: str, athlete: str) -> str:
         """
@@ -86,7 +88,7 @@ class DailyWorkoutReaderTool(BaseTool):
         
         try:
             analyses_dir = config.get_athlete_analyses_dir(athlete)
-            loader = WorkoutsLoader(analyses_dir)
+            loader = WorkoutsLoader(analyses_dir, file_type=self.file_type)
             
             all_workouts = []
             current_date = start_dt
@@ -110,6 +112,7 @@ class SelfAssessmentFileListerTool(BaseTool):
     args_schema: Type[BaseModel] = FindWorkoutArgs
     name: str = "self_assessment_file_lister"
     description: str = "List all self-assessment files for a date range. Files are expected to be prefixed with the date (YYYY-MM-DD format). Date range is inclusive on both ends."
+    file_type: Literal["json", "md"] = "md"
     
     def _run(self, athlete: str, start_date: str, end_date: str) -> str:
         """
@@ -134,7 +137,7 @@ class SelfAssessmentFileListerTool(BaseTool):
             return f"Error: Start date ({start_date}) cannot be after end date ({end_date})."
         
         self_assessments_dir = config.get_athlete_self_assessments_dir(athlete)
-        loader = SelfAssessmentLoader(self_assessments_dir)
+        loader = SelfAssessmentLoader(self_assessments_dir, file_type=self.file_type)
         
         all_files = []
         current_date = start_dt
@@ -153,6 +156,7 @@ class DailySelfAssessmentReaderTool(BaseTool):
     name: str = "daily_self_assessment_reader"
     description: str = "Read self-assessment details for a date range and athlete. Date range is inclusive on both ends."
     args_schema: Type[BaseModel] = FindWorkoutArgs
+    file_type: Literal["json", "md"] = "md"
     
     def _run(self, start_date: str, end_date: str, athlete: str) -> str:
         """
@@ -178,7 +182,7 @@ class DailySelfAssessmentReaderTool(BaseTool):
         
         try:
             self_assessments_dir = config.get_athlete_self_assessments_dir(athlete)
-            loader = SelfAssessmentLoader(self_assessments_dir)
+            loader = SelfAssessmentLoader(self_assessments_dir, file_type=self.file_type)
             
             all_assessments = []
             current_date = start_dt

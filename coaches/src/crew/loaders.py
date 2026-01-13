@@ -1,6 +1,6 @@
 """Coach loader utility for parsing YAML and creating CrewAI agents."""
 from datetime import date, timedelta
-from typing import override
+from typing import override, Literal
 from pydantic import BaseModel
 import yaml
 from pathlib import Path
@@ -171,8 +171,15 @@ class PlansLoader(YamlLoader[Plan]):
 class WorkoutsLoader:
     """Utility class for loading workout files for athletes."""
     
-    def __init__(self, workouts_directory: Path) -> None:
+    def __init__(self, workouts_directory: Path, file_type: Literal["json", "md"] = "md") -> None:
+        """Initialize WorkoutsLoader.
+        
+        Args:
+            workouts_directory: Path to the workouts directory
+            file_type: File type filter ('json' or 'md'), defaults to 'md'
+        """
         self.workouts_directory = workouts_directory
+        self.file_type = file_type
 
     def get_workout_files(self, athlete: str, workout_date: date) -> list[Path]:
         """List workout files for a specific athlete and date."""
@@ -183,7 +190,8 @@ class WorkoutsLoader:
         matching_files = []
         for file_path in athlete_dir.iterdir():
             if file_path.is_file() and file_path.name.startswith(workout_date.isoformat()):
-                matching_files.append(file_path)
+                if file_path.suffix == f'.{self.file_type}':
+                    matching_files.append(file_path)
         
         return matching_files
     
@@ -206,8 +214,15 @@ class WorkoutsLoader:
 class SelfAssessmentLoader:
     """Utility class for loading self-assessment files for athletes."""
     
-    def __init__(self, self_assessment_directory: Path) -> None:
+    def __init__(self, self_assessment_directory: Path, file_type: Literal["json", "md"] = "md") -> None:
+        """Initialize SelfAssessmentLoader.
+        
+        Args:
+            self_assessment_directory: Path to the self-assessment directory
+            file_type: File type filter ('json' or 'md'), defaults to 'md'
+        """
         self.self_assessment_directory = self_assessment_directory
+        self.file_type = file_type
 
     def get_self_assessment_files(self, athlete: str, assessment_date: date) -> list[Path]:
         """List self-assessment files for a specific athlete and date."""
@@ -218,7 +233,8 @@ class SelfAssessmentLoader:
         matching_files = []
         for file_path in athlete_dir.iterdir():
             if file_path.is_file() and file_path.name.startswith(assessment_date.isoformat()):
-                matching_files.append(file_path)
+                if file_path.suffix == f'.{self.file_type}':
+                    matching_files.append(file_path)
         
         return matching_files
     
