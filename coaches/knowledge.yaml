@@ -9,9 +9,19 @@ common_knowledge:
     accept: "Only include if start/end irregularities last more than 5 minutes or affect the main part of the session."
     reject: "Ignore minor sensor spikes/dropouts at start or end; these are common and without significance."
 
-  - rule: "Zwift ERG rides"
-    accept: "Only note if the goal was to train without ERG and the data pattern reveals unintentional ERG mode."
-    reject: "Do not report stable ERG data as a finding if it is clearly intentional."
+  - rule: "Virtual ERG rides"
+    context: |
+      ERG mode is a virtual trainer feature that automatically controls resistance to maintain a target power output. 
+      When ERG is active, stable power is expected and does not reflect athlete effort or pacing discipline—it is a machine function.
+      The athlete's task in ERG is simply to maintain cadence; the trainer adjusts resistance automatically.
+    accept: |
+      - Confirm ERG mode was detected if erg_probability is high, as brief context only.
+      - Only flag as noteworthy if the goal was to train WITHOUT ERG and data suggests unintentional ERG activation.
+      - ERG is hard to detect in warmup/cooldown or very short intervals; if detected in main sets, assume it was active throughout.
+    reject: |
+      - Do not praise stable power, pacing discipline, or consistency when ERG mode is active—it is automatic, not athlete-driven.
+      - Do not describe ERG-controlled stability as a performance achievement.
+      - Do not report stable power metrics as findings unless they reveal something beyond ERG's expected behavior.
 
   - rule: "Strength training data from Strava"
     accept: "Only confirm that a strength session was completed."

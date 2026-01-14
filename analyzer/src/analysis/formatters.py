@@ -109,9 +109,7 @@ class MarkdownFormatter:
         
         # ERG mode detection summary for virtual activities
         if analysis.erg_analysis and analysis.is_virtual_activity:
-            confidence = analysis.erg_analysis.confidence_level
-            result = "Likely" if analysis.erg_analysis.is_erg_workout else "Unlikely"
-            lines.append(f"ERG Mode: {result} ({analysis.erg_analysis.erg_laps_count}/{analysis.erg_analysis.total_laps_count} laps, {TimeFormatter.seconds_to_hms(analysis.erg_analysis.erg_time_sec)} )")
+            lines.append(f"ERG Mode: {analysis.erg_analysis.erg_mode}")
         
         lines.append("")
         return lines
@@ -367,7 +365,7 @@ class JSONFormatter:
         data["session_info"] = self._format_session_info(analysis.session)
 
         if analysis.is_virtual_activity and analysis.erg_analysis:
-            data["session_info"]["erg_mode"] = f"{'Likely' if analysis.erg_analysis.is_erg_workout else 'Unlikely'} ({analysis.erg_analysis.erg_laps_count}/{analysis.erg_analysis.total_laps_count} laps, {TimeFormatter.seconds_to_hms(analysis.erg_analysis.erg_time_sec)})"
+            data["session_info"]["erg_mode"] = analysis.erg_analysis.erg_mode
         
         # Workout metrics
         data["metrics"] = self._format_workout_metrics(analysis.metrics)

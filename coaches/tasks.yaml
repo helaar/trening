@@ -51,6 +51,10 @@ dayly_analysis_task:
     - Running "power" from GPS watch/foot pod is not directly comparable to cycling power; comment only in running context
     - Ignore one-off abnormal values at activity start (low power/cadence during GPS lock-on, etc.)
     - Flag genuine anomalies only if they materially affect interpretation of the session
+    - On virtual rides with some level of ERG mode detected:
+      - Briefly note that ERG was active, as context.
+      - Do NOT comment on power stability, pacing consistency, or evenness—these are automatic effects of ERG, not performance indicators.
+      - Focus analysis on cadence patterns, HR response, execution of intervals, or adherence to session goals instead.
 
     **Workout Prioritization:**
     When multiple activities are present:

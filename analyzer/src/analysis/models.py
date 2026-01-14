@@ -173,14 +173,18 @@ class ERGAnalysis(BaseModel):
     min_ratio_threshold: float = 0.6
     
     @property
-    def confidence_level(self) -> Literal["high", "medium", "low"]:
+    def erg_mode(self) -> str :
         """Get confidence level for ERG detection."""
         if self.erg_ratio >= 0.8:
-            return "high"
+            return "ON, detected for most of workout"
         elif self.erg_ratio >= 0.6:
-            return "medium"
+            return "ON, detected for significant part of workout"
+        elif self.erg_ratio >= 0.3:
+            return "ON, detected for some parts of workout"
+        elif self.erg_ratio >= 0.1:
+            return "Possibly ON, weak indications"
         else:
-            return "low"
+            return "OFF"
 
 
 class WorkoutAnalysis(BaseModel):
