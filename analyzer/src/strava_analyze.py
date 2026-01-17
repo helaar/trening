@@ -13,8 +13,14 @@ import pandas as pd
 
 from strava.client import download_strava_workouts, StravaDataParser
 from strava_auth import StravaTokenManager
-from tools.settings import load_settings, ApplicationSettings
+from tools.settings import (
+    load_settings, ApplicationSettings, save_settings,
+    get_commute_routes, save_commute_route
+)
 from tools.calculations import parse_hms, seconds_to_hms
+from tools.polyline_analyzer import (
+    normalize_polyline, find_matching_commute
+)
 # New pipeline imports
 from analysis.engine import analyze_workout
 from analysis.formatters import MarkdownFormatter, JSONFormatter
@@ -60,8 +66,88 @@ def analyze_strava_workout(parser: StravaDataParser, settings: dict[str, object]
     # Print each line (to maintain compatibility with current behavior)
     for line in log_lines:
         print(line)
-    
     return log_lines, analysis
+
+
+def process_commute_detection(
+    workout_parser: StravaDataParser,
+    athlete_settings_path: str,
+    athlete_settings_dict: dict[str, object],
+    athlete_id: str
+) -> str:
+    """
+    Process commute detection for a workout.
+    
+    If the ride is tagged as a commute, normalize and store the polyline.
+    If not tagged as commute, check if it matches a known commute route.
+    
+    Args:
+        workout_parser: Parser with workout data
+        athlete_settings_path: Path to athlete settings file
+        athlete_settings_dict: Current athlete settings
+        athlete_id: Athlete identifier
+        
+    Returns:
+        Commute status: "yes, marked by athlete" | "yes, detected" | "no"
+    """
+    # Skip if no polyline data available
+    if not workout_parser.summary_polyline:
+        return "no"
+    
+    # Get known commute routes
+    known_commutes = get_commute_routes(athlete_settings_dict, athlete_id)
+    
+    # Case 1: User tagged this as a commute
+    if workout_parser.commute:
+        # Normalize the polyline
+        normalized = normalize_polyline(workout_parser.summary_polyline)
+        
+        # Check if this commute route already exists
+        matched_commute = find_matching_commute(
+            normalized,
+            known_commutes,
+            threshold_meters=100.0
+        )
+        
+        if matched_commute:
+            print(f"  ✓ Commute matches known route: {matched_commute}")
+        else:
+            # Generate a name for the new commute route
+            workout_name = workout_parser.workout.name or "Commute"
+            # Use start time to create unique name
+            start_time = workout_parser.workout.start_time
+            if start_time:
+                route_name = f"{workout_name}_{start_time.strftime('%Y%m%d_%H%M')}"
+            else:
+                # Fallback if no start time
+                route_name = f"{workout_name}_{len(known_commutes) + 1}"
+            
+            # Save the new commute route
+            save_commute_route(
+                athlete_settings_path,
+                athlete_id,
+                route_name,
+                normalized
+            )
+            print(f"  ✓ New commute route saved: {route_name}")
+        
+        return "yes, marked by athlete"
+    
+    # Case 2: User did not tag as commute, check if it matches a known commute
+    else:
+        if known_commutes:
+            matched_commute = find_matching_commute(
+                workout_parser.summary_polyline,
+                known_commutes,
+                threshold_meters=100.0
+            )
+            
+            if matched_commute:
+                print(f"  ℹ️  Route matches commute: {matched_commute} (not tagged as commute)")
+                return "yes, detected"
+    
+    return "no"
+
 
 
 
@@ -171,6 +257,17 @@ def main():
         
         for i, workout_parser in enumerate(workout_parsers, 1):
             print(f"\nAnalyzing workout {i}/{len(workout_parsers)}: {workout_parser.workout.name}")
+            
+            # Process commute detection and set status on parser
+            commute_status = process_commute_detection(
+                workout_parser,
+                args.athlete_settings,
+                athlete_settings_dict,
+                athlete_id
+            )
+            
+            # Set commute status on the parser so it's picked up in analysis
+            workout_parser.commute_status = commute_status
             
             # Analyze workout
             analysis_lines, analysis_obj = analyze_strava_workout(workout_parser, settings, args)

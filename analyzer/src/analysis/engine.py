@@ -5,7 +5,7 @@ This module contains the core analysis logic extracted from strava_analyze.py.
 All functions are pure computations that return structured data models without side effects.
 No logging or output formatting is performed here - only data computation.
 """
-from typing import Any
+from typing import Any, Literal
 import pandas as pd
 
 from strava.client import StravaDataParser, StravaActivity
@@ -153,6 +153,18 @@ class AnalysisSettings:
 
 def _create_session_info(parser: StravaDataParser, duration_sec: float, data_points: int, sample_interval: float) -> SessionInfo:
     """Create SessionInfo object from parser data."""
+    # Get commute status if available (defaults to "no")
+    commute_raw = getattr(parser, 'commute_status', 'no')
+    
+    # Ensure the value is one of the valid literals
+    commute_status: Literal["yes, marked by athlete", "yes, detected", "no"]
+    if commute_raw == "yes, marked by athlete":
+        commute_status = "yes, marked by athlete"
+    elif commute_raw == "yes, detected":
+        commute_status = "yes, detected"
+    else:
+        commute_status = "no"
+    
     return SessionInfo(
         name=parser.workout.name,
         sport=parser.workout.sport,
@@ -165,7 +177,8 @@ def _create_session_info(parser: StravaDataParser, duration_sec: float, data_poi
         sample_interval=sample_interval,
         device_name=parser.activity.device_name,
         manual=parser.activity.manual,
-        from_accepted_tag=parser.activity.from_accepted_tag
+        from_accepted_tag=parser.activity.from_accepted_tag,
+        commute=commute_status
     )
 
 

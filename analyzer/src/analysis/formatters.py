@@ -94,6 +94,7 @@ class MarkdownFormatter:
         if session.sub_sport:
             lines.append(f"Sub-sport: {session.sub_sport}")
         lines.append(f"Category: {session.category}")
+        lines.append(f"Commute: {session.commute}")
         
         if session.start_time:
             lines.append(f"Start time: {session.start_time.isoformat()}")
@@ -392,6 +393,7 @@ class JSONFormatter:
             "sport": session.sport,
             "sub_sport": session.sub_sport,
             "category": session.category,
+            "commute": session.commute,
             "start_time": session.start_time.isoformat() if session.start_time else None,
             "distance_km": self._round_float(session.distance_km, 2),
             "duration_sec": self._round_float(session.duration_sec, 0),

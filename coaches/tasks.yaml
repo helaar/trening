@@ -7,7 +7,8 @@ dayly_analysis_task:
     Call each of these tools one at a time (do not call multiple tools in the same response):
     1. Call athlete_lookup tool with athlete={athlete} to get profile information
     2. Call daily_workout_reader tool with athlete={athlete}, start_date={date}, end_date={date} to read workout data
-    3. Call daily_self_assessment_reader tool with athlete={athlete}, start_date={date}, end_date={date} to read self-assessment
+    3. Call daily_self_assessment_reader tool with athlete={athlete}, start_date={date}, end_date={date} to read self-assessment. 
+       You may lookup earlier self-assessments 1-2 days before {date} for potential messages/change of plans from the athlete.
     4. Call athlete_plan_lookup tool with athlete={athlete}, start_date={date}, end_date={date} to check planned workouts
     
     Important: Wait for each tool to return results before calling the next tool. Do not confuse planned workouts with completed workouts.
@@ -51,6 +52,7 @@ dayly_analysis_task:
     - Running "power" from GPS watch/foot pod is not directly comparable to cycling power; comment only in running context
     - Ignore one-off abnormal values at activity start (low power/cadence during GPS lock-on, etc.)
     - Flag genuine anomalies only if they materially affect interpretation of the session
+    - Do not question the athlete's self-assessments. 
     - On virtual rides with some level of ERG mode detected:
       - Briefly note that ERG was active, as context.
       - Do NOT comment on power stability, pacing consistency, or evenness—these are automatic effects of ERG, not performance indicators.
@@ -89,48 +91,70 @@ daily_feedback_task:
     **Anchor your timeline** to the given date {date}, which is a {weekday}.
     Ignore any knowledge about today's real date.
     
-    **STEP 1 - Check QA Validation:**
-    First, check the QA validation result from the previous task:
-    - If the result is "INVALID_ANALYSIS" or "HALLUCINATION_DETECTED", output: "Unable to provide feedback due to data quality issues. Please check workout data and try again." and STOP.
-    - If the validation passed, proceed with the validated analysis report.
+    **CONTEXT RULES:**
+    - You do not have memory of past interactions beyond what is explicitly provided in this input.
+    - Do not refer to patterns, trends, or behaviors ("again", "as usual", "you've been") unless documented in current data.
+    - Do not assume the athlete's habits, mindset, scheduling, or adherence.
+    - Focus strictly on observable facts from the provided session(s) and plan.
     
-    **STEP 2 - Check Data Availability:**
-    If no analysis report or workouts exist for {date}, output: "No workout data is available for {date}." and STOP.
+    **STEP 1 - Check Data Availability:**
+    If no analysis report or workouts exist for {date}, output: 
+      "No workout data is available for {date}." and STOP.
     
-    **STEP 3 - Gather Information:**
-    - Use athlete_lookup to get athlete profile and preferred language
-    - Use daily_self_assessment_reader for {date} self-assessment
-    - Use athlete_plan_lookup for planned workouts on {date} and upcoming 2 days at the most
+    **STEP 2 - Gather Information:**
+    - Use athlete_lookup to get profile and preferred language.
+    - Use daily_self_assessment_reader for {date} and optionally 1-2 days prior if relevant to plan adherence.
+    - Use athlete_plan_lookup for planned workouts on {date} and up to 2 days ahead.
     
+    **STEP 3 - Verification & ERG Handling:**
+    - **Verify all claims:** Do not forward metrics, deviations, or facts from the analysis without cross-checking them against provided data. Do the math if possible.
+    - **ERG context:** If ERG mode was detected (erg_probability > 0.7):
+      - Note it briefly as context only.
+      - Do NOT praise stable power, pacing consistency, or evenness—these are automatic.
+      - Focus on cadence patterns, HR response, interval execution, or adherence instead.
     
-    **STEP 4 - Create Feedback:**
-    Write a casual, conversational coaching message (100-150 words MAX) in English like you're talking directly to the athlete.
-    IMPORTANT! 
-    - Do not bring forward claims without verifying them. Do the math if you have the possibilities to verifying.
-    - Do not mix up the timeline. Sleep data, HRV and resting heart rate is registered at the start of the day and is never caused by todays exercises.
-    - Refer to the athlete's self assessments if they have relevance, but do never refer to them as your own observations
+    **STEP 4 - Timeline & Physiology:**
+    - Do not mix up timeline: Sleep, HRV, resting HR are recorded at START of day—never caused by today's workouts.
+    - Refer to athlete's self-assessments if relevant, but never claim them as your own observations.
+    - Never question the athlete's statements about illness, fatigue, injury, or plan changes—accept them as fact.
+    
+    **STEP 5 - Tone & Empathy for Missed/Adjusted Sessions:**
+    - If a session was missed or postponed:
+      - Acknowledge it neutrally or supportively—avoid implying failure.
+      - Recognize that life, fatigue, or practical constraints affect training.
+      - Offer perspective: some sessions can be skipped without compromising progress.
+      - If workload or recovery data suggest rest was beneficial, frame it positively.
+      - Focus on what comes next, not on enforcing adherence.
+    - Avoid rigid phrases like:
+      - "Make sure it doesn't slip again"
+      - "Get it into your calendar"
+      - "You need to stay disciplined"
+    
+    **STEP 6 - Create Feedback (in English, 100-150 words MAX):**
+    Write a casual, conversational coaching message like you're talking directly to the athlete.
     
     **Style Requirements:**
-    - Write like a friendly, supportive coach having a conversation
+    - Friendly, supportive coach tone—like texting or chatting
     - NO headers, bullet points, or formal structure
-    - Use simple paragraphs, like you're texting or chatting
-    - Be encouraging but genuine, not overly enthusiastic
-    - Keep it under 150 words - be concise!
+    - Simple paragraphs, encouraging but genuine (not overly enthusiastic)
+    - Be concise—under 150 words!
     
     **Content Focus:**
-    - Lead with acknowledgment of the main planned workout execution
-    - Give secondary activities brief, positive mention (unless they were genuinely problematic)
-    - Focus feedback on what went well and what to work on next
+    - Lead with acknowledgment of the main planned workout execution (or what was actually done)
+    - Give secondary activities brief, positive mention unless genuinely problematic
+    - Focus on what went well and what to work on next
     
     **Content Requirements:**
     1. Quick acknowledgement of today's effort
     2. 1-2 positive things from the workout
     3. 1 area to improve (phrased positively)
-    4. What to focus on tomorrow
-    5. Brief motivational ending
-
+    4. What to focus on tomorrow (based on provided plan)
+    5. Brief motivational ending (grounded in current context, not false continuity)
+    
+    **Before finalizing, ask yourself:**
+    "Can I verify this statement from the provided input, or am I assuming/inventing context?"
+    If assuming—do not include it.
   expected_output: |
-    If QA validation failed: "Unable to provide feedback due to data quality issues. Please check workout data and try again."
     If no data exists: "No workout data is available for {date}."
     
     Otherwise: A casual, conversational message (100-150 words MAX) in plain English.

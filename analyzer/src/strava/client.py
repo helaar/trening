@@ -44,6 +44,10 @@ class StravaActivity:
         self.device_name = data.get('device_name')
         self.manual = data.get('manual', False)
         self.from_accepted_tag = data.get('from_accepted_tag', False)
+        self.commute = data.get('commute', False)
+        # Extract map data including summary_polyline
+        map_data = data.get('map', {})
+        self.summary_polyline = map_data.get('summary_polyline', '') if isinstance(map_data, dict) else ''
 
 
 class StravaStream:
@@ -361,7 +365,13 @@ class StravaClient:
 class StravaDataParser:
     """Parser to convert Strava data to format compatible with existing analysis."""
     
-    def __init__(self, activity: StravaActivity, streams: dict[str, StravaStream] | None = None, laps: list[dict[str, Any]] | None = None):
+    def __init__(
+        self,
+        activity: StravaActivity,
+        streams: dict[str, StravaStream] | None = None,
+        laps: list[dict[str, Any]] | None = None,
+        commute_status: str = "no"
+    ):
         self.activity = activity
         self.streams = streams or {}
         self.strava_laps = laps or []
@@ -369,6 +379,10 @@ class StravaDataParser:
         self.workout = self._create_workout()
         self.laps = self._create_laps()
         self.sets = []  # Strava doesn't typically have strength set data in streams
+        # Expose commute and polyline data
+        self.commute = activity.commute
+        self.summary_polyline = activity.summary_polyline
+        self.commute_status = commute_status
     
     def _create_dataframe(self) -> pd.DataFrame:
         """Create a pandas DataFrame from Strava stream data."""

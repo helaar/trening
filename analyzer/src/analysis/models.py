@@ -27,6 +27,7 @@ class SessionInfo(BaseModel):
     device_name: str | None = None
     manual: bool = False
     from_accepted_tag: bool = False
+    commute: Literal["yes, marked by athlete", "yes, detected", "no"] = "no"
 
 
 class StatsSummary(BaseModel):

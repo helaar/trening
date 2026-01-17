@@ -1,6 +1,3 @@
-# Athlete-specific settings
-# This file contains physiological and training parameters for individual athletes
-
 athletes:
   helge:
     heart-rate:
@@ -9,29 +6,32 @@ athletes:
       measured-activity: cycling/vo2max-test
       date: 2024-11-02
       hr-zones:
-        - Recovery: 0-115
-        - Endurance: 115-138  
-        - Tempo: 138-157
-        - Lactate Threshold: 157-167
-        - VO2max: 167-176
-        - Anaerobic Capacity: 176-183
-        - Neuromuscular Power: 184-
-    cycling: 
+      - Recovery: 0-115
+      - Endurance: 115-138
+      - Tempo: 138-157
+      - Lactate Threshold: 157-167
+      - VO2max: 167-176
+      - Anaerobic Capacity: 176-183
+      - Neuromuscular Power: 184-
+    cycling:
       ftp: 260
-      power-zones: 
-        - Recovery: 0-143
-        - Endurance: 144-195
-        - Tempo: 196-234
-        - Treshold: 235-273
-        - VO2 Max: 274-312
-        - Anaerobic Capacity: 313-390
-        - Neuromuscular: 391-
+      power-zones:
+      - Recovery: 0-143
+      - Endurance: 144-195
+      - Tempo: 196-234
+      - Treshold: 235-273
+      - VO2 Max: 274-312
+      - Anaerobic Capacity: 313-390
+      - Neuromuscular: 391-
     running:
       ftp: 365
-      power-zones: 
-        - Recovery: 0-255
-        - Endurance: 255-290
-        - Tempo: 290-330
-        - Threshold: 330-385
-        - VO2Max: 385-440
-        - Anaerobic: 440-
+      power-zones:
+      - Recovery: 0-255
+      - Endurance: 255-290
+      - Tempo: 290-330
+      - Threshold: 330-385
+      - VO2Max: 385-440
+      - Anaerobic: 440-
+    commute_routes:
+      Afternoon Ride_20260116_1634: wudbKedq~@}DmEaCyHaEhHbAhNm@rP}A|OyDbKmDfJ|BpKdDtLrDfK`DbMhClNlCdNxCvM|ClMtC|MlCpMvAnO|CpLDbQm@zP]`QvAdGbGh@nFiAIrLNlP_CrL^xOyBrIcFhFrC?hFfDrC_FrE}HlFmERrOzDjBbDeMpDkJpFtEpFzEnFzEtFpDE`N~ChJtFjDrExH
+      Morning Ride_20260116_0727: wx`bKo~c~@uEoHqF{CCcO_CqIqFiDkFwEkFqEkFoE}D~F{C`MeEvABiPcFb@yE|GeCpLwEsG}ElDxCiItEyEkAuOtCaL[gPtAqOi@qMkB_OsC_MqDk@eB_KuA{N_C_M}BkMaCeN{CaMyCeMoCsMiC}MyCwLkDaLaDuL}CwLNuMfE_IbCmMvAsOk@yOb@uLnFaBl@`O|AzF
