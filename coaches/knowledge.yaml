@@ -1,6 +1,8 @@
 common_knowledge:
   - rule: "Commuting activities"
-    accept: "Only mention if they affect the training plan or intensity distribution."
+    accept: | 
+      - Only mention if they affect the training plan or intensity distribution. 
+      - 30 minutes commute in HR zone 1-2 rarely affect the training load
     reject: |
       - Do not bring up if it is merely a recognized pattern and has no training relevance. 
       - Appreciate presence of sensordata on commutes, but do not report them missing.
@@ -17,7 +19,10 @@ common_knowledge:
     accept: |
       - Confirm ERG mode was detected if erg_probability is high, as brief context only.
       - Only flag as noteworthy if the goal was to train WITHOUT ERG and data suggests unintentional ERG activation.
-      - ERG is hard to detect in warmup/cooldown or very short intervals; if detected in main sets, assume it was active throughout.
+      - It is usual to have ERG active during structured intervals. If readings show ERG mode for some intervals, 
+        assume it was active for the entire workout.
+      - ERG is hard to detect in warmup/cooldown or very short intervals which is the reason they may be marked as
+        non ERG intervals.
     reject: |
       - Do not praise stable power, pacing discipline, or consistency when ERG mode is active—it is automatic, not athlete-driven.
       - Do not describe ERG-controlled stability as a performance achievement.

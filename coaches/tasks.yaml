@@ -108,10 +108,11 @@ daily_feedback_task:
     
     **STEP 3 - Verification & ERG Handling:**
     - **Verify all claims:** Do not forward metrics, deviations, or facts from the analysis without cross-checking them against provided data. Do the math if possible.
-    - **ERG context:** If ERG mode was detected (erg_probability > 0.7):
-      - Note it briefly as context only.
+    - **ERG context:** If ERG mode was detected::
+      - You may note it briefly as context only, but this is obsolete information and should not be emphasized.
       - Do NOT praise stable power, pacing consistency, or evenness—these are automatic.
       - Focus on cadence patterns, HR response, interval execution, or adherence instead.
+    - You may mention that the upcoming plan for the next 2-3 days does not have workouts scheduled if that is the case.
     
     **STEP 4 - Timeline & Physiology:**
     - Do not mix up timeline: Sleep, HRV, resting HR are recorded at START of day—never caused by today's workouts.
@@ -130,14 +131,15 @@ daily_feedback_task:
       - "Get it into your calendar"
       - "You need to stay disciplined"
     
-    **STEP 6 - Create Feedback (in English, 100-150 words MAX):**
+    **STEP 6 - Create Feedback:**
     Write a casual, conversational coaching message like you're talking directly to the athlete.
     
     **Style Requirements:**
     - Friendly, supportive coach tone—like texting or chatting
     - NO headers, bullet points, or formal structure
     - Simple paragraphs, encouraging but genuine (not overly enthusiastic)
-    - Be concise—under 150 words!
+    - Be concise! Keep it under 150 words!
+    - Use plain English, avoid jargon or technical terms unless necessary
     
     **Content Focus:**
     - Lead with acknowledgment of the main planned workout execution (or what was actually done)
@@ -152,12 +154,12 @@ daily_feedback_task:
     5. Brief motivational ending (grounded in current context, not false continuity)
     
     **Before finalizing, ask yourself:**
-    "Can I verify this statement from the provided input, or am I assuming/inventing context?"
-    If assuming—do not include it.
+    - "Can I verify this statement from the provided input, or am I assuming/inventing context?"
+      If assuming—do not include it.
   expected_output: |
     If no data exists: "No workout data is available for {date}."
     
-    Otherwise: A casual, conversational message (100-150 words MAX) in plain English.
+    Otherwise: A casual, conversational message (150 words MAX) in plain English.
     NO headers, bullet points, or formal structure. Write like a friendly coach talking directly to the athlete.
     
   markdown: true
@@ -354,3 +356,44 @@ validate_analysis_task:
 
   markdown: true
   output_file: "{output_dir}/{date}_qa.md"
+
+workout_comparison_task:
+  description: |
+    Compare the current workout for {athlete} on {date} with a similar or referenced past workout.
+    
+    **Triggering conditions:**
+    - The athlete mentions a previous session in their self-assessment (e.g., "last time I did this workout...")
+    - The Head Coach explicitly requests a comparison
+    - You identify that this workout type has been done recently (within last 30 days)
+    
+    
+    **STEP 1 - Gather Data Sequentially:**
+    Call each of these tools one at a time (do not call multiple tools in the same response):
+    
+    1. Call daily_workout_reader tool with athlete={athlete}, use start_date and end_date for a 2-3 days at a time to find 
+       the referenced workout. DO NOT extend the period of time beyond the given estimate from the athlete. If a week ago is 
+       mentioned, you may at most read 8 days.
+    2. If the name of one of the workouts matches the main workout for today:
+    3. Identify key metrics to compare based on workout type:
+        - For steady/endurance: avg power/pace, HR, duration
+        - For intervals: interval power/pace, recovery quality, consistency
+        - For threshold/tempo: NP/IF, HR drift, pacing stability
+    4. Note relevant context differences (e.g., fatigue state, equipment, conditions)
+    5. Provide a factual, metric-based comparison
+    
+    **Guidelines:**
+    - Only compare if it adds meaningful insight – not all workouts need comparison
+    - Keep comparison focused on observable performance metrics
+    - Avoid over-interpreting small differences unless they form a clear pattern
+    - If ERG mode was used in both sessions, focus on HR response and execution, not power stability
+    
+  expected_output: |
+    A concise comparison report in English containing:
+    1. Brief identification of the two (or more) sessions being compared
+    2. Key metric changes (e.g., "Power 5W higher at same HR" or "Pace 10s/km slower despite similar effort")
+    3. Contextual observations (e.g., "Previous session done fresh; today followed hard weekend")
+    4. Simple conclusion: improvement, consistency, or regression
+    
+    If no meaningful comparison can be made, state: "No comparable session found" or "Comparison not relevant for this workout type."
+  markdown: true
+  output_file: "{output_dir}/{date}_compare.md"    

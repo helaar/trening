@@ -41,6 +41,7 @@ def daily_analysis(athlete: str, date: str, output_dir: str) -> None:
     
     # Create a task for the agent
     analysis_task = task_loader.create_task("dayly_analysis_task", agent=analyzer)
+    #compare_task = task_loader.create_task("workout_comparison_task", agent=analyzer)
     #validation_task = task_loader.create_task("validate_analysis_task", agent=qa_inspector, context=[analysis_task])
     feedback_task = task_loader.create_task("daily_feedback_task", agent=head_coach, context=[analysis_task])
     translate_task = task_loader.create_task("translate_task", agent=translator, context=[feedback_task])
