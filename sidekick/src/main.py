@@ -1,0 +1,43 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+
+from src.api.routes import router
+from src.config import settings
+
+app = FastAPI(
+    title="Sidekick API",
+    description="Joint solution integrating functionality from analyzer and coaches",
+    version="0.1.0",
+)
+
+# Configure CORS - environment-based settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=settings.cors_methods_list,
+    allow_headers=settings.cors_headers_list,
+)
+
+# Add GZip middleware for response compression
+app.add_middleware(GZipMiddleware, minimum_size=2048)
+
+# Include API routes
+app.include_router(router)
+
+
+@app.get("/")
+async def root():
+    """Root endpoint returning API status."""
+    return {
+        "name": "Sidekick API",
+        "version": "0.1.0",
+        "environment": settings.environment,
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}

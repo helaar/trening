@@ -5,7 +5,7 @@ from typing import Generator
 from pymongo import MongoClient
 from pymongo.database import Database
 
-from .config import settings
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
