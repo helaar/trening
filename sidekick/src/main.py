@@ -1,14 +1,30 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from src.api.routes import router
-from src.config import settings
+from api.routes import router
+from api.auth_routes import router as auth_router
+from config import settings
+from database.mongodb import db_manager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan - startup and shutdown events."""
+    # Startup
+    await db_manager.connect()
+    yield
+    # Shutdown
+    await db_manager.disconnect()
+
 
 app = FastAPI(
     title="Sidekick API",
     description="Joint solution integrating functionality from analyzer and coaches",
     version="0.1.0",
+    lifespan=lifespan
 )
 
 # Configure CORS - environment-based settings
@@ -25,6 +41,7 @@ app.add_middleware(GZipMiddleware, minimum_size=2048)
 
 # Include API routes
 app.include_router(router)
+app.include_router(auth_router)
 
 
 @app.get("/")
@@ -40,4 +57,8 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    db_healthy = await db_manager.ping()
+    return {
+        "status": "healthy" if db_healthy else "degraded",
+        "database": "connected" if db_healthy else "disconnected"
+    }

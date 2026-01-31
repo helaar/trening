@@ -10,6 +10,16 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "INFO"
     
+    # Strava OAuth settings
+    strava_client_id: str
+    strava_client_secret: str
+    strava_redirect_uri: str = "http://localhost:8000/auth/strava/callback"
+    
+    # JWT settings for session management
+    jwt_secret_key: str
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 43200  # 30 days
+    
     # CORS settings
     cors_origins: str = "*"  # Comma-separated list of allowed origins
     cors_allow_credentials: bool = True

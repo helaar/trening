@@ -4,7 +4,7 @@
 
 
 from typing import Literal
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel, PrivateAttr, computed_field, field_validator
 
 

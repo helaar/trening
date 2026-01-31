@@ -1,43 +1,43 @@
 import logging
-from contextlib import contextmanager
-from typing import Generator
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
-from pymongo import MongoClient
-from pymongo.database import Database
+from pymongo import AsyncMongoClient
+from pymongo.asynchronous.database import AsyncDatabase
 
-from ..config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """Manages MongoDB database connections using PyMongo."""
+    """Manages MongoDB database connections using async PyMongo."""
 
     def __init__(self):
-        self.client: MongoClient | None = None
-        self.db: Database | None = None
+        self.client: AsyncMongoClient | None = None
+        self.db: AsyncDatabase | None = None
 
-    def connect(self):
+    async def connect(self):
         """Connect to MongoDB."""
         try:
             logger.info(f"Connecting to MongoDB at {settings.mongodb_url}")
-            self.client = MongoClient(settings.mongodb_url)
+            self.client = AsyncMongoClient(settings.mongodb_url)
             self.db = self.client[settings.mongodb_database]
             
             # Test the connection
-            self.client.admin.command("ping")
+            await self.client.admin.command("ping")
             logger.info("Successfully connected to MongoDB")
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
             raise
 
-    def disconnect(self):
+    async def disconnect(self):
         """Disconnect from MongoDB."""
         if self.client:
-            self.client.close()
+            await self.client.close()
             logger.info("Disconnected from MongoDB")
 
-    def ping(self) -> bool:
+    async def ping(self) -> bool:
         """
         Check if database connection is alive.
 
@@ -45,7 +45,7 @@ class DatabaseManager:
             True if connection is alive, False otherwise
         """
         try:
-            self.client.admin.command("ping")
+            await self.client.admin.command("ping")
             return True
         except Exception as e:
             logger.error(f"Database ping failed: {e}")
@@ -56,17 +56,30 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 
-@contextmanager
-def get_database() -> Generator[Database, None, None]:
+@asynccontextmanager
+async def get_database() -> AsyncGenerator[AsyncDatabase, None]:
     """
-    Context manager for database connections.
+    Async context manager for database connections.
 
     Usage:
-        with get_database() as db:
+        async with get_database() as db:
             # perform database operations
             collection = db['my_collection']
     """
+    if db_manager.db is None:
+        raise RuntimeError("Database not connected. Call db_manager.connect() first.")
     try:
         yield db_manager.db
     finally:
         pass
+
+
+def get_db() -> AsyncDatabase:
+    """
+    Dependency function to get database instance for FastAPI.
+    
+    Returns the database directly without context manager.
+    """
+    if db_manager.db is None:
+        raise RuntimeError("Database not connected. Call db_manager.connect() first.")
+    return db_manager.db

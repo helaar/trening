@@ -19,7 +19,15 @@ docker-compose up -d
 
 # MongoDB will be available at localhost:27010
 # Mongo Express UI at http://localhost:8001
+
+# Run the development server
+poetry run dev
 ```
+
+API will be available at:
+- **API**: http://localhost:8000
+- **Docs**: http://localhost:8000/docs
+- **Health**: http://localhost:8000/health
 
 ## Configuration
 
@@ -28,6 +36,11 @@ Environment variables in [`.env`](.env):
 - `MONGODB_DATABASE` - Database name
 - `ENVIRONMENT` - Application environment
 - `LOG_LEVEL` - Logging level
+- `STRAVA_CLIENT_ID` - Strava OAuth client ID
+- `STRAVA_CLIENT_SECRET` - Strava OAuth client secret
+- `JWT_SECRET_KEY` - Secret key for JWT tokens
+
+See [`docs/STRAVA_AUTH.md`](docs/STRAVA_AUTH.md) for Strava OAuth setup.
 
 ## Docker Commands
 

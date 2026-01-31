@@ -67,20 +67,48 @@ class StravaClient:
     
     BASE_URL = "https://www.strava.com/api/v3"
     
-    def __init__(self):
+    def __init__(self, access_token: str | None = None):
+        """
+        Initialize Strava client with access token.
         
-        self.access_token = os.getenv('STRAVA_ACCESS_TOKEN')
-        
-        if not self.access_token:
-            raise ValueError(
-                "STRAVA_ACCESS_TOKEN environment variable not found. "
-                "Please set up your Strava API credentials in a .env file."
-            )
+        Args:
+            access_token: Strava access token. If not provided, will try to load from environment.
+        """
+        if access_token:
+            self.access_token = access_token
+        else:
+            # Fallback to environment variable for backwards compatibility
+            self.access_token = os.getenv('STRAVA_ACCESS_TOKEN')
+            
+            if not self.access_token:
+                raise ValueError(
+                    "No access token provided. Either pass access_token parameter or "
+                    "set STRAVA_ACCESS_TOKEN environment variable."
+                )
         
         self.headers = {
             'Authorization': f'Bearer {self.access_token}',
             'Content-Type': 'application/json'
         }
+    
+    @classmethod
+    async def from_athlete_id(cls, athlete_id: int, athlete_repo):
+        """
+        Create StravaClient instance for a specific athlete using stored tokens.
+        
+        Args:
+            athlete_id: Athlete ID
+            athlete_repo: AthleteRepository instance
+            
+        Returns:
+            StravaClient instance with valid access token
+        """
+        from auth.oauth import StravaOAuthService
+        
+        oauth_service = StravaOAuthService(athlete_repo)
+        tokens = await oauth_service.get_valid_tokens(athlete_id)
+        
+        return cls(access_token=tokens.access_token)
     
     def get_activities_for_date(self, target_date: date) -> list[StravaActivity]:
         """
