@@ -523,16 +523,25 @@ class StravaDataParser:
         laps = []
         base_start = self.activity.start_date_local or self.activity.start_date
         
+        # Get the dataframe start time if available for accurate lap timing
+        if not self.data_frame.empty and isinstance(self.data_frame.index, pd.DatetimeIndex):
+            df_start_time = self.data_frame.index[0]
+        else:
+            df_start_time = pd.Timestamp(base_start)
+        
         for i, strava_lap in enumerate(self.strava_laps):
             # Extract lap timing info
             elapsed_time = strava_lap.get('elapsed_time', 0)
-            start_index = strava_lap.get('start_index', i * 1000)  # Fallback estimation
+            start_index = strava_lap.get('start_index')
             
-            # Calculate lap timestamps
-            if i == 0:
+            # Calculate lap timestamps using start_index if available (more accurate)
+            if start_index is not None and not self.data_frame.empty:
+                # Use start_index to get accurate timing from the actual data stream
+                lap_start = df_start_time + timedelta(seconds=start_index)
+            elif i == 0:
                 lap_start = base_start
             else:
-                # Use elapsed time to estimate start relative to previous laps
+                # Fallback: Use elapsed time to estimate start relative to previous laps
                 prev_elapsed = sum(lap.get('elapsed_time', 0) for lap in self.strava_laps[:i])
                 lap_start = base_start + timedelta(seconds=prev_elapsed)
             

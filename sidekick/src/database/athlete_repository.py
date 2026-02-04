@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from pymongo.asynchronous.database import AsyncDatabase
 
-from models.athlete import Athlete, StravaTokens
+from models.athlete import Athlete, StravaTokens, AthleteSettings
 
 
 class AthleteRepository:
@@ -30,6 +30,27 @@ class AthleteRepository:
             upsert=True
         )
         return athlete
+    
+    async def update_athlete_settings(self, athlete_id: int, settings: AthleteSettings) -> Athlete | None:
+        """Update athlete settings."""
+        result = await self.athletes_collection.update_one(
+            {"athlete_id": athlete_id},
+            {
+                "$set": {
+                    "settings": settings.model_dump(),
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        if result.matched_count > 0:
+            return await self.get_athlete(athlete_id)
+        return None
+    
+    async def get_athlete_settings(self, athlete_id: int) -> AthleteSettings | None:
+        """Get athlete settings."""
+        athlete = await self.get_athlete(athlete_id)
+        return athlete.settings if athlete else None
     
     async def get_tokens(self, athlete_id: int) -> StravaTokens | None:
         """Get Strava tokens for an athlete."""
