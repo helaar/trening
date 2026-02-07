@@ -3,18 +3,27 @@
 Strava API client for downloading workout data and converting to analysis format.
 Uses direct API calls to avoid dependency conflicts.
 """
-import os
 import json
-import pandas as pd
+import logging
+import os
 import requests
-from datetime import datetime, date, timedelta
-from typing import Any
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
-from format.models import Workout, Device, Sensor
-from .training_load import (
-    ActivitySummary, DailySummary, WeeklySummary, TrainingLoadAnalysis
+import pandas as pd
+
+from models.workout import (
+    Workout, 
+    Device,
+    ActivitySummary,
+    DailySummary,
+    WeeklySummary,
+    TrainingLoadAnalysis
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class StravaActivity:
@@ -63,33 +72,61 @@ class StravaClient:
     
     BASE_URL = "https://www.strava.com/api/v3"
     
-    def __init__(self):
+    def __init__(self, access_token: str | None = None):
+        """
+        Initialize Strava client with access token.
         
-        self.access_token = os.getenv('STRAVA_ACCESS_TOKEN')
-        
-        if not self.access_token:
-            raise ValueError(
-                "STRAVA_ACCESS_TOKEN environment variable not found. "
-                "Please set up your Strava API credentials in a .env file."
-            )
+        Args:
+            access_token: Strava access token. If not provided, will try to load from environment.
+        """
+        if access_token:
+            self.access_token = access_token
+        else:
+            # Fallback to environment variable for backwards compatibility
+            self.access_token = os.getenv('STRAVA_ACCESS_TOKEN')
+            
+            if not self.access_token:
+                raise ValueError(
+                    "No access token provided. Either pass access_token parameter or "
+                    "set STRAVA_ACCESS_TOKEN environment variable."
+                )
         
         self.headers = {
             'Authorization': f'Bearer {self.access_token}',
             'Content-Type': 'application/json'
         }
     
-    def get_activities_for_date(self, target_date: date) -> list[StravaActivity]:
+    @classmethod
+    async def from_athlete_id(cls, athlete_id: int, athlete_repo):
+        """
+        Create StravaClient instance for a specific athlete using stored tokens.
+        
+        Args:
+            athlete_id: Athlete ID
+            athlete_repo: AthleteRepository instance
+            
+        Returns:
+            StravaClient instance with valid access token
+        """
+        from auth.oauth import StravaOAuthService
+        
+        oauth_service = StravaOAuthService(athlete_repo)
+        tokens = await oauth_service.get_valid_tokens(athlete_id)
+        
+        return cls(access_token=tokens.access_token)
+    
+    def get_activities_for_date(self, target_date: datetime) -> list[StravaActivity]:
         """
         Get all activities for a specific date.
         
         Args:
-            target_date: Date to fetch activities for
+            target_date: Date to fetch activities for (time portion ignored)
             
         Returns:
             List of StravaActivity objects
         """
-        # Set time range for the entire day
-        start_time = datetime.combine(target_date, datetime.min.time())
+        # Set time range for the entire day (ignore time portion of target_date)
+        start_time = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_time = start_time + timedelta(days=1)
         
         url = f"{self.BASE_URL}/athlete/activities"
@@ -107,8 +144,30 @@ class StravaClient:
             return [StravaActivity(activity_data) for activity_data in activities_data]
         
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching activities: {e}")
+            logger.error(f"Error fetching activities: {e}")
             return []
+    
+    def get_activity(self, activity_id: int) -> StravaActivity | None:
+        """
+        Get a single activity by ID.
+        
+        Args:
+            activity_id: Strava activity ID
+            
+        Returns:
+            StravaActivity object or None if not found
+        """
+        url = f"{self.BASE_URL}/activities/{activity_id}"
+        
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            data = response.json()
+            return StravaActivity(data)
+        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching activity {activity_id}: {e}")
+            return None
     
     def get_activity_streams(self, activity_id: int) -> dict[str, StravaStream]:
         """
@@ -144,7 +203,7 @@ class StravaClient:
             return streams
         
         except requests.exceptions.RequestException as e:
-            print(f"Warning: Could not fetch streams for activity {activity_id}: {e}")
+            logger.warning(f"Could not fetch streams for activity {activity_id}: {e}")
             return {}
     
     def get_activity_laps(self, activity_id: int) -> list[dict[str, Any]]:
@@ -167,12 +226,12 @@ class StravaClient:
             return laps_data if isinstance(laps_data, list) else []
         
         except requests.exceptions.RequestException as e:
-            print(f"Warning: Could not fetch laps for activity {activity_id}: {e}")
+            logger.warning(f"Could not fetch laps for activity {activity_id}: {e}")
             return []
 
-    def _get_cache_path(self, cache_dir: Path, target_date: date) -> Path:
+    def _get_cache_path(self, cache_dir: Path, target_date: datetime) -> Path:
         """Get cache file path for a specific date."""
-        return cache_dir / f"{target_date.isoformat()}_activities.json"
+        return cache_dir / f"{target_date.date().isoformat()}_activities.json"
 
     def _load_cached_activities(self, cache_path: Path) -> list[StravaActivity] | None:
         """Load activities from cache if available and recent."""
@@ -200,7 +259,7 @@ class StravaClient:
         except OSError:
             pass  # Silently ignore cache write failures
 
-    def get_activities_for_date_cached(self, target_date: date, cache_dir: Path | None = None) -> list[StravaActivity]:
+    def get_activities_for_date_cached(self, target_date: datetime, cache_dir: Path | None = None) -> list[StravaActivity]:
         """
         Get activities for a date with caching support.
         
@@ -220,7 +279,7 @@ class StravaClient:
         # Try to load from cache first
         cached_activities = self._load_cached_activities(cache_path)
         if cached_activities is not None:
-            print(f"  {target_date}: Using cached data ({len(cached_activities)} activities)")
+            logger.debug(f"{target_date}: Using cached data ({len(cached_activities)} activities)")
             return cached_activities
         
         # Fetch from API if not cached
@@ -233,7 +292,7 @@ class StravaClient:
 
     def get_training_load_analysis(
         self,
-        end_date: date,
+        end_date: datetime,
         days: int = 28,
         cycling_ftp: float | None = None,
         running_ftp: float | None = None,
@@ -255,12 +314,12 @@ class StravaClient:
         """
         start_date = end_date - timedelta(days=days-1)
         
-        print(f"Fetching training load data from {start_date} to {end_date}")
-        print(f"This will require approximately {days} API calls...")
+        logger.info(f"Fetching training load data from {start_date} to {end_date}")
+        logger.info(f"This will require approximately {days} API calls...")
         if cycling_ftp:
-            print(f"Using cycling FTP: {cycling_ftp}W")
+            logger.info(f"Using cycling FTP: {cycling_ftp}W")
         if running_ftp:
-            print(f"Using running FTP: {running_ftp}W")
+            logger.info(f"Using running FTP: {running_ftp}W")
         
         # Fetch activities for each day (efficient: 1 API call per day)
         daily_summaries = []
@@ -283,7 +342,7 @@ class StravaClient:
             daily_summaries.append(daily_summary)
             
             if activity_summaries:
-                print(f"  {current_date}: {len(activity_summaries)} activities")
+                logger.debug(f"{current_date}: {len(activity_summaries)} activities")
         
         # Create weekly summaries (rolling 7-day windows)
         weekly_summaries = []
@@ -310,13 +369,13 @@ class StravaClient:
             weekly_summaries=weekly_summaries
         )
         
-        print(f"Analysis complete: {analysis.total_activities} activities, "
-              f"{analysis.total_time/3600:.1f} hours, "
-              f"TSS: {analysis.total_tss:.1f}")
+        logger.info(f"Analysis complete: {analysis.total_activities} activities, "
+                    f"{analysis.total_time/3600:.1f} hours, "
+                    f"TSS: {analysis.total_tss:.1f}")
         
         return analysis
 
-    def get_activities_for_period(self, start_date: date, end_date: date) -> list[StravaActivity]:
+    def get_activities_for_period(self, start_date: datetime, end_date: datetime) -> list[StravaActivity]:
         """
         Get all activities for a date range using efficient batch API calls.
         
@@ -347,7 +406,7 @@ class StravaClient:
                 return [StravaActivity(activity_data) for activity_data in activities_data]
                 
             except requests.exceptions.RequestException as e:
-                print(f"Error fetching activities for period: {e}")
+                logger.error(f"Error fetching activities for period: {e}")
                 return []
         else:
             # For longer periods, fetch day by day to respect API limits
@@ -529,7 +588,7 @@ class StravaDataParser:
         return laps
 
 
-def download_strava_workouts(target_date: date) -> list[StravaDataParser]:
+def download_strava_workouts(target_date: datetime) -> list[StravaDataParser]:
     """
     Download all Strava workouts for a given date.
     
@@ -544,16 +603,16 @@ def download_strava_workouts(target_date: date) -> list[StravaDataParser]:
     
     parsers = []
     for activity in activities:
-        print(f"Downloading data for activity: {activity.name} ({activity.id})")
+        logger.info(f"Downloading data for activity: {activity.name} ({activity.id})")
         
         # Download streams and laps data
         streams = client.get_activity_streams(activity.id)
         laps = client.get_activity_laps(activity.id)
         
         if laps:
-            print(f"  Found {len(laps)} lap(s)")
+            logger.debug(f"Found {len(laps)} lap(s)")
         else:
-            print(f"  No laps found, using entire activity as single lap")
+            logger.debug("No laps found, using entire activity as single lap")
         
         parser = StravaDataParser(activity, streams, laps)
         parsers.append(parser)
