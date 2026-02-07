@@ -4,7 +4,7 @@
 
 
 from typing import Literal
-from datetime import datetime, date
+from datetime import datetime
 from pydantic import BaseModel, PrivateAttr, computed_field, field_validator
 
 
@@ -108,7 +108,7 @@ class ActivitySummary(BaseModel):
     name: str
     sport: str
     sport_type: str
-    date: date
+    date: datetime
     start_time: datetime
     
     # Duration metrics
@@ -143,12 +143,13 @@ class ActivitySummary(BaseModel):
     @field_validator('date', mode='before')
     @classmethod
     def parse_date(cls, v):
-        if isinstance(v, date):
-            return v
         if isinstance(v, datetime):
-            return v.date()
+            # If it's already a datetime, zero out the time portion
+            return v.replace(hour=0, minute=0, second=0, microsecond=0)
         if isinstance(v, str):
-            return datetime.fromisoformat(v).date()
+            # Parse string and ensure time is zeroed
+            dt = datetime.fromisoformat(v)
+            return dt.replace(hour=0, minute=0, second=0, microsecond=0)
         return v
     
     @classmethod
@@ -159,7 +160,7 @@ class ActivitySummary(BaseModel):
             name=activity.name,
             sport=activity.type,
             sport_type=activity.sport_type,
-            date=activity.start_date_local.date(),
+            date=activity.start_date_local.replace(hour=0, minute=0, second=0, microsecond=0),
             start_time=activity.start_date_local,
             moving_time=activity.moving_time,
             elapsed_time=activity.elapsed_time,
@@ -218,7 +219,7 @@ class ActivitySummary(BaseModel):
 class DailySummary(BaseModel):
     """Summary of all activities for a single day."""
     
-    date: date
+    date: datetime
     activities: list[ActivitySummary] = []
     
     @computed_field
@@ -283,8 +284,8 @@ class DailySummary(BaseModel):
 class WeeklySummary(BaseModel):
     """Summary for a 7-day period."""
     
-    start_date: date
-    end_date: date
+    start_date: datetime
+    end_date: datetime
     days: list[DailySummary]
     
     @computed_field
@@ -386,8 +387,8 @@ class WeeklySummary(BaseModel):
 class TrainingLoadAnalysis(BaseModel):
     """Complete 28-day training load analysis."""
     
-    period_start: date
-    period_end: date
+    period_start: datetime
+    period_end: datetime
     daily_summaries: list[DailySummary]
     weekly_summaries: list[WeeklySummary]
     

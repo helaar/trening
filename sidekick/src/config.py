@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     environment: str = "development"
     log_level: str = "INFO"
+    dev_mode: bool = False  # Skip authentication when True
+    dev_athlete_id: int | None = None  # Athlete ID to use in dev mode
     
     # Strava OAuth settings
     strava_client_id: str

@@ -3,13 +3,14 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pymongo.asynchronous.database import AsyncDatabase
 
 from auth.oauth import StravaOAuthService
+from config import settings
 from database.athlete_repository import AthleteRepository
 from database.mongodb import get_db
 from models.athlete import Athlete
 from clients.strava.client import StravaClient
 
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_athlete_repository(db: AsyncDatabase = Depends(get_db)) -> AthleteRepository:
@@ -25,10 +26,32 @@ async def get_oauth_service(
 
 
 async def get_current_athlete_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     oauth_service: StravaOAuthService = Depends(get_oauth_service)
 ) -> int:
-    """Dependency to get current authenticated athlete ID from JWT token."""
+    """
+    Dependency to get current authenticated athlete ID from JWT token.
+    
+    In dev mode (when DEV_MODE=true and DEV_ATHLETE_ID is set),
+    bypasses authentication and returns the configured athlete ID.
+    """
+    # Dev mode bypass
+    if settings.dev_mode:
+        if settings.dev_athlete_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="DEV_MODE is enabled but DEV_ATHLETE_ID is not configured"
+            )
+        return settings.dev_athlete_id
+    
+    # Production authentication
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     token = credentials.credentials
     
     try:

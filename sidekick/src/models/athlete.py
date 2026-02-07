@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field
 
 
@@ -43,12 +43,36 @@ class SportSettings(BaseModel):
     power_zones: list[ZoneDefinition] = Field(default_factory=list, description="Power zone definitions")
 
 
+class ERGDetectionSettings(BaseModel):
+    """Settings for ERG mode detection in virtual workouts."""
+    threshold: float = Field(default=0.02, description="Maximum relative difference between NP and avg power for ERG detection")
+    min_ratio: float = Field(default=0.6, description="Minimum ratio of ERG laps/time to classify workout as ERG")
+
+
 class AthleteSettings(BaseModel):
     """Athlete-specific settings including zones and FTP values."""
     heart_rate: HeartRateSettings | None = None
     cycling: SportSettings | None = None
     running: SportSettings | None = None
     commute_routes: dict[str, str] = Field(default_factory=dict, description="Map of route name to polyline")
+    erg_detection: ERGDetectionSettings = Field(default_factory=ERGDetectionSettings, description="ERG mode detection settings")
+    autolap: timedelta | None = Field(default=timedelta(minutes=10), description="Autolap interval for consistent interval analysis (default: 10 minutes). Set to None to disable.")
+    
+    def get_sport_settings(self, category: str) -> SportSettings | None:
+        """
+        Get sport-specific settings for a given category.
+        
+        Args:
+            category: Sport category ('cycling', 'running', etc.)
+            
+        Returns:
+            SportSettings for the category or None if not configured
+        """
+        if category == "cycling":
+            return self.cycling
+        elif category == "running":
+            return self.running
+        return None
 
 
 class Athlete(BaseModel):

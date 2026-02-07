@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,6 +9,29 @@ from api.routes import router
 from api.auth_routes import router as auth_router
 from config import settings
 from database.mongodb import db_manager
+
+# Configure logging
+logging.basicConfig(
+    level=settings.log_level,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Configure uvicorn loggers to use the same format
+for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
+    logger = logging.getLogger(logger_name)
+    logger.handlers.clear()
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    logger.addHandler(handler)
+    logger.propagate = False
+
+# Suppress MongoDB debug logging (always set to INFO or higher)
+logging.getLogger("pymongo").setLevel(logging.INFO)
+logging.getLogger("motor").setLevel(logging.INFO)
 
 
 @asynccontextmanager
