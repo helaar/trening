@@ -85,10 +85,8 @@ class Config(BaseSettings):
         app_config = self._app_settings.get("application", {})
         output_dir_str = app_config.get("output-dir", "./ENV/exchange/athletes")
         
-        # Resolve output path relative to the app-settings.yaml file location
-        app_settings_path = Path("../app-settings.yaml")
-        settings_file_dir = app_settings_path.parent
-        base_output_dir = (settings_file_dir / output_dir_str).resolve()
+        # Resolve output path relative to parent directory (project root)
+        base_output_dir = (Path("..") / output_dir_str).resolve()
         return str(base_output_dir)
     
     def get_athlete_base_dir(self, athlete: str) -> Path:

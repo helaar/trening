@@ -156,7 +156,10 @@ def generate_training_load_report(analysis: TrainingLoadAnalysis, settings: dict
 
 
 def main():
-    env_file = Path(__file__).parent.parent / '.env'
+    # Look for .env in current working directory first, then fall back to package location
+    env_file = Path.cwd() / '.env'
+    if not env_file.exists():
+        env_file = Path(__file__).parent.parent / '.env'
     print(f"Loading environment variables from: {env_file}")
     load_dotenv(dotenv_path=env_file)
     
