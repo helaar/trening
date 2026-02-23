@@ -19,7 +19,7 @@ from analysis.calculations import (
     Zone, normalized_power, intensity_factor, training_stress_score,
     series_stats, parse_zone_definitions, compute_zone_durations,
     compute_heart_rate_drift, infer_sample_interval,
-    compute_segment_stats, parse_iso8601_duration, split_into_autolaps
+    compute_segment_stats,  split_into_autolaps
 )
 
 
@@ -131,8 +131,9 @@ class AnalysisSettings:
             self.erg_min_ratio = 0.6
         
         # Autolap setting from athlete settings (convert timedelta to seconds)
-        if self._settings and self._settings.autolap:
-            self.autolap_seconds = self._settings.autolap.total_seconds()
+        if self._settings:
+            autolap_td = self._settings.autolap_timedelta
+            self.autolap_seconds = autolap_td.total_seconds() if autolap_td else None
         else:
             self.autolap_seconds = None
     

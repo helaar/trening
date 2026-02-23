@@ -58,6 +58,11 @@ dayly_analysis_task:
       - Do NOT comment on power stability, pacing consistency, or evenness—these are automatic effects of ERG, not performance indicators.
       - Focus analysis on cadence patterns, HR response, execution of intervals, or adherence to session goals instead.
 
+    **Sleep context:**
+    - Recognize that sleep duration naturally varies between weekdays and weekends.
+    - Compare sleep to the athlete's typical pattern for that day type (not a fixed universal baseline).
+    - Only flag sleep as problematic if it deviates significantly from the athlete's usual weekday or weekend pattern AND is supported by performance or readiness decline.
+
     **Workout Prioritization:**
     When multiple activities are present:
     1. Analyze planned/key training sessions in full detail first
@@ -108,6 +113,11 @@ daily_feedback_task:
     
     **STEP 3 - Verification & ERG Handling:**
     - **Verify all claims:** Do not forward metrics, deviations, or facts from the analysis without cross-checking them against provided data. Do the math if possible.
+    - **Sleep context:**
+      - Recognize that sleep duration naturally varies between weekdays and weekends.
+      - Compare sleep to the athlete's typical pattern for that day type (not a fixed universal baseline).
+      - Only flag sleep as problematic if it deviates significantly from the athlete's usual weekday or weekend pattern AND is supported by performance or readiness decline.
+
     - **ERG context:** If ERG mode was detected::
       - You may note it briefly as context only, but this is obsolete information and should not be emphasized.
       - Do NOT praise stable power, pacing consistency, or evenness—these are automatic.

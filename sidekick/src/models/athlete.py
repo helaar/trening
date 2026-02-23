@@ -56,7 +56,20 @@ class AthleteSettings(BaseModel):
     running: SportSettings | None = None
     commute_routes: dict[str, str] = Field(default_factory=dict, description="Map of route name to polyline")
     erg_detection: ERGDetectionSettings = Field(default_factory=ERGDetectionSettings, description="ERG mode detection settings")
-    autolap: timedelta | None = Field(default=timedelta(minutes=10), description="Autolap interval for consistent interval analysis (default: 10 minutes). Set to None to disable.")
+    autolap: str | None = Field(default="PT10M", description="Autolap interval as ISO8601 duration string (e.g., 'PT10M' for 10 minutes). Set to None to disable.")
+    
+    @property
+    def autolap_timedelta(self) -> timedelta:
+        """Convert autolap ISO8601 string to timedelta."""
+        if not self.autolap:
+            return timedelta(minutes=10)  # Default to 10 minutes if not set
+        
+        from analysis.calculations import parse_iso8601_duration
+        try:
+            seconds = parse_iso8601_duration(self.autolap)
+            return timedelta(seconds=seconds)
+        except Exception:
+            return timedelta(minutes=10)  # Fallback to default on parse error
     
     def get_sport_settings(self, category: str) -> SportSettings | None:
         """

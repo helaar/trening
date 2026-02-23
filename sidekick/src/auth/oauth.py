@@ -56,28 +56,42 @@ class StravaOAuthService:
         
         # Extract athlete info from response
         athlete_data = token_data.get("athlete", {})
-        athlete = Athlete(
-            athlete_id=athlete_data["id"],
+        athlete_id = athlete_data["id"]
+        
+        # Ensure athlete exists (creates with default settings if new)
+        await self.athlete_repo.ensure_athlete_exists(
+            athlete_id=athlete_id,
             username=athlete_data.get("username"),
             firstname=athlete_data.get("firstname"),
             lastname=athlete_data.get("lastname"),
             profile_picture=athlete_data.get("profile")
         )
         
+        # Update profile fields (preserves settings for existing athletes)
+        updated_athlete = await self.athlete_repo.update_athlete_profile(
+            athlete_id=athlete_id,
+            username=athlete_data.get("username"),
+            firstname=athlete_data.get("firstname"),
+            lastname=athlete_data.get("lastname"),
+            profile_picture=athlete_data.get("profile")
+        )
+        
+        if not updated_athlete:
+            raise ValueError(f"Failed to update athlete profile for athlete {athlete_id}")
+        
         # Create tokens object
         tokens = StravaTokens(
-            athlete_id=athlete.athlete_id,
+            athlete_id=athlete_id,
             access_token=token_data["access_token"],
             refresh_token=token_data["refresh_token"],
             expires_at=token_data["expires_at"],
             token_type=token_data.get("token_type", "Bearer")
         )
         
-        # Save to database
-        await self.athlete_repo.create_or_update_athlete(athlete)
+        # Save tokens
         await self.athlete_repo.save_tokens(tokens)
         
-        return athlete, tokens
+        return updated_athlete, tokens
     
     async def refresh_access_token(self, athlete_id: int) -> StravaTokens:
         """Refresh the access token using the refresh token."""

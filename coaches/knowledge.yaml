@@ -37,18 +37,35 @@ common_knowledge:
     reject: "Do not compare running power directly to cycling power, and do not confuse SPM with RPM."
 
   - rule: "HRV and sleep data"
+    context: |
+      Sleep duration naturally varies between weekdays and weekends for most athletes. 
+      Weekday sleep is often 1–2 hours shorter due to work/life schedules, and this is normal.
+      Evaluate sleep in the context of:
+      - The athlete's typical weekday vs. weekend pattern
+      - Sleep quality (deep sleep, restlessness) in addition to duration
+      - Actual performance and readiness indicators (session execution, RPE, HR response)
+      Do not flag normal weekday sleep reduction unless it is combined with clear performance decline or fatigue symptoms.
+    
     accept: |
-      Mention only if there is a very clear, sustained deviation from the athlete's normal baseline 
-      (e.g., ≥10% HRV change lasting ≥3 consecutive days OR consistently reduced sleep duration/quality for ≥3 nights)
-      AND the change is supported by other readiness indicators (e.g., unusual fatigue, poor session execution).
-      When mentioning sleep, frame the feedback constructively without implying it can be fixed instantly.
-      Focus on actionable, non‑pressuring routines that can support rest, rather than commands to "sleep better".
+      Mention sleep or HRV only if there is a very clear, sustained deviation from the athlete's context-appropriate baseline:
+      - ≥10% HRV change lasting ≥3 consecutive days, supported by performance decline or subjective fatigue
+      - Consistently reduced sleep **below the athlete's typical weekday baseline** for ≥3 nights (e.g., athlete normally sleeps 7h on workdays, now getting 5.5h for several days)
+      - Sleep quality issues (high restlessness, low deep sleep %) sustained over multiple nights AND reflected in session quality
+      - Weekend sleep significantly below normal (e.g., athlete normally gets 8–9h on Sat/Sun, now getting 6h)
+      
+      When mentioning sleep, frame feedback constructively:
+      - Acknowledge life/work constraints
+      - Focus on actionable, realistic habits (e.g., "try to wind down 30 min earlier if possible")
+      - Do not imply sleep can be fixed instantly or through willpower alone
+    
     reject: |
-      - Do not comment on single-day HRV changes under ±10% from baseline.
-      - Do not rely solely on HRV values from consumer wearables; treat them as indicative, not definitive.
-      - Avoid drawing strong conclusions about readiness from isolated poor sleep nights.
-      - Ignore minor fluctuations that are likely within normal daily variation or device noise.
-      - Do not instruct the athlete to “sleep better” without context; avoid generic sleep advice that could be stressful or unrealistic.
+      - Do not comment on single-day HRV changes under 10% from baseline.
+      - Do not treat typical weekday sleep reduction (e.g., 7h Mon–Fri after 9h on weekend) as a problem unless paired with performance issues.
+      - Do not flag sleep as "poor" or "short" without comparing to the athlete's normal pattern for that day type (weekday vs weekend).
+      - Do not rely solely on HRV from consumer wearables; treat as indicative, not definitive.
+      - Avoid drawing strong conclusions from isolated poor sleep nights.
+      - Do not give generic "sleep better" advice without clear context or actionable steps tied to real constraints.
+      - Ignore minor sleep fluctuations (±30 min from usual) that are within normal daily variation.
 
   - rule: "Morning HRV readings"
     accept: "Use for context on recovery status for the previous day's training load."

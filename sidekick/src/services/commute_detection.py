@@ -90,16 +90,17 @@ class CommuteDetectionService:
         if normalize:
             polyline = normalize_polyline(polyline)
         
-        # Get current settings
+        # Get current commute routes
         settings = await self.athlete_repo.get_athlete_settings(athlete_id)
         if not settings:
             settings = AthleteSettings()
         
-        # Add route to commute_routes
-        settings.commute_routes[route_name] = polyline
+        # Add new route to existing routes
+        commute_routes = settings.commute_routes.copy()
+        commute_routes[route_name] = polyline
         
-        # Update athlete settings
-        await self.athlete_repo.update_athlete_settings(athlete_id, settings)
+        # Update only commute routes (preserves other settings)
+        await self.athlete_repo.update_commute_routes(athlete_id, commute_routes)
     
     async def remove_commute_route(
         self,
@@ -120,11 +121,12 @@ class CommuteDetectionService:
         if not settings or route_name not in settings.commute_routes:
             return False
         
-        # Remove route
-        del settings.commute_routes[route_name]
+        # Remove route from a copy of existing routes
+        commute_routes = settings.commute_routes.copy()
+        del commute_routes[route_name]
         
-        # Update athlete settings
-        await self.athlete_repo.update_athlete_settings(athlete_id, settings)
+        # Update only commute routes (preserves other settings)
+        await self.athlete_repo.update_commute_routes(athlete_id, commute_routes)
         return True
     
     async def list_commute_routes(

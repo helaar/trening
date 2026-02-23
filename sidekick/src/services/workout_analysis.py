@@ -4,6 +4,7 @@ from datetime import datetime
 from analysis.engine import analyze_workout
 from analysis.models import WorkoutAnalysis
 from clients.strava.client import StravaClient, StravaActivity, StravaDataParser
+from clients.strava.polyline import normalize_polyline, find_matching_commute
 from database.athlete_repository import AthleteRepository
 from database.workout_repository import WorkoutRepository
 from models.athlete import AthleteSettings
@@ -189,10 +190,46 @@ class WorkoutAnalysisService:
             from clients.strava.client import StravaStream
             streams = {stream_type: StravaStream(stream_type, data) for stream_type, data in streams.items()}
         
-        # Detect commute status before parsing
+        # Detect commute status and auto-save new routes if marked by athlete
         is_commute, commute_name = await self.commute_service.detect_commute(
             athlete_id, activity
         )
+        
+        # If activity is marked as commute by athlete, save the route if it's new
+        if activity.commute and activity.summary_polyline:
+            # Normalize the polyline
+            normalized_polyline = normalize_polyline(activity.summary_polyline)
+            
+            # Get known commute routes
+            settings = await self.athlete_repo.get_athlete_settings(athlete_id)
+            known_commutes = settings.commute_routes if settings else {}
+            
+            # Check if this is a new commute route
+            matched_route = find_matching_commute(
+                normalized_polyline,
+                known_commutes,
+                threshold_meters=100.0
+            )
+            
+            if matched_route:
+                logger.debug(f"Commute matches known route: {matched_route}")
+            else:
+                # Generate a name for the new commute route
+                workout_name = activity.name or "Commute"
+                start_time = activity.start_date
+                if start_time:
+                    route_name = f"{workout_name}_{start_time.strftime('%Y%m%d_%H%M')}"
+                else:
+                    route_name = f"{workout_name}_{len(known_commutes) + 1}"
+                
+                # Save the new commute route
+                await self.commute_service.add_commute_route(
+                    athlete_id,
+                    route_name,
+                    normalized_polyline,
+                    normalize=False  # Already normalized
+                )
+                logger.info(f"New commute route saved: {route_name}")
         
         # Parse activity data WITH streams and laps
         parser = StravaDataParser(activity, streams=streams, laps=laps)

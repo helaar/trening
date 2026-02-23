@@ -20,7 +20,8 @@ Helge:
     annual_hours: 600-800
  
     sleep: 6.5-8 hours/night (workdays)
-    resting_heart_rate: 49-51 bpm (normal range)  
+    resting_heart_rate: 48-52 bpm (normal range)  
+    normal_hrv_range: 35-41 (average variation)
 
   primary_goals:
     main: L'Étape Trondheim 2026 (130 km, 1500+ meters elevation)
