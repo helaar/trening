@@ -11,22 +11,26 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     dev_mode: bool = False  # Skip authentication when True
     dev_athlete_id: int | None = None  # Athlete ID to use in dev mode
-    
+
     # Strava OAuth settings
     strava_client_id: str
     strava_client_secret: str
     strava_redirect_uri: str = "http://localhost:8000/auth/strava/callback"
-    
+
     # JWT settings for session management
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 43200  # 30 days
-    
+
     # CORS settings
     cors_origins: str = "*"  # Comma-separated list of allowed origins
     cors_allow_credentials: bool = True
     cors_allow_methods: str = "*"  # Comma-separated list or "*"
     cors_allow_headers: str = "*"  # Comma-separated list or "*"
+
+    # LLM settings for CrewAI
+    anthropic_api_key: str = ""
+    llm_model: str = "claude-haiku-4-5-20251001"
 
     model_config = SettingsConfigDict(
         env_file=".env",

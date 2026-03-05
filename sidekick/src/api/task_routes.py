@@ -5,8 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.asynchronous.database import AsyncDatabase
 
 from auth.dependencies import get_current_athlete_id
+from database.athlete_repository import AthleteRepository
 from database.mongodb import get_db
 from database.task_repository import TaskRepository
+from database.workout_repository import WorkoutRepository
 from models.task import TaskCreateRequest, TaskResponse, TaskStatus
 from services.task_processor import TaskProcessor, create_task
 
@@ -20,11 +22,23 @@ def get_task_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> TaskRe
     return TaskRepository(db)
 
 
+def get_athlete_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> AthleteRepository:
+    """Dependency to get athlete repository."""
+    return AthleteRepository(db)
+
+
+def get_workout_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> WorkoutRepository:
+    """Dependency to get workout repository."""
+    return WorkoutRepository(db)
+
+
 def get_task_processor(
-    task_repo: Annotated[TaskRepository, Depends(get_task_repository)]
+    task_repo: Annotated[TaskRepository, Depends(get_task_repository)],
+    athlete_repo: Annotated[AthleteRepository, Depends(get_athlete_repository)],
+    workout_repo: Annotated[WorkoutRepository, Depends(get_workout_repository)],
 ) -> TaskProcessor:
     """Dependency to get task processor."""
-    return TaskProcessor(task_repo)
+    return TaskProcessor(task_repo, athlete_repo, workout_repo)
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)

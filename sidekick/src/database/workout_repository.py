@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from pymongo.asynchronous.database import AsyncDatabase
@@ -175,6 +175,31 @@ class WorkoutRepository:
         
         return (doc.get("analysis_data"), doc.get("settings_hash", ""))
     
+    async def get_analyses_for_date(
+        self,
+        athlete_id: int,
+        activity_date: datetime,
+    ) -> list[dict[str, Any]]:
+        """Get all cached analyses for a specific athlete and date.
+
+        Queries by the session start_time embedded in analysis_data,
+        covering the full calendar day in UTC.
+        """
+        start_of_day = activity_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        cursor = self.analyses_collection.find({
+            "athlete_id": athlete_id,
+            "analysis_data.session.start_time": {"$gte": start_of_day, "$lt": end_of_day},
+        })
+
+        analyses = []
+        async for doc in cursor:
+            doc.pop("_id", None)
+            analyses.append(doc.get("analysis_data", {}))
+
+        return analyses
+
     async def store_analysis(
         self,
         athlete_id: int,
