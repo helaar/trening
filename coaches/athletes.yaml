@@ -18,8 +18,9 @@ Helge:
     weekly hours: 12-18
     weekly_tss: 600 (off season) to 900-1100 (peak season)
     annual_hours: 600-800
- 
-    sleep: 6.5-8 hours/night (workdays)
+  
+  restitution:
+    sleep: 6.5-7 hours/night (workdays)
     resting_heart_rate: 48-52 bpm (normal range)  
     normal_hrv_range: 35-41 (average variation)
 
@@ -70,8 +71,6 @@ Helge:
     improvement in cadence control - from ~78 rpm to ~87-90 rpm on base sessions. Analytical approach 
     with ability to connect subjective experiences with objective data. Balanced training understanding 
     that avoids over-analysis of individual values.
-
-
       
   mental_aspects: |
       Views training enjoyment and load management as equally important as watts and VO2max. Listens to the body 
@@ -84,8 +83,3 @@ Helge:
     Continue cadence optimization on cycling, especially under fatigue in long sessions. Maintain 
     running capacity through winter without compromising cycling specificity. 
     Balance technical data analysis with intuition and bodily signals.
-
-  weather: |
-    - Outdoor traing season starts around easter and lasts to mid/end september. 
-    - Running is  preferred off season (mid august to outdoor season starts). 
-    - Skiing will be preferred  on good weather conditions and should only be used as bonus-exercises.
