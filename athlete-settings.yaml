@@ -14,15 +14,15 @@ athletes:
       - Anaerobic Capacity: 176-183
       - Neuromuscular Power: 184-
     cycling:
-      ftp: 260
+      ftp: 250
       power-zones:
-      - Recovery: 0-143
-      - Endurance: 144-195
-      - Tempo: 196-234
-      - Treshold: 235-273
-      - VO2 Max: 274-312
-      - Anaerobic Capacity: 313-390
-      - Neuromuscular: 391-
+      - Recovery: 0-138
+      - Endurance: 139-188
+      - Tempo: 189-225
+      - Treshold: 226-263
+      - VO2 Max: 264-300
+      - Anaerobic Capacity: 301-375
+      - Neuromuscular: 376-
     running:
       ftp: 365
       power-zones:

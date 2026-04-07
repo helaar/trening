@@ -259,8 +259,23 @@ helge:
   d2026-03-30:
     - Strength core/legs 60 min
   d2026-03-31:
-    - Cycling/Zwift Fatmax 8x10(9+1 @65/80%), total 90 min
+    - Cycling/Zwift Fatmax 8x10(9+1 @65/80%), total 90 min, est. 65 TSS
   d2026-04-01:
-    - Cycling/Zwift Vo2 8x2 @110% total 104 min
+    - Cycling/Zwift Vo2 8x2 @110% total 104 min, est. 107 TSS
   d2026-04-02:
-    - Cycling/zwift AC/Sweetspot 6x2 all out (AC) + 20 min sweetspot. Total 85 min
+    - Cycling/zwift AC/Sweetspot 6x2 all out (AC) + 20 min sweetspot. Total 85 min, est. 136 TSS. Turn off ERG-mode while in AC intervals to avoid "ERG spiral of death".
+  d2026-04-03:
+    - Cycling/zwift SubLT/NP 5 min @85% + 8x 10sec@135%, Total 50 min, est. 30 TSS
+    - Optional strength 30 min
+  d2026-04-04:
+    - Cycling/zwift END total 120 min, est. 56 TSS
+  d2026-04-05:
+    - Cycling/zwift LT1, LT2, Vo2. 4x15@80%, 3x10x40/2@90%, 3x1/1@100% + 3x30/30@100%, Total 155min, est. 140 TSS
+  d2026-04-06:
+    - Cycling/zwift END total 120 min, est. 56 TSS or outdoor ride 135 km, est 5 hrs
+  d2026-04-07:
+    - Cycling/zwift LT2 3x12 min@90%, total 85 min, est. 85 TSS
+  d2026-04-08:
+    . TBA
+  d2026-04-09:
+    - Outdoor team cycling 90 km, 2-3 hrs
