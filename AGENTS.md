@@ -52,3 +52,25 @@ Non-functional priorities: correctness > security > maintainability > performanc
 
 - Structured logging with context; no PII unless masked
 - Correlation IDs across services
+
+## Development Workflow
+
+### Making Changes
+
+For any non-trivial change, follow this process strictly:
+
+1. **Plan first** — Enter plan mode and design the full solution before touching any code
+2. **Get approval** — Wait for explicit user approval of the plan; refine if asked
+3. **Branch** — Create a new branch: `git checkout -b <type>/<short-description>` (e.g. `feat/add-pagination`, `fix/auth-token-expiry`)
+4. **Implement** — Make exactly the changes approved in the plan; no scope creep
+5. **Commit** — Use a descriptive commit message following the existing style
+6. **PR** — Open a pull request against `main` using `gh pr create`; include the approved plan summary in the PR body
+
+### Rules
+
+- Never push directly to `main`
+- Never implement before the plan is approved
+- Never create a PR without a branch
+- Keep PRs focused — one logical change per PR
+- PR title: short and imperative (e.g. "Add workout history pagination")
+- PR body: summarize what was planned, what changed, and why
