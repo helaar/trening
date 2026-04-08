@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
@@ -9,7 +10,51 @@ interface Props {
   onChange: (value: Restitution) => void
 }
 
+function parseSleep(raw: string): number | undefined {
+  const s = raw.trim()
+  if (!s) return undefined
+
+  // hr:mm format — e.g. "7:30"
+  const colonMatch = s.match(/^(\d+):(\d{1,2})$/)
+  if (colonMatch) {
+    const h = parseInt(colonMatch[1], 10)
+    const m = parseInt(colonMatch[2], 10)
+    if (m < 60) return Math.round((h + m / 60) * 100) / 100
+    return undefined
+  }
+
+  // decimal format — e.g. "7.5"
+  const n = parseFloat(s)
+  return !isNaN(n) && n >= 0 ? n : undefined
+}
+
+function formatSleep(hours: number): string {
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  return m === 0 ? `${h}` : `${h}:${String(m).padStart(2, "0")}`
+}
+
 export function RestitutionForm({ value, onChange }: Props) {
+  // Keep raw text while user is typing; normalise on blur
+  const [sleepRaw, setSleepRaw] = useState(
+    value.sleep_hours !== undefined ? formatSleep(value.sleep_hours) : ""
+  )
+  const [sleepInvalid, setSleepInvalid] = useState(false)
+
+  const onSleepChange = (raw: string) => {
+    setSleepRaw(raw)
+    const parsed = parseSleep(raw)
+    setSleepInvalid(raw !== "" && parsed === undefined)
+    onChange({ ...value, sleep_hours: parsed })
+  }
+
+  const onSleepBlur = () => {
+    if (value.sleep_hours !== undefined) {
+      setSleepRaw(formatSleep(value.sleep_hours))
+      setSleepInvalid(false)
+    }
+  }
+
   const set = (field: keyof Restitution, raw: string) => {
     if (field === "comment") {
       onChange({ ...value, comment: raw || undefined })
@@ -26,17 +71,20 @@ export function RestitutionForm({ value, onChange }: Props) {
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="sleep">Sleep (hours)</Label>
+          <Label htmlFor="sleep">Sleep</Label>
           <Input
             id="sleep"
-            type="number"
-            min={0}
-            max={15}
-            step={0.5}
-            placeholder="7.5"
-            value={value.sleep_hours ?? ""}
-            onChange={(e) => set("sleep_hours", e.target.value)}
+            type="text"
+            inputMode="decimal"
+            placeholder="7:30 or 7.5"
+            value={sleepRaw}
+            onChange={(e) => onSleepChange(e.target.value)}
+            onBlur={onSleepBlur}
+            className={sleepInvalid ? "border-destructive focus-visible:ring-destructive" : undefined}
           />
+          {sleepInvalid && (
+            <p className="text-xs text-destructive">Use 7:30 or 7.5 format</p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="hrv">HRV</Label>
