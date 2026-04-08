@@ -1,9 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
-import type { WorkoutAnalysis } from "@/api/workouts"
-import type { ActivityAssessment } from "@/api/dailyEntry"
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { Label } from "./ui/label"
+import { Textarea } from "./ui/textarea"
+import { cn } from "../lib/utils"
+import type { WorkoutAnalysis } from "../api/workouts"
+import type { ActivityAssessment } from "../api/dailyEntry"
 
 interface Props {
   workout: WorkoutAnalysis

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, CheckCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { RestitutionForm } from "@/components/RestitutionForm"
-import { ActivityCard } from "@/components/ActivityCard"
-import { fetchCurrentAthlete } from "@/api/auth"
-import { fetchDetailedWorkouts } from "@/api/workouts"
-import { fetchDailyEntry, saveDailyEntry } from "@/api/dailyEntry"
-import type { Restitution, ActivityAssessment } from "@/api/dailyEntry"
+import { Button } from "../components/ui/button"
+import { RestitutionForm } from "../components/RestitutionForm"
+import { ActivityCard } from "../components/ActivityCard"
+import { fetchCurrentAthlete } from "../api/auth"
+import { fetchDetailedWorkouts } from "../api/workouts"
+import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
+import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
 
 function todayDate(): string {
   return new Date().toISOString().split("T")[0]
