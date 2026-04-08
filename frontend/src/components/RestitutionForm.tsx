@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
@@ -40,6 +40,13 @@ export function RestitutionForm({ value, onChange }: Props) {
     value.sleep_hours !== undefined ? formatSleep(value.sleep_hours) : ""
   )
   const [sleepInvalid, setSleepInvalid] = useState(false)
+
+  // Sync raw input when the prop value arrives asynchronously (e.g. after DB fetch)
+  useEffect(() => {
+    if (value.sleep_hours !== undefined && sleepRaw === "") {
+      setSleepRaw(formatSleep(value.sleep_hours))
+    }
+  }, [value.sleep_hours])
 
   const onSleepChange = (raw: string) => {
     setSleepRaw(raw)
