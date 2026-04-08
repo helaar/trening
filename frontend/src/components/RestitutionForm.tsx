@@ -34,6 +34,9 @@ function formatSleep(hours: number): string {
   return m === 0 ? `${h}` : `${h}:${String(m).padStart(2, "0")}`
 }
 
+// Detect browser locale decimal separator ("." or ",")
+const decimalSep = Intl.NumberFormat(navigator.language).format(1.1).charAt(1)
+
 export function RestitutionForm({ value, onChange }: Props) {
   // Keep raw text while user is typing; normalise on blur
   const [sleepRaw, setSleepRaw] = useState(
@@ -83,14 +86,14 @@ export function RestitutionForm({ value, onChange }: Props) {
             id="sleep"
             type="text"
             inputMode="decimal"
-            placeholder="7:30 or 7.5"
+            placeholder={`7:30 or 7${decimalSep}5`}
             value={sleepRaw}
             onChange={(e) => onSleepChange(e.target.value)}
             onBlur={onSleepBlur}
             className={sleepInvalid ? "border-destructive focus-visible:ring-destructive" : undefined}
           />
           {sleepInvalid && (
-            <p className="text-xs text-destructive">Use 7:30 or 7.5 format</p>
+            <p className="text-xs text-destructive">Use 7:30 or 7{decimalSep}5 format</p>
           )}
         </div>
         <div className="space-y-1.5">
