@@ -66,13 +66,13 @@ export function TodayTraining() {
     }
   }, [existingEntry])
 
-  // Initialise RPE=5 for any new assessable activity not yet in state
+  // Initialise RPE=5 for non-commute activities not yet in state
   useEffect(() => {
     if (!workouts) return
-    const assessable = workouts.filter((w) => w.session.commute === "no")
     setAssessments((prev) => {
       const next = { ...prev }
-      assessable.forEach((w, i) => {
+      workouts.forEach((w, i) => {
+        if (w.session.commute !== "no") return
         const key = workoutKey(w, i)
         if (!(key in next)) next[key] = { rpe: 5 }
       })
@@ -80,11 +80,12 @@ export function TodayTraining() {
     })
   }, [workouts])
 
-  const assessableWorkouts = (workouts ?? []).filter((w) => w.session.commute === "no")
+  const allWorkouts = workouts ?? []
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const activityAssessments: ActivityAssessment[] = assessableWorkouts
+      const activityAssessments: ActivityAssessment[] = allWorkouts
+        .filter((w) => w.session.commute === "no")
         .map((w, i) => {
           const key = workoutKey(w, i)
           const assessment = assessments[key]
@@ -151,11 +152,11 @@ export function TodayTraining() {
           </div>
         )}
 
-        {!loadingWorkouts && !workoutsError && assessableWorkouts.length === 0 && (
+        {!loadingWorkouts && !workoutsError && allWorkouts.length === 0 && (
           <p className="text-sm text-muted-foreground">No workouts found for today.</p>
         )}
 
-        {assessableWorkouts.map((workout, index) => {
+        {allWorkouts.map((workout, index) => {
           const key = workoutKey(workout, index)
           return (
             <ActivityCard

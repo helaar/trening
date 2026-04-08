@@ -38,15 +38,23 @@ function sportLabel(category: string): string {
 
 export function ActivityCard({ workout, value, onChange }: Props) {
   const { session, metrics } = workout
+  const isCommute = session.commute !== "no"
 
   return (
-    <Card>
+    <Card className={isCommute ? "opacity-60" : undefined}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base">{session.name ?? sportLabel(session.category)}</CardTitle>
-          <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-            {sportLabel(session.category)}
-          </span>
+          <div className="flex shrink-0 gap-1.5">
+            {isCommute && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                Commute
+              </span>
+            )}
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+              {sportLabel(session.category)}
+            </span>
+          </div>
         </div>
         <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
           <span>{formatDuration(session.duration_sec)}</span>
@@ -61,46 +69,48 @@ export function ActivityCard({ workout, value, onChange }: Props) {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 border-t pt-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>RPE</Label>
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-0.5 text-sm font-semibold",
-                rpeColor(value.rpe)
-              )}
-            >
-              {value.rpe} / 10
-            </span>
+      {!isCommute && (
+        <CardContent className="space-y-4 border-t pt-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>RPE</Label>
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-sm font-semibold",
+                  rpeColor(value.rpe)
+                )}
+              >
+                {value.rpe} / 10
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={value.rpe}
+              onChange={(e) => onChange({ ...value, rpe: Number(e.target.value) })}
+              className="w-full accent-primary"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Very easy</span>
+              <span>Moderate</span>
+              <span>Max effort</span>
+            </div>
           </div>
-          <input
-            type="range"
-            min={1}
-            max={10}
-            step={1}
-            value={value.rpe}
-            onChange={(e) => onChange({ ...value, rpe: Number(e.target.value) })}
-            className="w-full accent-primary"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Very easy</span>
-            <span>Moderate</span>
-            <span>Max effort</span>
-          </div>
-        </div>
 
-        <div className="space-y-1.5">
-          <Label>Notes</Label>
-          <Textarea
-            placeholder="How did it feel? Any observations…"
-            value={value.notes ?? ""}
-            onChange={(e) =>
-              onChange({ ...value, notes: e.target.value || undefined })
-            }
-          />
-        </div>
-      </CardContent>
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <Textarea
+              placeholder="How did it feel? Any observations…"
+              value={value.notes ?? ""}
+              onChange={(e) =>
+                onChange({ ...value, notes: e.target.value || undefined })
+              }
+            />
+          </div>
+        </CardContent>
+      )}
     </Card>
   )
 }
