@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
@@ -22,6 +22,11 @@ function formatDate(iso: string): string {
   })
 }
 
+// Use activity_id when available, fall back to array index
+function workoutKey(workout: { activity_id: number | null }, index: number): number {
+  return workout.activity_id ?? -(index + 1)
+}
+
 type AssessmentMap = Record<number, Pick<ActivityAssessment, "rpe" | "notes">>
 
 export function TodayTraining() {
@@ -37,7 +42,7 @@ export function TodayTraining() {
     queryFn: fetchCurrentAthlete,
   })
 
-  const { data: workouts, isLoading: loadingWorkouts } = useQuery({
+  const { data: workouts, isLoading: loadingWorkouts, error: workoutsError } = useQuery({
     queryKey: ["workouts", athlete?.athlete_id, today],
     queryFn: () => fetchDetailedWorkouts(athlete!.athlete_id, today),
     enabled: !!athlete,
@@ -64,31 +69,34 @@ export function TodayTraining() {
   // Initialise RPE=5 for any new assessable activity not yet in state
   useEffect(() => {
     if (!workouts) return
-    const assessable = workouts.filter((w) => w.session.commute === "no" && w.activity_id)
+    const assessable = workouts.filter((w) => w.session.commute === "no")
     setAssessments((prev) => {
       const next = { ...prev }
-      for (const w of assessable) {
-        if (w.activity_id && !(w.activity_id in next)) {
-          next[w.activity_id] = { rpe: 5 }
-        }
-      }
+      assessable.forEach((w, i) => {
+        const key = workoutKey(w, i)
+        if (!(key in next)) next[key] = { rpe: 5 }
+      })
       return next
     })
   }, [workouts])
 
+  const assessableWorkouts = (workouts ?? []).filter((w) => w.session.commute === "no")
+
   const saveMutation = useMutation({
     mutationFn: () => {
-      const assessable = (workouts ?? []).filter(
-        (w) => w.session.commute === "no" && w.activity_id
-      )
-      const activityAssessments: ActivityAssessment[] = assessable
-        .filter((w) => w.activity_id && assessments[w.activity_id])
-        .map((w) => ({
-          activity_id: w.activity_id!,
-          activity_name: w.session.name ?? w.session.category,
-          rpe: assessments[w.activity_id!].rpe,
-          notes: assessments[w.activity_id!].notes,
-        }))
+      const activityAssessments: ActivityAssessment[] = assessableWorkouts
+        .map((w, i) => {
+          const key = workoutKey(w, i)
+          const assessment = assessments[key]
+          if (!w.activity_id || !assessment) return null
+          return {
+            activity_id: w.activity_id,
+            activity_name: w.session.name ?? w.session.category,
+            rpe: assessment.rpe,
+            notes: assessment.notes,
+          }
+        })
+        .filter((a): a is ActivityAssessment => a !== null)
 
       return saveDailyEntry(athlete!.athlete_id, {
         date: today,
@@ -102,10 +110,6 @@ export function TodayTraining() {
       setTimeout(() => setSaved(false), 3000)
     },
   })
-
-  const assessableWorkouts = (workouts ?? []).filter(
-    (w) => w.session.commute === "no"
-  )
 
   if (loadingAthlete) {
     return (
@@ -137,24 +141,28 @@ export function TodayTraining() {
       <section className="space-y-4">
         <h2 className="font-semibold text-muted-foreground">
           Workouts
-          {loadingWorkouts && (
-            <Loader2 className="ml-2 inline h-4 w-4 animate-spin" />
-          )}
+          {loadingWorkouts && <Loader2 className="ml-2 inline h-4 w-4 animate-spin" />}
         </h2>
 
-        {!loadingWorkouts && assessableWorkouts.length === 0 && (
+        {workoutsError && (
+          <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Failed to load workouts: {(workoutsError as Error).message}
+          </div>
+        )}
+
+        {!loadingWorkouts && !workoutsError && assessableWorkouts.length === 0 && (
           <p className="text-sm text-muted-foreground">No workouts found for today.</p>
         )}
 
-        {assessableWorkouts.map((workout) => {
-          const id = workout.activity_id
-          if (!id) return null
+        {assessableWorkouts.map((workout, index) => {
+          const key = workoutKey(workout, index)
           return (
             <ActivityCard
-              key={id}
+              key={key}
               workout={workout}
-              value={assessments[id] ?? { rpe: 5 }}
-              onChange={(v) => setAssessments((prev) => ({ ...prev, [id]: v }))}
+              value={assessments[key] ?? { rpe: 5 }}
+              onChange={(v) => setAssessments((prev) => ({ ...prev, [key]: v }))}
             />
           )
         })}
@@ -172,13 +180,8 @@ export function TodayTraining() {
             <span className="text-sm text-destructive">Save failed. Try again.</span>
           )}
           <div className="ml-auto">
-            <Button
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-            >
-              {saveMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Today's Entry
             </Button>
           </div>
