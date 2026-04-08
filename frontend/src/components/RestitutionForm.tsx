@@ -23,8 +23,8 @@ function parseSleep(raw: string): number | undefined {
     return undefined
   }
 
-  // decimal format — e.g. "7.5"
-  const n = parseFloat(s)
+  // decimal format — e.g. "7.5" or "7,5" (comma as decimal separator)
+  const n = parseFloat(s.replace(",", "."))
   return !isNaN(n) && n >= 0 ? n : undefined
 }
 
@@ -83,14 +83,14 @@ export function RestitutionForm({ value, onChange }: Props) {
             id="sleep"
             type="text"
             inputMode="decimal"
-            placeholder="7:30 or 7.5"
+            placeholder="7:30 or 7,5"
             value={sleepRaw}
             onChange={(e) => onSleepChange(e.target.value)}
             onBlur={onSleepBlur}
             className={sleepInvalid ? "border-destructive focus-visible:ring-destructive" : undefined}
           />
           {sleepInvalid && (
-            <p className="text-xs text-destructive">Use 7:30 or 7.5 format</p>
+            <p className="text-xs text-destructive">Use 7:30, 7.5 or 7,5 format</p>
           )}
         </div>
         <div className="space-y-1.5">
