@@ -136,7 +136,9 @@ class WorkoutAnalysisService:
             if cached_result:
                 logger.debug(f"Loaded analysis for activity {activity_id} from cache")
                 cached_analysis_data, _ = cached_result
-                return WorkoutAnalysis(**cached_analysis_data)
+                analysis = WorkoutAnalysis(**cached_analysis_data)
+                analysis.activity_id = activity_id
+                return analysis
         
         # Load activity, streams, and laps (from cache or API)
         activity = None
@@ -245,13 +247,14 @@ class WorkoutAnalysisService:
         
         # Run analysis with athlete settings directly
         analysis = analyze_workout(parser, settings)
-        
+        analysis.activity_id = activity_id
+
         # Cache the analysis results with current settings hash for reference
         analysis_dict = analysis.model_dump()
         await self.workout_repo.store_analysis(
             athlete_id, activity_id, analysis_dict, settings
         )
-        
+
         return analysis
     
     async def get_detailed_analyses_for_date(

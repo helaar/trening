@@ -190,13 +190,14 @@ class ERGAnalysis(BaseModel):
 
 class WorkoutAnalysis(BaseModel):
     """Top-level container for complete workout analysis results."""
-    
+
     # Required fields (no defaults) must come first
     analysis_type: Literal["endurance", "strength"]
     session: SessionInfo
     metrics: WorkoutMetrics
-    
+
     # Optional fields with defaults
+    activity_id: int | None = None  # Strava activity ID, set when loaded via API
     analysis_timestamp: datetime = Field(default_factory=datetime.now)
     zones: ZoneAnalysis | None = None
     
