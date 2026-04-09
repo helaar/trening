@@ -162,7 +162,7 @@ export function TodayTraining() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4 pb-24 sm:p-6">
+    <div className="mx-auto max-w-2xl space-y-6 p-4 pb-24 sm:p-6 sm:pb-24">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{isToday ? "Today's Training" : "Training"}</h1>
