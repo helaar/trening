@@ -45,13 +45,14 @@ export function RestitutionForm({ value, onChange }: Props) {
   const [sleepInvalid, setSleepInvalid] = useState(false)
   const sleepFocused = useRef(false)
 
-  // Sync raw input when the prop value changes externally (e.g. after DB fetch or date navigation)
+  // Sync raw input when the prop value changes externally (e.g. after DB fetch or date navigation).
+  // Never interfere while the user is focused — normalisation on blur handles that.
   useEffect(() => {
+    if (sleepFocused.current) return
     if (value.sleep_hours !== undefined) {
       setSleepRaw(formatSleep(value.sleep_hours))
       setSleepInvalid(false)
-    } else if (!sleepFocused.current) {
-      // Not mid-typing: clear the field when the value is removed externally
+    } else {
       setSleepRaw("")
       setSleepInvalid(false)
     }
