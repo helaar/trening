@@ -162,7 +162,7 @@ export function TodayTraining() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4 pb-24 sm:p-6">
+    <div className="mx-auto max-w-2xl space-y-6 p-4 pb-24 sm:p-6 sm:pb-24">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{isToday ? "Today's Training" : "Training"}</h1>
@@ -188,7 +188,7 @@ export function TodayTraining() {
         </div>
       </div>
 
-      <RestitutionForm value={restitution} onChange={setRestitution} />
+      <RestitutionForm key={selectedDate} value={restitution} onChange={setRestitution} />
 
       <section className="space-y-4">
         <h2 className="font-semibold text-muted-foreground">
