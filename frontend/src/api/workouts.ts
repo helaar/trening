@@ -28,9 +28,11 @@ export interface WorkoutAnalysis {
 
 export function fetchDetailedWorkouts(
   athleteId: number,
-  date: string
+  date: string,
+  refresh = false
 ): Promise<WorkoutAnalysis[]> {
+  const params = refresh ? `&refresh=true` : ""
   return apiFetch<WorkoutAnalysis[]>(
-    `/api/v1/athlete/${athleteId}/workouts/detailed?date=${date}&refresh=true`
+    `/api/v1/athlete/${athleteId}/workouts/detailed?date=${date}${params}`
   )
 }

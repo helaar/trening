@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
@@ -70,6 +70,13 @@ export function TodayTraining() {
     queryKey: ["workouts", athlete?.athlete_id, selectedDate],
     queryFn: () => fetchDetailedWorkouts(athlete!.athlete_id, selectedDate),
     enabled: !!athlete,
+  })
+
+  const syncMutation = useMutation({
+    mutationFn: () => fetchDetailedWorkouts(athlete!.athlete_id, selectedDate, true),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["workouts", athlete?.athlete_id, selectedDate], data)
+    },
   })
 
   const { data: existingEntry } = useQuery({
@@ -167,6 +174,16 @@ export function TodayTraining() {
           </Button>
           <Button variant="ghost" size="icon" onClick={goToNextDay} disabled={isToday} aria-label="Next day">
             <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending || loadingWorkouts}
+            aria-label="Sync from Strava"
+            title="Sync from Strava"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </div>
