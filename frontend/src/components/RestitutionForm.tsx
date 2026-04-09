@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
@@ -43,11 +43,17 @@ export function RestitutionForm({ value, onChange }: Props) {
     value.sleep_hours !== undefined ? formatSleep(value.sleep_hours) : ""
   )
   const [sleepInvalid, setSleepInvalid] = useState(false)
+  const sleepFocused = useRef(false)
 
-  // Sync raw input when the prop value arrives asynchronously (e.g. after DB fetch)
+  // Sync raw input when the prop value changes externally (e.g. after DB fetch or date navigation)
   useEffect(() => {
-    if (value.sleep_hours !== undefined && sleepRaw === "") {
+    if (value.sleep_hours !== undefined) {
       setSleepRaw(formatSleep(value.sleep_hours))
+      setSleepInvalid(false)
+    } else if (!sleepFocused.current) {
+      // Not mid-typing: clear the field when the value is removed externally
+      setSleepRaw("")
+      setSleepInvalid(false)
     }
   }, [value.sleep_hours])
 
@@ -59,6 +65,7 @@ export function RestitutionForm({ value, onChange }: Props) {
   }
 
   const onSleepBlur = () => {
+    sleepFocused.current = false
     if (value.sleep_hours !== undefined) {
       setSleepRaw(formatSleep(value.sleep_hours))
       setSleepInvalid(false)
@@ -88,6 +95,7 @@ export function RestitutionForm({ value, onChange }: Props) {
             inputMode="decimal"
             placeholder={`7:30 or 7${decimalSep}5`}
             value={sleepRaw}
+            onFocus={() => { sleepFocused.current = true }}
             onChange={(e) => onSleepChange(e.target.value)}
             onBlur={onSleepBlur}
             className={sleepInvalid ? "border-destructive focus-visible:ring-destructive" : undefined}

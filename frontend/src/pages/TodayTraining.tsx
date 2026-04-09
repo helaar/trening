@@ -188,7 +188,7 @@ export function TodayTraining() {
         </div>
       </div>
 
-      <RestitutionForm key={selectedDate} value={restitution} onChange={setRestitution} />
+      <RestitutionForm value={restitution} onChange={setRestitution} />
 
       <section className="space-y-4">
         <h2 className="font-semibold text-muted-foreground">
