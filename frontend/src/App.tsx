@@ -1,19 +1,6 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { TodayTraining } from "./pages/TodayTraining"
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 60_000,
-    },
-  },
-})
+import { RouterProvider } from "@tanstack/react-router"
+import { router } from "./router"
 
 export function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TodayTraining />
-    </QueryClientProvider>
-  )
+  return <RouterProvider router={router} />
 }
