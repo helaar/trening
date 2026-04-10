@@ -5,13 +5,10 @@ This module contains the core analysis logic extracted from strava_analyze.py.
 All functions are pure computations that return structured data models without side effects.
 No logging or output formatting is performed here - only data computation.
 """
-import logging
 from typing import Any, Literal
 import pandas as pd
 
 from clients.strava.client import StravaDataParser, StravaActivity
-
-logger = logging.getLogger(__name__)
 from models.athlete import AthleteSettings
 from analysis.models import (
     ZoneInfo, WorkoutAnalysis, SessionInfo, WorkoutMetrics, StatsSummary, ZoneAnalysis,
@@ -498,14 +495,9 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     # which matches TrainingPeaks. The stream-based NP can diverge due to resampling or
     # different handling of zero-power segments.
     strava_np = float(parser.activity.weighted_average_watts) if parser.activity.weighted_average_watts else None
-    logger.debug(
-        "TSS inputs: strava_np=%s moving_time_sec=%s ftp=%s stream_np=%s stream_tss=%s",
-        strava_np, moving_time_sec, analysis_settings.ftp, np_value, tss_value
-    )
     if strava_np and moving_time_sec and analysis_settings.ftp:
         strava_if = intensity_factor(strava_np, analysis_settings.ftp)
         tss_value = training_stress_score(moving_time_sec, strava_np, strava_if, analysis_settings.ftp)
-        logger.debug("TSS overridden to %s using strava_np=%s", tss_value, strava_np)
     
     # Compute other basic stats
     hr_stats = _create_stats_summary(series_stats(df["heart_rate"], drop_nulls=True)) if has_hr else None
