@@ -27,7 +27,7 @@ function workoutKey(workout: { activity_id: number | null }, index: number): num
   return workout.activity_id ?? -(index + 1)
 }
 
-type AssessmentMap = Record<number, Pick<ActivityAssessment, "rpe" | "notes">>
+type AssessmentMap = Record<number, { rpe?: number; notes?: string }>
 
 export function TodayTraining() {
   const queryClient = useQueryClient()
@@ -105,7 +105,7 @@ export function TodayTraining() {
       workouts.forEach((w, i) => {
         if (w.session.commute !== "no") return
         const key = workoutKey(w, i)
-        if (!(key in next)) next[key] = { rpe: 5 }
+        if (!(key in next)) next[key] = {}
       })
       return next
     })
@@ -120,7 +120,7 @@ export function TodayTraining() {
         .map((w, i) => {
           const key = workoutKey(w, i)
           const assessment = assessments[key]
-          if (!w.activity_id || !assessment) return null
+          if (!w.activity_id || !assessment || assessment.rpe === undefined) return null
           return {
             activity_id: w.activity_id,
             activity_name: w.session.name ?? w.session.category,
@@ -213,7 +213,7 @@ export function TodayTraining() {
             <ActivityCard
               key={key}
               workout={workout}
-              value={assessments[key] ?? { rpe: 5 }}
+              value={assessments[key] ?? {}}
               onChange={(v) => setAssessments((prev) => ({ ...prev, [key]: v }))}
             />
           )

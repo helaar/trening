@@ -3,12 +3,11 @@ import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
 import { cn } from "../lib/utils"
 import type { WorkoutAnalysis } from "../api/workouts"
-import type { ActivityAssessment } from "../api/dailyEntry"
 
 interface Props {
   workout: WorkoutAnalysis
-  value: Pick<ActivityAssessment, "rpe" | "notes">
-  onChange: (value: Pick<ActivityAssessment, "rpe" | "notes">) => void
+  value: { rpe?: number; notes?: string }
+  onChange: (value: { rpe?: number; notes?: string }) => void
 }
 
 function formatDuration(seconds: number): string {
@@ -74,23 +73,29 @@ export function ActivityCard({ workout, value, onChange }: Props) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>RPE</Label>
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-sm font-semibold",
-                  rpeColor(value.rpe)
-                )}
-              >
-                {value.rpe} / 10
-              </span>
+              {value.rpe !== undefined ? (
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-sm font-semibold",
+                    rpeColor(value.rpe)
+                  )}
+                >
+                  {value.rpe} / 10
+                </span>
+              ) : (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm font-semibold text-muted-foreground">
+                  Not set
+                </span>
+              )}
             </div>
             <input
               type="range"
               min={1}
               max={10}
               step={1}
-              value={value.rpe}
+              value={value.rpe ?? 5}
               onChange={(e) => onChange({ ...value, rpe: Number(e.target.value) })}
-              className="w-full accent-primary"
+              className={cn("w-full accent-primary", value.rpe === undefined && "opacity-40")}
             />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Very easy</span>
