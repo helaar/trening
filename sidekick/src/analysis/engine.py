@@ -206,28 +206,31 @@ def _create_session_info(parser: StravaDataParser, duration_sec: float, data_poi
     )
 
 
-def _compute_power_metrics(df: pd.DataFrame, settings: AnalysisSettings, window: int, has_power: bool) -> tuple[StatsSummary | None, float | None, float | None, float | None, float | None]:
+def _compute_power_metrics(df: pd.DataFrame, settings: AnalysisSettings, window: int, has_power: bool, moving_time_sec: float | None = None) -> tuple[StatsSummary | None, float | None, float | None, float | None, float | None]:
     """
     Compute all power-related metrics in one pass.
-    
+
     Returns:
         Tuple of (power_stats, np_value, if_value, tss_value, vi_value)
     """
     if not has_power:
         return None, None, None, None, None
-    
+
     power_stats_dict = series_stats(df["power"], drop_nulls=True)
     power_stats = _create_stats_summary(power_stats_dict)
-    
+
     try:
         np_value = normalized_power(df["power"], window=window)
         if_value = None
         tss_value = None
-        
+
         if np_value and settings.ftp:
             if_value = intensity_factor(np_value, settings.ftp)
-            sample_interval = infer_sample_interval(df.index) if isinstance(df.index, pd.DatetimeIndex) else 1.0
-            duration_sec = len(df) * sample_interval
+            if moving_time_sec and moving_time_sec > 0:
+                duration_sec = moving_time_sec
+            else:
+                sample_interval = infer_sample_interval(df.index) if isinstance(df.index, pd.DatetimeIndex) else 1.0
+                duration_sec = len(df) * sample_interval
             tss_value = training_stress_score(duration_sec, np_value, if_value, settings.ftp)
         
         vi_value = None
@@ -477,11 +480,24 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     
     # Create session info
     session = _create_session_info(parser, duration_sec, len(df), sample_interval)
-    
+
+    # Use Strava's moving_time for TSS duration — it matches TrainingPeaks and correctly
+    # accounts for periods where the device auto-paused but GPS still shows movement.
+    moving_time_sec = float(parser.activity.moving_time) if parser.activity.moving_time else None
+
     # Compute power metrics (single pass)
     power_stats, np_value, if_value, tss_value, vi_value = _compute_power_metrics(
-        df, analysis_settings, window, has_power
+        df, analysis_settings, window, has_power, moving_time_sec
     )
+
+    # Override TSS with Strava's pre-calculated weighted_average_watts + moving_time.
+    # Strava computes weighted_average_watts internally from the full-resolution FIT file,
+    # which matches TrainingPeaks. The stream-based NP can diverge due to resampling or
+    # different handling of zero-power segments.
+    strava_np = float(parser.activity.weighted_average_watts) if parser.activity.weighted_average_watts else None
+    if strava_np and moving_time_sec and analysis_settings.ftp:
+        strava_if = intensity_factor(strava_np, analysis_settings.ftp)
+        tss_value = training_stress_score(moving_time_sec, strava_np, strava_if, analysis_settings.ftp)
     
     # Compute other basic stats
     hr_stats = _create_stats_summary(series_stats(df["heart_rate"], drop_nulls=True)) if has_hr else None
