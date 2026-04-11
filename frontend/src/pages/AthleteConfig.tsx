@@ -425,11 +425,32 @@ export function AthleteConfig() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Athlete Settings</h1>
-          <p className="text-sm text-muted-foreground">
-            {athlete?.firstname} {athlete?.lastname}
-          </p>
+        <div className="flex items-center gap-3">
+          {athlete?.profile_picture && (
+            <a
+              href={`https://www.strava.com/athletes/${athlete.athlete_id}`}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Strava profile"
+            >
+              <img
+                src={athlete.profile_picture}
+                alt={`${athlete.firstname} ${athlete.lastname}`}
+                className="h-12 w-12 rounded-full object-cover ring-2 ring-border hover:ring-primary transition-all"
+              />
+            </a>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold">Athlete Settings</h1>
+            <a
+              href={`https://www.strava.com/athletes/${athlete?.athlete_id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-muted-foreground hover:text-primary hover:underline"
+            >
+              {athlete?.firstname} {athlete?.lastname}
+            </a>
+          </div>
         </div>
       </div>
 
