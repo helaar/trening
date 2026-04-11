@@ -5,7 +5,12 @@ import { Link } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "../components/ui/accordion"
 import {
   fetchAthleteSettings,
   patchAthleteSettings,
@@ -127,233 +132,6 @@ function ZoneTable({ zones, onChange }: ZoneTableProps) {
   )
 }
 
-// ── sport section ─────────────────────────────────────────────────────────────
-
-interface SportSectionProps {
-  title: string
-  field: "cycling" | "running"
-  initial: SportSettings | null
-  athleteId: number
-}
-
-function SportSection({ title, field, initial, athleteId }: SportSectionProps) {
-  const queryClient = useQueryClient()
-  const [value, setValue] = useState<SportSettings>(initial ?? emptySport())
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    setValue(initial ?? emptySport())
-  }, [initial])
-
-  const mutation = useMutation({
-    mutationFn: () => patchAthleteSettings(athleteId, { [field]: value }),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["athlete-settings", athleteId], data)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    },
-  })
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label htmlFor={`${field}-ftp`}>FTP (W)</Label>
-            <Input
-              id={`${field}-ftp`}
-              type="number"
-              min={0}
-              placeholder="280"
-              value={value.ftp || ""}
-              onChange={(e) => setValue({ ...value, ftp: parseInt(e.target.value) || 0 })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor={`${field}-date`}>Measured date</Label>
-            <Input
-              id={`${field}-date`}
-              type="date"
-              value={value.measured_date ?? ""}
-              onChange={(e) =>
-                setValue({ ...value, measured_date: e.target.value || null })
-              }
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor={`${field}-activity`}>Measured in activity</Label>
-            <Input
-              id={`${field}-activity`}
-              placeholder="Activity name or ID"
-              value={value.measured_activity ?? ""}
-              onChange={(e) =>
-                setValue({ ...value, measured_activity: e.target.value || null })
-              }
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Power zones</Label>
-          <ZoneTable
-            zones={value.power_zones}
-            onChange={(zones) => setValue({ ...value, power_zones: zones })}
-          />
-        </div>
-
-        <SaveRow saved={saved} isPending={mutation.isPending} isError={mutation.isError} onSave={() => mutation.mutate()} />
-      </CardContent>
-    </Card>
-  )
-}
-
-// ── heart rate section ────────────────────────────────────────────────────────
-
-interface HRSectionProps {
-  initial: HeartRateSettings | null
-  athleteId: number
-}
-
-function HRSection({ initial, athleteId }: HRSectionProps) {
-  const queryClient = useQueryClient()
-  const [value, setValue] = useState<HeartRateSettings>(initial ?? emptyHR())
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    setValue(initial ?? emptyHR())
-  }, [initial])
-
-  const mutation = useMutation({
-    mutationFn: () => patchAthleteSettings(athleteId, { heart_rate: value }),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["athlete-settings", athleteId], data)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    },
-  })
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Heart Rate</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="hr-max">Max HR (bpm)</Label>
-            <Input
-              id="hr-max"
-              type="number"
-              min={0}
-              max={250}
-              placeholder="185"
-              value={value.max || ""}
-              onChange={(e) => setValue({ ...value, max: parseInt(e.target.value) || 0 })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="hr-lt">Lactate threshold (bpm)</Label>
-            <Input
-              id="hr-lt"
-              type="number"
-              min={0}
-              max={250}
-              placeholder="162"
-              value={value.lt || ""}
-              onChange={(e) => setValue({ ...value, lt: parseInt(e.target.value) || 0 })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="hr-date">Measured date</Label>
-            <Input
-              id="hr-date"
-              type="date"
-              value={value.measured_date ?? ""}
-              onChange={(e) =>
-                setValue({ ...value, measured_date: e.target.value || null })
-              }
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="hr-activity">Measured in activity</Label>
-            <Input
-              id="hr-activity"
-              placeholder="Activity name or ID"
-              value={value.measured_activity ?? ""}
-              onChange={(e) =>
-                setValue({ ...value, measured_activity: e.target.value || null })
-              }
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>HR zones</Label>
-          <ZoneTable
-            zones={value.hr_zones}
-            onChange={(zones) => setValue({ ...value, hr_zones: zones })}
-          />
-        </div>
-
-        <SaveRow saved={saved} isPending={mutation.isPending} isError={mutation.isError} onSave={() => mutation.mutate()} />
-      </CardContent>
-    </Card>
-  )
-}
-
-// ── autolap section ───────────────────────────────────────────────────────────
-
-interface AutolapSectionProps {
-  initial: string | null
-  athleteId: number
-}
-
-function AutolapSection({ initial, athleteId }: AutolapSectionProps) {
-  const queryClient = useQueryClient()
-  const [raw, setRaw] = useState(autolapToMinutes(initial))
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    setRaw(autolapToMinutes(initial))
-  }, [initial])
-
-  const mutation = useMutation({
-    mutationFn: () => patchAthleteSettings(athleteId, { autolap: minutesToIso(raw) }),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["athlete-settings", athleteId], data)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    },
-  })
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Autolap</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="max-w-[160px] space-y-1.5">
-          <Label htmlFor="autolap">Interval (minutes)</Label>
-          <Input
-            id="autolap"
-            type="number"
-            min={0}
-            step={1}
-            placeholder="10"
-            value={raw}
-            onChange={(e) => setRaw(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">Leave empty to disable autolap</p>
-        </div>
-        <SaveRow saved={saved} isPending={mutation.isPending} isError={mutation.isError} onSave={() => mutation.mutate()} />
-      </CardContent>
-    </Card>
-  )
-}
-
 // ── shared save row ───────────────────────────────────────────────────────────
 
 interface SaveRowProps {
@@ -379,6 +157,232 @@ function SaveRow({ saved, isPending, isError, onSave }: SaveRowProps) {
       {isError && (
         <span className="text-sm text-destructive">Save failed. Try again.</span>
       )}
+    </div>
+  )
+}
+
+// ── sport section ─────────────────────────────────────────────────────────────
+
+interface SportSectionProps {
+  field: "cycling" | "running"
+  initial: SportSettings | null
+  athleteId: number
+}
+
+function SportSectionContent({ field, initial, athleteId }: SportSectionProps) {
+  const queryClient = useQueryClient()
+  const [value, setValue] = useState<SportSettings>(initial ?? emptySport())
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setValue(initial ?? emptySport())
+  }, [initial])
+
+  const mutation = useMutation({
+    mutationFn: () => patchAthleteSettings(athleteId, { [field]: value }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["athlete-settings", athleteId], data)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    },
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label htmlFor={`${field}-ftp`}>FTP (W)</Label>
+          <Input
+            id={`${field}-ftp`}
+            type="number"
+            min={0}
+            placeholder="280"
+            value={value.ftp || ""}
+            onChange={(e) => setValue({ ...value, ftp: parseInt(e.target.value) || 0 })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${field}-date`}>Measured date</Label>
+          <Input
+            id={`${field}-date`}
+            type="date"
+            value={value.measured_date ?? ""}
+            onChange={(e) =>
+              setValue({ ...value, measured_date: e.target.value || null })
+            }
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${field}-activity`}>Measured in activity</Label>
+          <Input
+            id={`${field}-activity`}
+            placeholder="Activity name or ID"
+            value={value.measured_activity ?? ""}
+            onChange={(e) =>
+              setValue({ ...value, measured_activity: e.target.value || null })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Power zones</Label>
+        <ZoneTable
+          zones={value.power_zones}
+          onChange={(zones) => setValue({ ...value, power_zones: zones })}
+        />
+      </div>
+
+      <SaveRow
+        saved={saved}
+        isPending={mutation.isPending}
+        isError={mutation.isError}
+        onSave={() => mutation.mutate()}
+      />
+    </div>
+  )
+}
+
+// ── heart rate section ────────────────────────────────────────────────────────
+
+interface HRSectionProps {
+  initial: HeartRateSettings | null
+  athleteId: number
+}
+
+function HRSectionContent({ initial, athleteId }: HRSectionProps) {
+  const queryClient = useQueryClient()
+  const [value, setValue] = useState<HeartRateSettings>(initial ?? emptyHR())
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setValue(initial ?? emptyHR())
+  }, [initial])
+
+  const mutation = useMutation({
+    mutationFn: () => patchAthleteSettings(athleteId, { heart_rate: value }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["athlete-settings", athleteId], data)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    },
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="hr-max">Max HR (bpm)</Label>
+          <Input
+            id="hr-max"
+            type="number"
+            min={0}
+            max={250}
+            placeholder="185"
+            value={value.max || ""}
+            onChange={(e) => setValue({ ...value, max: parseInt(e.target.value) || 0 })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="hr-lt">Lactate threshold (bpm)</Label>
+          <Input
+            id="hr-lt"
+            type="number"
+            min={0}
+            max={250}
+            placeholder="162"
+            value={value.lt || ""}
+            onChange={(e) => setValue({ ...value, lt: parseInt(e.target.value) || 0 })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="hr-date">Measured date</Label>
+          <Input
+            id="hr-date"
+            type="date"
+            value={value.measured_date ?? ""}
+            onChange={(e) =>
+              setValue({ ...value, measured_date: e.target.value || null })
+            }
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="hr-activity">Measured in activity</Label>
+          <Input
+            id="hr-activity"
+            placeholder="Activity name or ID"
+            value={value.measured_activity ?? ""}
+            onChange={(e) =>
+              setValue({ ...value, measured_activity: e.target.value || null })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>HR zones</Label>
+        <ZoneTable
+          zones={value.hr_zones}
+          onChange={(zones) => setValue({ ...value, hr_zones: zones })}
+        />
+      </div>
+
+      <SaveRow
+        saved={saved}
+        isPending={mutation.isPending}
+        isError={mutation.isError}
+        onSave={() => mutation.mutate()}
+      />
+    </div>
+  )
+}
+
+// ── autolap section ───────────────────────────────────────────────────────────
+
+interface AutolapSectionProps {
+  initial: string | null
+  athleteId: number
+}
+
+function AutolapSectionContent({ initial, athleteId }: AutolapSectionProps) {
+  const queryClient = useQueryClient()
+  const [raw, setRaw] = useState(autolapToMinutes(initial))
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setRaw(autolapToMinutes(initial))
+  }, [initial])
+
+  const mutation = useMutation({
+    mutationFn: () => patchAthleteSettings(athleteId, { autolap: minutesToIso(raw) }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["athlete-settings", athleteId], data)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    },
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="max-w-[160px] space-y-1.5">
+        <Label htmlFor="autolap">Interval (minutes)</Label>
+        <Input
+          id="autolap"
+          type="number"
+          min={0}
+          step={1}
+          placeholder="10"
+          value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">Leave empty to disable autolap</p>
+      </div>
+      <SaveRow
+        saved={saved}
+        isPending={mutation.isPending}
+        isError={mutation.isError}
+        onSave={() => mutation.mutate()}
+      />
     </div>
   )
 }
@@ -429,29 +433,49 @@ export function AthleteConfig() {
         </div>
       </div>
 
-      <SportSection
-        title="Cycling"
-        field="cycling"
-        initial={settings?.cycling ?? null}
-        athleteId={athlete!.athlete_id}
-      />
+      <Accordion type="multiple" className="space-y-2">
+        <AccordionItem value="cycling">
+          <AccordionTrigger>Cycling</AccordionTrigger>
+          <AccordionContent>
+            <SportSectionContent
+              field="cycling"
+              initial={settings?.cycling ?? null}
+              athleteId={athlete!.athlete_id}
+            />
+          </AccordionContent>
+        </AccordionItem>
 
-      <SportSection
-        title="Running"
-        field="running"
-        initial={settings?.running ?? null}
-        athleteId={athlete!.athlete_id}
-      />
+        <AccordionItem value="running">
+          <AccordionTrigger>Running</AccordionTrigger>
+          <AccordionContent>
+            <SportSectionContent
+              field="running"
+              initial={settings?.running ?? null}
+              athleteId={athlete!.athlete_id}
+            />
+          </AccordionContent>
+        </AccordionItem>
 
-      <HRSection
-        initial={settings?.heart_rate ?? null}
-        athleteId={athlete!.athlete_id}
-      />
+        <AccordionItem value="heart-rate">
+          <AccordionTrigger>Heart Rate</AccordionTrigger>
+          <AccordionContent>
+            <HRSectionContent
+              initial={settings?.heart_rate ?? null}
+              athleteId={athlete!.athlete_id}
+            />
+          </AccordionContent>
+        </AccordionItem>
 
-      <AutolapSection
-        initial={settings?.autolap ?? null}
-        athleteId={athlete!.athlete_id}
-      />
+        <AccordionItem value="autolap">
+          <AccordionTrigger>Autolap</AccordionTrigger>
+          <AccordionContent>
+            <AutolapSectionContent
+              initial={settings?.autolap ?? null}
+              athleteId={athlete!.athlete_id}
+            />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 }
