@@ -1,9 +1,13 @@
 from fastapi import APIRouter
+from api.athlete_routes import router as athlete_router
 from api.daily_entry_routes import router as daily_entry_router
 from api.workout_routes import router as workout_router
 from api.task_routes import router as task_router
 
 router = APIRouter()
+
+# Include athlete routes
+router.include_router(athlete_router, prefix="/api/v1")
 
 # Include workout routes
 router.include_router(workout_router, prefix="/api/v1")

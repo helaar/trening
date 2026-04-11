@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
@@ -185,6 +186,11 @@ export function TodayTraining() {
           >
             <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
           </Button>
+          <Link to="/settings">
+            <Button variant="ghost" size="icon" aria-label="Athlete settings">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </Link>
         </div>
       </div>
 

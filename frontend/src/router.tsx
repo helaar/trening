@@ -6,6 +6,7 @@ import {
   Outlet,
 } from "@tanstack/react-router"
 import { TodayTraining } from "./pages/TodayTraining"
+import { AthleteConfig } from "./pages/AthleteConfig"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,7 +31,13 @@ const indexRoute = createRoute({
   component: TodayTraining,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute])
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings",
+  component: AthleteConfig,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, settingsRoute])
 
 export const router = createRouter({ routeTree })
 
