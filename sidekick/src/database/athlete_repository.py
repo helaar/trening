@@ -202,6 +202,32 @@ class AthleteRepository:
         """Get athlete settings."""
         athlete = await self.get_athlete(athlete_id)
         return athlete.settings if athlete else None
+
+    async def patch_athlete_settings(
+        self,
+        athlete_id: int,
+        fields: dict,
+    ) -> Athlete | None:
+        """
+        Partially update athlete settings.
+
+        Args:
+            athlete_id: Athlete ID
+            fields: Mapping of settings field names to new values.
+                    Only the provided keys are written (e.g. {"cycling": {...}}).
+        """
+        update: dict = {"updated_at": datetime.now(timezone.utc)}
+        for key, value in fields.items():
+            update[f"settings.{key}"] = value
+
+        result = await self.athletes_collection.update_one(
+            {"athlete_id": athlete_id},
+            {"$set": update},
+        )
+
+        if result.matched_count > 0:
+            return await self.get_athlete(athlete_id)
+        return None
     
     async def get_tokens(self, athlete_id: int) -> StravaTokens | None:
         """Get Strava tokens for an athlete."""
