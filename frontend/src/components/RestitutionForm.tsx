@@ -3,58 +3,54 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
+import { cn } from "../lib/utils"
 import type { Restitution } from "../api/dailyEntry"
 
-const SLEEP_OPTIONS = [
-  { value: 1, emoji: "🌑", label: "Very Poor" },
-  { value: 2, emoji: "🌘", label: "Poor" },
-  { value: 3, emoji: "🌗", label: "Fair" },
-  { value: 4, emoji: "🌔", label: "Good" },
-  { value: 5, emoji: "🌕", label: "Excellent" },
-]
-
-const READINESS_OPTIONS = [
-  { value: 1, emoji: "😴", label: "Exhausted" },
-  { value: 2, emoji: "🥱", label: "Tired" },
-  { value: 3, emoji: "😐", label: "OK" },
-  { value: 4, emoji: "🏃", label: "Good" },
-  { value: 5, emoji: "⚡", label: "Excellent" },
-]
-
-interface RatingOption {
-  value: number
-  emoji: string
-  label: string
+const QUALITY_LABELS: Record<number, string> = {
+  1: "Very Poor",
+  2: "Poor",
+  3: "Fair",
+  4: "Good",
+  5: "Excellent",
 }
 
-interface EmojiRatingProps {
+interface SubjectiveSliderProps {
   id: string
   label: string
-  options: RatingOption[]
+  lowLabel: string
+  highLabel: string
   value: number | undefined
   onChange: (v: number | undefined) => void
 }
 
-function EmojiRating({ id, label, options, value, onChange }: EmojiRatingProps) {
+function SubjectiveSlider({ id, label, lowLabel, highLabel, value, onChange }: SubjectiveSliderProps) {
   return (
-    <div className="col-span-2 space-y-1.5 sm:col-span-3">
-      <Label htmlFor={id}>{label}</Label>
-      <div id={id} className="grid grid-cols-5 gap-1.5">
-        {options.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(value === opt.value ? undefined : opt.value)}
-            className={`flex flex-col items-center rounded-md py-2 transition-colors ${
-              value === opt.value
-                ? "bg-primary/20 ring-2 ring-primary"
-                : "hover:bg-muted"
-            }`}
-          >
-            <span className="text-2xl">{opt.emoji}</span>
-            <span className="mt-1 text-xs text-muted-foreground">{opt.label}</span>
-          </button>
-        ))}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label htmlFor={id}>{label}</Label>
+        {value !== undefined ? (
+          <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-semibold text-secondary-foreground">
+            {QUALITY_LABELS[value]}
+          </span>
+        ) : (
+          <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm font-semibold text-muted-foreground">
+            Not set
+          </span>
+        )}
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={1}
+        max={5}
+        step={1}
+        value={value ?? 3}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={cn("w-full accent-primary", value === undefined && "opacity-40")}
+      />
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>{lowLabel}</span>
+        <span>{highLabel}</span>
       </div>
     </div>
   )
@@ -184,20 +180,24 @@ export function RestitutionForm({ value, onChange }: Props) {
             onChange={(e) => set("resting_hr", e.target.value)}
           />
         </div>
-        <EmojiRating
-          id="sleep-quality"
-          label="Sleep Quality"
-          options={SLEEP_OPTIONS}
-          value={value.sleep_quality}
-          onChange={(v) => onChange({ ...value, sleep_quality: v })}
-        />
-        <EmojiRating
-          id="readiness"
-          label="Readiness"
-          options={READINESS_OPTIONS}
-          value={value.readiness}
-          onChange={(v) => onChange({ ...value, readiness: v })}
-        />
+        <div className="col-span-2 grid grid-cols-2 gap-4 sm:col-span-3">
+          <SubjectiveSlider
+            id="sleep-quality"
+            label="Sleep Quality"
+            lowLabel="Poor"
+            highLabel="Excellent"
+            value={value.sleep_quality}
+            onChange={(v) => onChange({ ...value, sleep_quality: v })}
+          />
+          <SubjectiveSlider
+            id="readiness"
+            label="Readiness"
+            lowLabel="Exhausted"
+            highLabel="Excellent"
+            value={value.readiness}
+            onChange={(v) => onChange({ ...value, readiness: v })}
+          />
+        </div>
         <div className="col-span-2 space-y-1.5 sm:col-span-3">
           <Label htmlFor="comment">Comment</Label>
           <Textarea
