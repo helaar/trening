@@ -5,6 +5,49 @@ import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
 import type { Restitution } from "../api/dailyEntry"
 
+const RATING_OPTIONS = [
+  { value: 1, emoji: "😩", label: "Very Poor" },
+  { value: 2, emoji: "😕", label: "Poor" },
+  { value: 3, emoji: "😐", label: "Fair" },
+  { value: 4, emoji: "🙂", label: "Good" },
+  { value: 5, emoji: "😄", label: "Excellent" },
+]
+
+interface EmojiRatingProps {
+  id: string
+  label: string
+  value: number | undefined
+  onChange: (v: number | undefined) => void
+}
+
+function EmojiRating({ id, label, value, onChange }: EmojiRatingProps) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <div id={id} className="flex gap-1">
+        {RATING_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            title={opt.label}
+            onClick={() => onChange(value === opt.value ? undefined : opt.value)}
+            className={`flex-1 rounded-md py-1 text-xl transition-colors ${
+              value === opt.value
+                ? "bg-primary/20 ring-2 ring-primary"
+                : "hover:bg-muted"
+            }`}
+          >
+            {opt.emoji}
+          </button>
+        ))}
+      </div>
+      <p className="text-center text-xs text-muted-foreground">
+        {RATING_OPTIONS.find((o) => o.value === value)?.label ?? ""}
+      </p>
+    </div>
+  )
+}
+
 interface Props {
   value: Restitution
   onChange: (value: Restitution) => void
@@ -129,6 +172,18 @@ export function RestitutionForm({ value, onChange }: Props) {
             onChange={(e) => set("resting_hr", e.target.value)}
           />
         </div>
+        <EmojiRating
+          id="sleep-quality"
+          label="Sleep Quality"
+          value={value.sleep_quality}
+          onChange={(v) => onChange({ ...value, sleep_quality: v })}
+        />
+        <EmojiRating
+          id="readiness"
+          label="Readiness"
+          value={value.readiness}
+          onChange={(v) => onChange({ ...value, readiness: v })}
+        />
         <div className="col-span-2 space-y-1.5 sm:col-span-3">
           <Label htmlFor="comment">Comment</Label>
           <Textarea
