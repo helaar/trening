@@ -2,8 +2,10 @@ import { apiFetch } from "./client"
 
 export interface Restitution {
   sleep_hours?: number
+  sleep_quality?: number
   hrv?: number
   resting_hr?: number
+  readiness?: number
   comment?: string
 }
 

@@ -3,7 +3,66 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
+import { cn } from "../lib/utils"
 import type { Restitution } from "../api/dailyEntry"
+
+const QUALITY_LABELS: Record<number, string> = {
+  1: "Very Poor",
+  2: "Poor",
+  3: "Fair",
+  4: "Good",
+  5: "Excellent",
+}
+
+function qualityColor(v: number): string {
+  if (v <= 1) return "bg-red-100 text-red-800"
+  if (v <= 2) return "bg-orange-100 text-orange-800"
+  if (v <= 3) return "bg-yellow-100 text-yellow-800"
+  if (v <= 4) return "bg-green-100 text-green-800"
+  return "bg-emerald-100 text-emerald-800"
+}
+
+interface SubjectiveSliderProps {
+  id: string
+  label: string
+  lowLabel: string
+  highLabel: string
+  value: number | undefined
+  onChange: (v: number | undefined) => void
+}
+
+function SubjectiveSlider({ id, label, lowLabel, highLabel, value, onChange }: SubjectiveSliderProps) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label htmlFor={id}>{label}</Label>
+        {value != null ? (
+          <span className={cn("rounded-full px-2.5 py-0.5 text-sm font-semibold", qualityColor(value))}>
+            {QUALITY_LABELS[value]}
+          </span>
+        ) : (
+          <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm font-semibold text-muted-foreground">
+            Not set
+          </span>
+        )}
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={1}
+        max={5}
+        step={1}
+        value={value ?? 3}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={cn("w-full accent-primary", value == null && "opacity-40")}
+      />
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>{lowLabel}</span>
+        <span>{highLabel}</span>
+      </div>
+    </div>
+  )
+}
 
 interface Props {
   value: Restitution
@@ -127,6 +186,24 @@ export function RestitutionForm({ value, onChange }: Props) {
             placeholder="50"
             value={value.resting_hr ?? ""}
             onChange={(e) => set("resting_hr", e.target.value)}
+          />
+        </div>
+        <div className="col-span-2 grid grid-cols-2 gap-4 sm:col-span-3">
+          <SubjectiveSlider
+            id="sleep-quality"
+            label="Sleep Quality"
+            lowLabel="Poor"
+            highLabel="Excellent"
+            value={value.sleep_quality}
+            onChange={(v) => onChange({ ...value, sleep_quality: v })}
+          />
+          <SubjectiveSlider
+            id="readiness"
+            label="Readiness"
+            lowLabel="Exhausted"
+            highLabel="Excellent"
+            value={value.readiness}
+            onChange={(v) => onChange({ ...value, readiness: v })}
           />
         </div>
         <div className="col-span-2 space-y-1.5 sm:col-span-3">
