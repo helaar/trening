@@ -14,6 +14,14 @@ const QUALITY_LABELS: Record<number, string> = {
   5: "Excellent",
 }
 
+function qualityColor(v: number): string {
+  if (v <= 1) return "bg-red-100 text-red-800"
+  if (v <= 2) return "bg-orange-100 text-orange-800"
+  if (v <= 3) return "bg-yellow-100 text-yellow-800"
+  if (v <= 4) return "bg-green-100 text-green-800"
+  return "bg-emerald-100 text-emerald-800"
+}
+
 interface SubjectiveSliderProps {
   id: string
   label: string
@@ -29,7 +37,7 @@ function SubjectiveSlider({ id, label, lowLabel, highLabel, value, onChange }: S
       <div className="flex items-center justify-between">
         <Label htmlFor={id}>{label}</Label>
         {value !== undefined ? (
-          <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-semibold text-secondary-foreground">
+          <span className={cn("rounded-full px-2.5 py-0.5 text-sm font-semibold", qualityColor(value))}>
             {QUALITY_LABELS[value]}
           </span>
         ) : (
