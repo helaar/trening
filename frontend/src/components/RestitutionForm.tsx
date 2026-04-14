@@ -5,45 +5,57 @@ import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
 import type { Restitution } from "../api/dailyEntry"
 
-const RATING_OPTIONS = [
-  { value: 1, emoji: "😩", label: "Very Poor" },
-  { value: 2, emoji: "😕", label: "Poor" },
-  { value: 3, emoji: "😐", label: "Fair" },
-  { value: 4, emoji: "🙂", label: "Good" },
-  { value: 5, emoji: "😄", label: "Excellent" },
+const SLEEP_OPTIONS = [
+  { value: 1, emoji: "🌑", label: "Very Poor" },
+  { value: 2, emoji: "🌘", label: "Poor" },
+  { value: 3, emoji: "🌗", label: "Fair" },
+  { value: 4, emoji: "🌔", label: "Good" },
+  { value: 5, emoji: "🌕", label: "Excellent" },
 ]
+
+const READINESS_OPTIONS = [
+  { value: 1, emoji: "😴", label: "Exhausted" },
+  { value: 2, emoji: "🥱", label: "Tired" },
+  { value: 3, emoji: "😐", label: "OK" },
+  { value: 4, emoji: "🏃", label: "Good" },
+  { value: 5, emoji: "⚡", label: "Excellent" },
+]
+
+interface RatingOption {
+  value: number
+  emoji: string
+  label: string
+}
 
 interface EmojiRatingProps {
   id: string
   label: string
+  options: RatingOption[]
   value: number | undefined
   onChange: (v: number | undefined) => void
 }
 
-function EmojiRating({ id, label, value, onChange }: EmojiRatingProps) {
+function EmojiRating({ id, label, options, value, onChange }: EmojiRatingProps) {
   return (
-    <div className="space-y-1.5">
+    <div className="col-span-2 space-y-1.5 sm:col-span-3">
       <Label htmlFor={id}>{label}</Label>
-      <div id={id} className="flex gap-1">
-        {RATING_OPTIONS.map((opt) => (
+      <div id={id} className="grid grid-cols-5 gap-1.5">
+        {options.map((opt) => (
           <button
             key={opt.value}
             type="button"
-            title={opt.label}
             onClick={() => onChange(value === opt.value ? undefined : opt.value)}
-            className={`flex-1 rounded-md py-1 text-xl transition-colors ${
+            className={`flex flex-col items-center rounded-md py-2 transition-colors ${
               value === opt.value
                 ? "bg-primary/20 ring-2 ring-primary"
                 : "hover:bg-muted"
             }`}
           >
-            {opt.emoji}
+            <span className="text-2xl">{opt.emoji}</span>
+            <span className="mt-1 text-xs text-muted-foreground">{opt.label}</span>
           </button>
         ))}
       </div>
-      <p className="text-center text-xs text-muted-foreground">
-        {RATING_OPTIONS.find((o) => o.value === value)?.label ?? ""}
-      </p>
     </div>
   )
 }
@@ -175,12 +187,14 @@ export function RestitutionForm({ value, onChange }: Props) {
         <EmojiRating
           id="sleep-quality"
           label="Sleep Quality"
+          options={SLEEP_OPTIONS}
           value={value.sleep_quality}
           onChange={(v) => onChange({ ...value, sleep_quality: v })}
         />
         <EmojiRating
           id="readiness"
           label="Readiness"
+          options={READINESS_OPTIONS}
           value={value.readiness}
           onChange={(v) => onChange({ ...value, readiness: v })}
         />
