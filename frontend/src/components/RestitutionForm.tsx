@@ -36,7 +36,7 @@ function SubjectiveSlider({ id, label, lowLabel, highLabel, value, onChange }: S
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label htmlFor={id}>{label}</Label>
-        {value !== undefined ? (
+        {value != null ? (
           <span className={cn("rounded-full px-2.5 py-0.5 text-sm font-semibold", qualityColor(value))}>
             {QUALITY_LABELS[value]}
           </span>
@@ -54,7 +54,7 @@ function SubjectiveSlider({ id, label, lowLabel, highLabel, value, onChange }: S
         step={1}
         value={value ?? 3}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={cn("w-full accent-primary", value === undefined && "opacity-40")}
+        className={cn("w-full accent-primary", value == null && "opacity-40")}
       />
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>{lowLabel}</span>
