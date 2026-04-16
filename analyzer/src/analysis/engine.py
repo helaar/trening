@@ -301,8 +301,8 @@ def _compute_heart_rate_drift_analysis(df: pd.DataFrame, drift_start: float | No
         return None
 
 
-def _analyze_laps(df: pd.DataFrame, laps: list[dict[str, Any]], settings: AnalysisSettings, 
-                 window: int, has_power: bool) -> list[LapAnalysis]:
+def _analyze_laps(df: pd.DataFrame, laps: list[dict[str, Any]], settings: AnalysisSettings,
+                 window: int, has_power: bool, is_virtual: bool = False) -> list[LapAnalysis]:
     """Analyze all laps and return LapAnalysis objects with raw numeric values."""
     lap_analyses = []
     
@@ -339,8 +339,8 @@ def _analyze_laps(df: pd.DataFrame, laps: list[dict[str, Any]], settings: Analys
         description_parts = [str(part) for part in (label, intensity_str, zone_name) if part]
         description = " / ".join(description_parts) if description_parts else None
         
-        # Detect ERG mode for this lap using configured threshold
-        is_erg = _detect_erg_lap(stats["avg_power"], stats["np"], threshold=settings.erg_threshold)
+        # Detect ERG mode for this lap — only valid for virtual rides
+        is_erg = is_virtual and _detect_erg_lap(stats["avg_power"], stats["np"], threshold=settings.erg_threshold)
         
         # Calculate start time in seconds from workout start
         start_time_sec = (start_ts - df.index[0]).total_seconds()
@@ -490,7 +490,7 @@ def analyze_endurance_workout(parser: StravaDataParser, settings: dict[str, Any]
             laps = autolaps
     
     # Analyze laps
-    lap_analyses = _analyze_laps(df, laps, analysis_settings, window, has_power)
+    lap_analyses = _analyze_laps(df, laps, analysis_settings, window, has_power, is_virtual=_is_virtual_activity(parser.activity))
     
     # ERG mode analysis
     erg_analysis = _compute_erg_analysis(lap_analyses, parser, analysis_settings)
