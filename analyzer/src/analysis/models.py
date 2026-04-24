@@ -134,6 +134,7 @@ class LapAnalysis(BaseModel):
     # Power metrics
     normalized_power: float | None = None
     avg_power: float | None = None
+    power_stdev: float | None = None
     max_power: float | None = None
     
     # Heart rate metrics
