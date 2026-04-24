@@ -15,6 +15,7 @@ const SPORT_LABELS: Record<Sport, string> = {
   strength: "Strength",
   skiing_cross: "XC Skiing",
   skiing_alpine: "Alpine Skiing",
+  day_off: "Day off",
   other: "Other",
 }
 

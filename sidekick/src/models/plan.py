@@ -9,7 +9,7 @@ class PlannedActivity(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     athlete_id: int
     date: str  # YYYY-MM-DD
-    sport: Literal["cycling", "running", "strength", "skiing_cross", "skiing_alpine", "other"]
+    sport: Literal["cycling", "running", "strength", "skiing_cross", "skiing_alpine", "day_off", "other"]
     name: str
     description: str | None = None
     purpose: str | None = None
@@ -22,7 +22,7 @@ class PlannedActivity(BaseModel):
 
 class PlannedActivityRequest(BaseModel):
     date: str  # YYYY-MM-DD
-    sport: Literal["cycling", "running", "strength", "skiing_cross", "skiing_alpine", "other"]
+    sport: Literal["cycling", "running", "strength", "skiing_cross", "skiing_alpine", "day_off", "other"]
     name: str
     description: str | None = None
     purpose: str | None = None

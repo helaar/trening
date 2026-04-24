@@ -15,6 +15,7 @@ const SPORT_OPTIONS: { value: Sport; label: string }[] = [
   { value: "strength", label: "Strength" },
   { value: "skiing_cross", label: "XC Skiing" },
   { value: "skiing_alpine", label: "Alpine Skiing" },
+  { value: "day_off", label: "Day off" },
   { value: "other", label: "Other" },
 ]
 

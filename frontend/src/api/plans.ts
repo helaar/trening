@@ -1,6 +1,6 @@
 import { apiFetch } from "./client"
 
-export type Sport = "cycling" | "running" | "strength" | "skiing_cross" | "skiing_alpine" | "other"
+export type Sport = "cycling" | "running" | "strength" | "skiing_cross" | "skiing_alpine" | "day_off" | "other"
 
 export interface PlannedActivity {
   id: string
