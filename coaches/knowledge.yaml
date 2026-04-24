@@ -74,3 +74,19 @@ common_knowledge:
   - rule: "Unplanned training sessions"
     accept: "Acknowledge if they provide useful context for overall load or recovery status."
     reject: "Do not analyze in detail or compare to planned sessions; focus only on the scheduled workouts. Low intensity or short duration unplanned sessions should not be commented on."
+
+  - rule: "RPE and subjective fatigue"
+    accept: >
+     Use as supporting context for performance trends or recovery status when consistent with objective data.
+     Athletes use scale from TrainingPeaks with the following guidelines:
+      - 1: Very light. Minimal effort.
+      - 2: Light. Light effort.
+      - 3: Moderate. Conversational pace.
+      - 4: Somewhat hard. Challenging yet manageable.
+      - 5: Hard. Conversation becomes difficult.
+      - 6: Harder. Requires more focus.
+      - 7: Very hard. Near limit. Conversation is hard.
+      - 8: Extremely hard. Very challenging. Intense focus.
+      - 9: Near maximum. Can't maintain for long.
+      - 10: Maximum effort. All-out, can't sustain.
+    reject: "Do not rely solely on RPE or subjective fatigue reports without objective performance indicators. Avoid overemphasizing subjective feelings if they contradict clear performance data."
