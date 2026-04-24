@@ -9,6 +9,8 @@ import { fetchCurrentAthlete } from "../api/auth"
 import { fetchDetailedWorkouts } from "../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
+import { fetchPlansForDate } from "../api/plans"
+import { PlanCard } from "../components/PlanCard"
 
 function todayDate(): string {
   return new Date().toISOString().split("T")[0]
@@ -83,6 +85,12 @@ export function TodayTraining() {
   const { data: existingEntry } = useQuery({
     queryKey: ["daily-entry", athlete?.athlete_id, selectedDate],
     queryFn: () => fetchDailyEntry(athlete!.athlete_id, selectedDate),
+    enabled: !!athlete,
+  })
+
+  const { data: plans } = useQuery({
+    queryKey: ["plans", athlete?.athlete_id, selectedDate],
+    queryFn: () => fetchPlansForDate(athlete!.athlete_id, selectedDate),
     enabled: !!athlete,
   })
 
@@ -195,6 +203,15 @@ export function TodayTraining() {
       </div>
 
       <RestitutionForm value={restitution} onChange={setRestitution} />
+
+      {plans && plans.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="font-semibold text-muted-foreground">Plan</h2>
+          {plans.map((plan) => (
+            <PlanCard key={plan.id} plan={plan} />
+          ))}
+        </section>
+      )}
 
       <section className="space-y-4">
         <h2 className="font-semibold text-muted-foreground">
