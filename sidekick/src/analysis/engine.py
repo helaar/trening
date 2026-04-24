@@ -45,31 +45,22 @@ def _is_virtual_activity(activity: StravaActivity) -> bool:
     return any(platform in device for platform in virtual_platforms)
 
 
-def _detect_erg_lap(avg_power: float | None, np: float | None, threshold: float = 0.02) -> bool:
-    """
-    Detect if a lap was likely performed in ERG mode based on power consistency.
-    
-    ERG mode maintains constant power, so Normalized Power ≈ Average Power.
-    
-    Args:
-        avg_power: Average power for the lap (can be None)
-        np: Normalized power for the lap (can be None)
-        threshold: Maximum allowed relative difference (default 2%)
-        
-    Returns:
-        True if lap shows ERG mode characteristics
-    """
-    # Skip laps with no power data
+def _detect_erg_lap(
+    avg_power: float | None,
+    np: float | None,
+    power_stdev: float | None,
+    threshold: float = 0.02,
+    stdev_threshold: float = 0.10,
+) -> bool:
     if not avg_power or not np:
         return False
-    
-    # Skip very low power laps (likely coasting/stopped)
     if avg_power < 50:
         return False
-    
-    # Calculate relative difference between NP and Avg Power
-    consistency_score = abs(np - avg_power) / avg_power
-    return consistency_score <= threshold
+    if abs(np - avg_power) / avg_power > threshold:
+        return False
+    if power_stdev is not None and power_stdev / avg_power > stdev_threshold:
+        return False
+    return True
 
 
 def _safe_float(value: Any) -> float | None:
@@ -125,10 +116,12 @@ class AnalysisSettings:
         if self._settings and self._settings.erg_detection:
             self.erg_threshold = self._settings.erg_detection.threshold
             self.erg_min_ratio = self._settings.erg_detection.min_ratio
+            self.erg_stdev_threshold = self._settings.erg_detection.stdev_threshold
         else:
             # Fallback to defaults if not configured
             self.erg_threshold = 0.02
             self.erg_min_ratio = 0.6
+            self.erg_stdev_threshold = 0.10
         
         # Autolap setting from athlete settings (convert timedelta to seconds)
         if self._settings:
@@ -364,7 +357,11 @@ def _analyze_laps(df: pd.DataFrame, laps: list[dict[str, Any]], settings: Analys
         description = " / ".join(description_parts) if description_parts else None
         
         # Detect ERG mode for this lap — only valid for virtual rides
-        is_erg = is_virtual and _detect_erg_lap(stats["avg_power"], stats["np"], threshold=settings.erg_threshold)
+        is_erg = is_virtual and _detect_erg_lap(
+            stats["avg_power"], stats["np"], stats["power_stdev"],
+            threshold=settings.erg_threshold,
+            stdev_threshold=settings.erg_stdev_threshold,
+        )
         
         # Calculate start time in seconds from workout start
         start_time_sec = (start_ts - df.index[0]).total_seconds()

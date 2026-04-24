@@ -47,6 +47,7 @@ class ERGDetectionSettings(BaseModel):
     """Settings for ERG mode detection in virtual workouts."""
     threshold: float = Field(default=0.02, description="Maximum relative difference between NP and avg power for ERG detection")
     min_ratio: float = Field(default=0.6, description="Minimum ratio of ERG laps/time to classify workout as ERG")
+    stdev_threshold: float = Field(default=0.10, description="Maximum coefficient of variation (stdev/avg) of power for ERG detection")
 
 
 class AthleteSettings(BaseModel):
