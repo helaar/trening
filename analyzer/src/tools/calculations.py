@@ -408,6 +408,7 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float | None, window: int 
         stats.update({
             "duration_sec": 0.0,
             "avg_power": None,
+            "power_stdev": None,
             "np": None,
             "vi": None,
             "if": None,
@@ -431,6 +432,8 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float | None, window: int 
     if "power" in segment.columns:
         avg_power = segment["power"].dropna().mean()
         stats["avg_power"] = float(avg_power) if pd.notna(avg_power) else None
+        power_stdev = segment["power"].dropna().std()
+        stats["power_stdev"] = float(power_stdev) if pd.notna(power_stdev) else None
         np_value = normalized_power(segment["power"], window=window)
         stats["np"] = float(np_value) if np_value is not None else None
         stats["vi"] = (stats["np"] / stats["avg_power"]) if stats["np"] and stats["avg_power"] else None
@@ -448,7 +451,7 @@ def compute_segment_stats(segment: pd.DataFrame, ftp: float | None, window: int 
             stats["drift_pct"] = None
     else:
         stats.update({
-            "avg_power": None, "np": None, "vi": None, "if": None,
+            "avg_power": None, "power_stdev": None, "np": None, "vi": None, "if": None,
             "max_power": None, "drift_pct": None
         })
 

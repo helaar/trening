@@ -286,8 +286,8 @@ class MarkdownFormatter:
         
         # Table headers
         headers = [
-            "Lap", "Start", "Duration", "Distance km", "NP", "Avg W", "Avg HR",
-            cadence_label, "HR Drift %", "Max W", "Max HR", "Avg km/h", 
+            "Lap", "Start", "Duration", "Distance km", "NP", "Avg W", "Stdev W", "Avg HR",
+            cadence_label, "HR Drift %", "Max W", "Max HR", "Avg km/h",
             "Elevation gain", "Elevation loss", "Avg ℃", "ERG", "Description"
         ]
         
@@ -307,6 +307,7 @@ class MarkdownFormatter:
                 f"{lap.distance_km:.1f}" if lap.distance_km is not None else "—",
                 f"{lap.normalized_power:.1f}" if lap.normalized_power is not None else "—",
                 f"{lap.avg_power:.1f}" if lap.avg_power is not None else "—",
+                f"{lap.power_stdev:.1f}" if lap.power_stdev is not None else "—",
                 f"{lap.avg_heart_rate:.1f}" if lap.avg_heart_rate is not None else "—",
                 f"{lap.avg_cadence:.1f}" if lap.avg_cadence is not None else "—",
                 f"{lap.hr_drift_pct:.2f}" if lap.hr_drift_pct is not None else "—",
@@ -515,6 +516,7 @@ class JSONFormatter:
             "distance_km": self._round_float(lap.distance_km, 1),
             "normalized_power": self._round_float(lap.normalized_power, 1),
             "avg_power": self._round_float(lap.avg_power, 1),
+            "power_stdev": self._round_float(lap.power_stdev, 1),
             "max_power": self._round_float(lap.max_power, 1),
             "avg_heart_rate": self._round_float(lap.avg_heart_rate, 1),
             "max_heart_rate": self._round_float(lap.max_heart_rate, 1),

@@ -352,6 +352,7 @@ def _analyze_laps(df: pd.DataFrame, laps: list[dict[str, Any]], settings: Analys
             distance_km=_safe_float(stats["distance"]),
             normalized_power=_safe_float(stats["np"]),
             avg_power=_safe_float(stats["avg_power"]),
+            power_stdev=_safe_float(stats["power_stdev"]),
             max_power=_safe_float(stats["max_power"]),
             avg_heart_rate=_safe_float(stats["avg_hr"]),
             max_heart_rate=_safe_float(stats["max_hr"]),
