@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Plus, Loader2, CalendarDays } from "lucide-react"
+import { Plus, Loader2, CalendarDays, X } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { PlanForm } from "../components/PlanForm"
@@ -42,12 +42,60 @@ type Selection =
   | { kind: "new"; date: string }
   | null
 
+// All dates from start through end, inclusive
+function dateRange(start: string, end: string): string[] {
+  const result: string[] = []
+  const d = new Date(start + "T00:00:00Z")
+  const last = new Date(end + "T00:00:00Z")
+  while (d <= last) {
+    result.push(isoDate(d))
+    d.setUTCDate(d.getUTCDate() + 1)
+  }
+  return result
+}
+
+interface DatePickerModalProps {
+  onSelect: (date: string) => void
+  onClose: () => void
+}
+
+function DatePickerModal({ onSelect, onClose }: DatePickerModalProps) {
+  const [value, setValue] = useState(isoDate(new Date()))
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-80 rounded-lg border bg-background p-5 shadow-lg">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-semibold">Pick a date</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <input
+          type="date"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="mb-4 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <Button className="w-full" onClick={() => value && onSelect(value)}>
+          Add plan for this date
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function Plans() {
   const today = isoDate(new Date())
+  // Wide fetch range — 3 days back to 1 year forward
   const rangeStart = isoDate(offsetDate(new Date(), -3))
-  const rangeEnd = isoDate(offsetDate(new Date(), 90))
+  const rangeEnd = isoDate(offsetDate(new Date(), 365))
 
   const [selection, setSelection] = useState<Selection>(null)
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
   const { data: athlete, isLoading: loadingAthlete } = useQuery({
     queryKey: ["athlete"],
@@ -60,17 +108,6 @@ export function Plans() {
     enabled: !!athlete,
   })
 
-  // Build sorted list of all dates in range that either have plans or are today/future
-  const dates = useMemo(() => {
-    const dateSet = new Set<string>()
-    // Always include today through 90 days out
-    for (let i = -3; i <= 90; i++) {
-      dateSet.add(isoDate(offsetDate(new Date(), i)))
-    }
-    return Array.from(dateSet).sort()
-  }, [])
-
-  // Group plans by date
   const plansByDate = useMemo(() => {
     const map = new Map<string, PlannedActivity[]>()
     for (const plan of plans) {
@@ -81,11 +118,14 @@ export function Plans() {
     return map
   }, [plans])
 
-  // Dates that have plans or are today/future (hide empty past days)
-  const visibleDates = useMemo(
-    () => dates.filter((d) => d >= today || (plansByDate.get(d)?.length ?? 0) > 0),
-    [dates, today, plansByDate]
-  )
+  // Show dates from 3 days ago through the last planned date (filling all gaps).
+  // If no plans exist yet, show today + 6 days so there's something to interact with.
+  const visibleDates = useMemo(() => {
+    const planDates = plans.map((p) => p.date).sort()
+    const lastPlanDate = planDates.at(-1) ?? isoDate(offsetDate(new Date(), 6))
+    const end = lastPlanDate > today ? lastPlanDate : isoDate(offsetDate(new Date(), 6))
+    return dateRange(rangeStart, end)
+  }, [plans, today, rangeStart])
 
   function handleSaved(saved: PlannedActivity) {
     setSelection({ kind: "existing", plan: saved })
@@ -95,8 +135,12 @@ export function Plans() {
     setSelection(null)
   }
 
-  const selectedPlan =
-    selection?.kind === "existing" ? selection.plan : undefined
+  function handleDatePicked(date: string) {
+    setShowDatePicker(false)
+    setSelection({ kind: "new", date })
+  }
+
+  const selectedPlan = selection?.kind === "existing" ? selection.plan : undefined
   const selectedDate =
     selection?.kind === "existing"
       ? selection.plan.date
@@ -114,17 +158,27 @@ export function Plans() {
 
   return (
     <div className="flex h-screen flex-col">
+      {showDatePicker && (
+        <DatePickerModal onSelect={handleDatePicked} onClose={() => setShowDatePicker(false)} />
+      )}
+
       {/* Header */}
       <header className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-muted-foreground" />
           <h1 className="text-lg font-bold">Training Plans</h1>
         </div>
-        <Link to="/">
-          <Button variant="ghost" size="sm">
-            Back
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowDatePicker(true)}>
+            <Plus className="h-4 w-4" />
+            Add plan
           </Button>
-        </Link>
+          <Link to="/">
+            <Button variant="ghost" size="sm">
+              Back
+            </Button>
+          </Link>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -142,32 +196,30 @@ export function Plans() {
               const isToday = date === today
               const isPast = date < today
 
+              // Skip empty past days entirely
+              if (isPast && dayPlans.length === 0) return null
+
               return (
                 <div key={date} className={cn("border-b", isPast && "opacity-60")}>
-                  {/* Date header */}
-                  <div className="flex items-center justify-between px-3 py-2">
+                  {/* Date heading */}
+                  <div
+                    className={cn(
+                      "px-3 py-2",
+                      isToday && "bg-primary/5"
+                    )}
+                  >
                     <span
                       className={cn(
-                        "text-xs font-semibold uppercase tracking-wide",
-                        isToday ? "text-primary" : "text-muted-foreground"
+                        "text-xs font-bold uppercase tracking-wider",
+                        isToday ? "text-primary" : "text-foreground"
                       )}
                     >
-                      {isToday ? "Today — " : ""}
+                      {isToday ? "Today · " : ""}
                       {formatDateHeading(date)}
                     </span>
-                    <button
-                      onClick={() => setSelection({ kind: "new", date })}
-                      className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                      aria-label={`Add plan for ${date}`}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
                   </div>
 
-                  {/* Activities for this date */}
-                  {dayPlans.length === 0 && (
-                    <p className="px-3 pb-2 text-xs text-muted-foreground/60">No plans</p>
-                  )}
+                  {/* Indented activity rows */}
                   {dayPlans.map((plan) => {
                     const isSelected =
                       selection?.kind === "existing" && selection.plan.id === plan.id
@@ -176,8 +228,10 @@ export function Plans() {
                         key={plan.id}
                         onClick={() => setSelection({ kind: "existing", plan })}
                         className={cn(
-                          "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
-                          isSelected && "bg-accent"
+                          "w-full border-l-2 py-2 pl-5 pr-3 text-left text-sm transition-colors hover:bg-accent",
+                          isSelected
+                            ? "border-primary bg-accent"
+                            : "border-transparent"
                         )}
                       >
                         <div className="font-medium leading-snug">{plan.name}</div>
@@ -202,7 +256,7 @@ export function Plans() {
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
               <CalendarDays className="h-10 w-10 opacity-30" />
               <p className="text-sm">Select a planned activity to view or edit,</p>
-              <p className="text-sm">or press + next to a date to add one.</p>
+              <p className="text-sm">or use "Add plan" to schedule a new one.</p>
             </div>
           )}
 
