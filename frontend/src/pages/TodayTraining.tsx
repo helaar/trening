@@ -74,6 +74,7 @@ export function TodayTraining() {
     queryKey: ["workouts", athlete?.athlete_id, selectedDate],
     queryFn: () => fetchDetailedWorkouts(athlete!.athlete_id, selectedDate),
     enabled: !!athlete,
+    staleTime: Infinity,
   })
 
   const syncMutation = useMutation({
