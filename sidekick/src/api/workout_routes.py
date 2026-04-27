@@ -101,6 +101,21 @@ async def get_athlete_workouts(
     return daily_summary
 
 
+@router.delete("/{athlete_id}/activities/{activity_id}", status_code=204)
+async def delete_activity(
+    athlete_id: int,
+    activity_id: int,
+    current_athlete_id: int = Depends(get_current_athlete_id),
+    workout_repo: WorkoutRepository = Depends(get_workout_repository),
+) -> None:
+    if athlete_id != current_athlete_id:
+        raise HTTPException(status_code=403, detail="You can only access your own workout data")
+    deleted = await workout_repo.delete_activity(athlete_id, activity_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    await workout_repo.delete_analysis(athlete_id, activity_id)
+
+
 @router.get("/{athlete_id}/activities/{activity_id}/analysis", response_model=WorkoutAnalysis)
 async def get_activity_analysis(
     athlete_id: int,

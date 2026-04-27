@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays, Trash2 } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
 import { fetchCurrentAthlete } from "../api/auth"
-import { fetchDetailedWorkouts } from "../api/workouts"
+import { fetchDetailedWorkouts, deleteWorkout, type WorkoutAnalysis } from "../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
 import { fetchPlansForDate } from "../api/plans"
@@ -41,6 +41,7 @@ export function TodayTraining() {
   const [restitution, setRestitution] = useState<Restitution>({})
   const [assessments, setAssessments] = useState<AssessmentMap>({})
   const [saved, setSaved] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ activityId: number; name: string } | null>(null)
 
   useEffect(() => {
     setRestitution({})
@@ -73,6 +74,7 @@ export function TodayTraining() {
     queryKey: ["workouts", athlete?.athlete_id, selectedDate],
     queryFn: () => fetchDetailedWorkouts(athlete!.athlete_id, selectedDate),
     enabled: !!athlete,
+    staleTime: Infinity,
   })
 
   const syncMutation = useMutation({
@@ -149,6 +151,17 @@ export function TodayTraining() {
       queryClient.invalidateQueries({ queryKey: ["daily-entry"] })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (activityId: number) => deleteWorkout(athlete!.athlete_id, activityId),
+    onSuccess: (_, activityId) => {
+      queryClient.setQueryData<WorkoutAnalysis[]>(
+        ["workouts", athlete?.athlete_id, selectedDate],
+        (old) => old?.filter((w) => w.activity_id !== activityId) ?? []
+      )
+      setPendingDelete(null)
     },
   })
 
@@ -238,15 +251,57 @@ export function TodayTraining() {
         {allWorkouts.map((workout, index) => {
           const key = workoutKey(workout, index)
           return (
-            <ActivityCard
-              key={key}
-              workout={workout}
-              value={assessments[key] ?? {}}
-              onChange={(v) => setAssessments((prev) => ({ ...prev, [key]: v }))}
-            />
+            <div key={key} className="relative group">
+              <ActivityCard
+                workout={workout}
+                value={assessments[key] ?? {}}
+                onChange={(v) => setAssessments((prev) => ({ ...prev, [key]: v }))}
+              />
+              {workout.activity_id !== null && (
+                <button
+                  className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
+                  aria-label="Delete workout"
+                  onClick={() =>
+                    setPendingDelete({
+                      activityId: workout.activity_id!,
+                      name: workout.session.name ?? workout.session.category,
+                    })
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           )
         })}
       </section>
+
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-lg space-y-4">
+            <h3 className="font-semibold">Delete workout?</h3>
+            <p className="text-sm text-muted-foreground">
+              "{pendingDelete.name}" will be removed from the local database. This will not delete it from Strava.
+            </p>
+            {deleteMutation.isError && (
+              <p className="text-sm text-destructive">Delete failed. Try again.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setPendingDelete(null)} disabled={deleteMutation.isPending}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteMutation.mutate(pendingDelete.activityId)}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 p-4 backdrop-blur">
         <div className="mx-auto max-w-2xl flex items-center justify-between gap-4">

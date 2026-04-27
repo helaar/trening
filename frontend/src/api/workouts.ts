@@ -26,6 +26,12 @@ export interface WorkoutAnalysis {
   has_heart_rate_data: boolean
 }
 
+export function deleteWorkout(athleteId: number, activityId: number): Promise<void> {
+  return apiFetch<void>(`/api/v1/athlete/${athleteId}/activities/${activityId}`, {
+    method: "DELETE",
+  })
+}
+
 export function fetchDetailedWorkouts(
   athleteId: number,
   date: string,
