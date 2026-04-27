@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
 import { fetchCurrentAthlete } from "../api/auth"
-import { fetchDetailedWorkouts, deleteWorkout } from "../api/workouts"
+import { fetchDetailedWorkouts, deleteWorkout, type WorkoutAnalysis } from "../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
 import { fetchPlansForDate } from "../api/plans"
@@ -155,8 +155,11 @@ export function TodayTraining() {
 
   const deleteMutation = useMutation({
     mutationFn: (activityId: number) => deleteWorkout(athlete!.athlete_id, activityId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["workouts", athlete?.athlete_id, selectedDate] })
+    onSuccess: (_, activityId) => {
+      queryClient.setQueryData<WorkoutAnalysis[]>(
+        ["workouts", athlete?.athlete_id, selectedDate],
+        (old) => old?.filter((w) => w.activity_id !== activityId) ?? []
+      )
       setPendingDelete(null)
     },
   })
