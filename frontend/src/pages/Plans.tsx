@@ -119,14 +119,11 @@ export function Plans() {
     return map
   }, [plans])
 
-  // Show dates from 3 days ago through the last planned date (filling all gaps).
-  // If no plans exist yet, show today + 6 days so there's something to interact with.
-  const visibleDates = useMemo(() => {
-    const planDates = plans.map((p) => p.date).sort()
-    const lastPlanDate = planDates.at(-1) ?? isoDate(offsetDate(new Date(), 6))
-    const end = lastPlanDate > today ? lastPlanDate : isoDate(offsetDate(new Date(), 6))
-    return dateRange(rangeStart, end)
-  }, [plans, today, rangeStart])
+  // Only show dates that actually have plans
+  const visibleDates = useMemo(
+    () => [...new Set(plans.map((p) => p.date))].sort(),
+    [plans]
+  )
 
   function handleSaved(saved: PlannedActivity) {
     setSelection({ kind: "existing", plan: saved })
@@ -191,14 +188,17 @@ export function Plans() {
             </div>
           )}
 
+          {!loadingPlans && visibleDates.length === 0 && (
+            <p className="px-4 py-6 text-xs text-muted-foreground">
+              No plans yet. Use "Add plan" to get started.
+            </p>
+          )}
+
           {!loadingPlans &&
             visibleDates.map((date) => {
               const dayPlans = plansByDate.get(date) ?? []
               const isToday = date === today
               const isPast = date < today
-
-              // Skip empty past days entirely
-              if (isPast && dayPlans.length === 0) return null
 
               return (
                 <div key={date} className={cn("border-b", isPast && "opacity-60")}>
