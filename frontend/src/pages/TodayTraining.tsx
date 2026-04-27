@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
@@ -9,6 +9,8 @@ import { fetchCurrentAthlete } from "../api/auth"
 import { fetchDetailedWorkouts } from "../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
+import { fetchPlansForDate } from "../api/plans"
+import { PlanCard } from "../components/PlanCard"
 
 function todayDate(): string {
   return new Date().toISOString().split("T")[0]
@@ -83,6 +85,12 @@ export function TodayTraining() {
   const { data: existingEntry } = useQuery({
     queryKey: ["daily-entry", athlete?.athlete_id, selectedDate],
     queryFn: () => fetchDailyEntry(athlete!.athlete_id, selectedDate),
+    enabled: !!athlete,
+  })
+
+  const { data: plans } = useQuery({
+    queryKey: ["plans", athlete?.athlete_id, selectedDate],
+    queryFn: () => fetchPlansForDate(athlete!.athlete_id, selectedDate),
     enabled: !!athlete,
   })
 
@@ -186,6 +194,11 @@ export function TodayTraining() {
           >
             <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
           </Button>
+          <Link to="/plans">
+            <Button variant="ghost" size="icon" aria-label="Training plans">
+              <CalendarDays className="h-4 w-4" />
+            </Button>
+          </Link>
           <Link to="/settings">
             <Button variant="ghost" size="icon" aria-label="Athlete settings">
               <Settings className="h-4 w-4" />
@@ -195,6 +208,15 @@ export function TodayTraining() {
       </div>
 
       <RestitutionForm value={restitution} onChange={setRestitution} />
+
+      {plans && plans.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="font-semibold text-muted-foreground">Plan</h2>
+          {plans.map((plan) => (
+            <PlanCard key={plan.id} plan={plan} />
+          ))}
+        </section>
+      )}
 
       <section className="space-y-4">
         <h2 className="font-semibold text-muted-foreground">
