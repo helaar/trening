@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field
 
 class Restitution(BaseModel):
     sleep_hours: float | None = None
-    sleep_quality: int | None = Field(None, ge=1, le=5)
+    sleep_quality: float | None = Field(None, ge=1, le=5, multiple_of=0.01)
     hrv: int | None = None
     resting_hr: int | None = None
-    readiness: int | None = Field(None, ge=1, le=5)
+    readiness: float | None = Field(None, ge=1, le=5, multiple_of=0.01)
     comment: str | None = None
 
 
