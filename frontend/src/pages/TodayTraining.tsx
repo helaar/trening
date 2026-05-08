@@ -53,13 +53,6 @@ export function TodayTraining() {
     setAnalysisTaskId(null)
   }, [selectedDate])
 
-  const { data: storedAnalysis } = useQuery({
-    queryKey: ["daily-analysis", athlete?.athlete_id, selectedDate],
-    queryFn: () => fetchStoredAnalysis(athlete!.athlete_id, selectedDate),
-    enabled: !!athlete,
-    staleTime: Infinity,
-  })
-
   function goToPrevDay() {
     setSelectedDate((prev) => {
       const d = new Date(prev)
@@ -105,6 +98,13 @@ export function TodayTraining() {
     queryKey: ["plans", athlete?.athlete_id, selectedDate],
     queryFn: () => fetchPlansForDate(athlete!.athlete_id, selectedDate),
     enabled: !!athlete,
+  })
+
+  const { data: storedAnalysis } = useQuery({
+    queryKey: ["daily-analysis", athlete?.athlete_id, selectedDate],
+    queryFn: () => fetchStoredAnalysis(athlete!.athlete_id, selectedDate),
+    enabled: !!athlete,
+    staleTime: Infinity,
   })
 
   const { data: analysisTask } = useQuery({
