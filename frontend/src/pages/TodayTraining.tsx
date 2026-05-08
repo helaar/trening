@@ -11,7 +11,7 @@ import { fetchDetailedWorkouts, deleteWorkout, type WorkoutAnalysis } from "../a
 import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
 import { fetchPlansForDate } from "../api/plans"
-import { createDailyAnalysisTask, getTaskStatus } from "../api/tasks"
+import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskStatus } from "../api/tasks"
 import { PlanCard } from "../components/PlanCard"
 
 function todayDate(): string {
@@ -52,6 +52,13 @@ export function TodayTraining() {
     setSaved(false)
     setAnalysisTaskId(null)
   }, [selectedDate])
+
+  const { data: storedAnalysis } = useQuery({
+    queryKey: ["daily-analysis", athlete?.athlete_id, selectedDate],
+    queryFn: () => fetchStoredAnalysis(athlete!.athlete_id, selectedDate),
+    enabled: !!athlete,
+    staleTime: Infinity,
+  })
 
   function goToPrevDay() {
     setSelectedDate((prev) => {
@@ -115,6 +122,18 @@ export function TodayTraining() {
     const task = await createDailyAnalysisTask(athlete.athlete_id, selectedDate)
     setAnalysisTaskId(task.task_id)
   }
+
+  const analysisRunning =
+    !!analysisTaskId &&
+    analysisTask?.status !== "completed" &&
+    analysisTask?.status !== "failed"
+
+  // Invalidate cached result once the running task finishes
+  useEffect(() => {
+    if (analysisTask?.status === "completed" || analysisTask?.status === "failed") {
+      queryClient.invalidateQueries({ queryKey: ["daily-analysis", athlete?.athlete_id, selectedDate] })
+    }
+  }, [analysisTask?.status])
 
   // Pre-fill forms from existing entry
   useEffect(() => {
@@ -231,7 +250,7 @@ export function TodayTraining() {
             variant="ghost"
             size="icon"
             onClick={triggerAnalysis}
-            disabled={!athlete || (!!analysisTaskId && analysisTask?.status !== "completed" && analysisTask?.status !== "failed")}
+            disabled={!athlete || analysisRunning}
             aria-label="Run AI analysis"
             title="Run AI coaching analysis"
           >
@@ -306,12 +325,23 @@ export function TodayTraining() {
         })}
       </section>
 
-      {analysisTaskId && analysisTask && (
+      {analysisRunning && analysisTask && (
         <AnalysisPanel
           status={analysisTask.status}
           progress={analysisTask.progress}
           result={analysisTask.result}
           error={analysisTask.error}
+        />
+      )}
+      {!analysisRunning && storedAnalysis && (
+        <AnalysisPanel
+          status="completed"
+          progress={1}
+          result={{
+            workout_analysis: storedAnalysis.workout_analysis,
+            coaching_feedback: storedAnalysis.coaching_feedback,
+          }}
+          analyzedAt={storedAnalysis.analyzed_at}
         />
       )}
 

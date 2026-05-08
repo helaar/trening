@@ -14,6 +14,14 @@ export interface TaskResponse {
   duration_seconds?: number
 }
 
+export interface StoredAnalysis {
+  athlete_id: number
+  date: string
+  workout_analysis: string
+  coaching_feedback: string
+  analyzed_at: string
+}
+
 export async function createDailyAnalysisTask(
   athleteId: number,
   date: string,
@@ -29,4 +37,13 @@ export async function createDailyAnalysisTask(
 
 export async function getTaskStatus(taskId: string): Promise<TaskResponse> {
   return apiFetch<TaskResponse>(`/api/v1/tasks/${taskId}`)
+}
+
+export async function fetchStoredAnalysis(
+  athleteId: number,
+  date: string,
+): Promise<StoredAnalysis | null> {
+  return apiFetch<StoredAnalysis | null>(
+    `/api/v1/athlete/${athleteId}/daily-analysis?date=${date}`,
+  )
 }

@@ -8,6 +8,7 @@ interface Props {
   progress: number
   result?: Record<string, unknown>
   error?: string
+  analyzedAt?: string
 }
 
 function ProgressBar({ progress }: { progress: number }) {
@@ -42,7 +43,7 @@ function Section({ title, content, defaultOpen }: { title: string; content: stri
   )
 }
 
-export function AnalysisPanel({ status, progress, result, error }: Props) {
+export function AnalysisPanel({ status, progress, result, error, analyzedAt }: Props) {
   const coachingFeedback = result?.coaching_feedback as string | undefined
   const workoutAnalysis = result?.workout_analysis as string | undefined
 
@@ -52,6 +53,11 @@ export function AnalysisPanel({ status, progress, result, error }: Props) {
         <CardTitle className="flex items-center gap-2 text-base">
           <Brain className="w-4 h-4 text-blue-500" />
           AI Coaching Analysis
+          {analyzedAt && (
+            <span className="ml-auto text-xs font-normal text-gray-400">
+              {new Date(analyzedAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
