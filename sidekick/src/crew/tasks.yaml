@@ -21,6 +21,36 @@ workout_analysis_task:
   expected_output: |
     A structured technical performance report in markdown. If no data: a single line stating no data available.
 
+restitution_analysis_task:
+  description: |
+    Analyze recovery and restitution trends for {athlete_name} from {start_date} to {end_date}
+    ({days} days).
+
+    Use the `get_restitution_data` tool to retrieve the daily recovery and training load timeline.
+
+    For each metric, analyze:
+    1. **HRV**: baseline level, direction of trend, response after high-TSS days (apply the
+       1-day lag — HRV on day N reflects day N-1 training)
+    2. **Resting HR**: baseline, rising/falling trend, spikes after load
+    3. **Sleep**: hours and quality over time, any progressive decline
+    4. **Readiness**: self-reported overall feeling (given sleep duration and quality),
+       relative to training days and recovery metrics
+    5. **Training load context**: TSS and IF patterns per day, how recovery metrics track them
+
+    If fewer than 5 days have restitution data, note the limitation prominently.
+    Focus on multi-day patterns, not individual outliers.
+
+  expected_output: |
+    A structured recovery analysis report in English containing:
+    1. **Recovery Baseline**: Typical HRV, resting HR, sleep hours, and readiness for this athlete
+    2. **Trend Analysis**: Direction and magnitude of key metrics across the period
+    3. **Load–Recovery Correlation**: How metrics respond to training stress (TSS/IF) patterns
+    4. **Risk Flags**: Any patterns suggesting overreach, chronic fatigue, or inadequate recovery
+    5. **Overall Recovery Quality**: Qualitative summary — Good / Adequate / Concerning — with justification
+    6. **Coach Recommendations**: 1–2 specific, actionable recovery-focused adjustments
+
+    Be concise. Avoid restating raw numbers when a trend description suffices.
+
 daily_coaching_task:
   description: |
     You are coaching {athlete_name} on {date} ({weekday}).

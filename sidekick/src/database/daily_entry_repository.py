@@ -19,6 +19,18 @@ class DailyEntryRepository:
             return DailyEntry(**doc)
         return None
 
+    async def get_range(self, athlete_id: int, start_date: str, end_date: str) -> list[DailyEntry]:
+        """Get all daily entries for an athlete within an inclusive date range (YYYY-MM-DD)."""
+        cursor = self.collection.find({
+            "athlete_id": athlete_id,
+            "date": {"$gte": start_date, "$lte": end_date},
+        }).sort("date", 1)
+        entries = []
+        async for doc in cursor:
+            doc.pop("_id", None)
+            entries.append(DailyEntry(**doc))
+        return entries
+
     async def upsert(self, athlete_id: int, request: DailyEntryRequest) -> DailyEntry:
         """Create or update daily entry, preserving original created_at on update."""
         now = datetime.now(timezone.utc)
