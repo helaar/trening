@@ -2,8 +2,8 @@
 import json
 import logging
 import os
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Type
 
@@ -14,11 +14,14 @@ from pydantic import BaseModel
 
 from config import settings
 from models.athlete import Athlete
+from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
 
 logger = logging.getLogger(__name__)
 
 _CREW_DIR = Path(__file__).parent
+
+_RESTITUTION_WINDOW_DAYS = 14
 
 
 @dataclass
@@ -27,6 +30,8 @@ class DailyAnalysisInput:
     workout_analyses: list[dict[str, Any]]
     planned_activities: list[PlannedActivity]
     date: str
+    daily_entries: list[DailyEntry] = field(default_factory=list)
+    recent_workout_analyses: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _athlete_settings_summary(athlete: Athlete) -> dict[str, Any]:
@@ -49,6 +54,79 @@ def _athlete_settings_summary(athlete: Athlete) -> dict[str, Any]:
             "zones": [{"name": z.name, "min": z.min, "max": z.max} for z in s.running.power_zones],
         }
     return result
+
+
+def _build_timeline(
+    start_date: str,
+    end_date: str,
+    daily_entries: list[DailyEntry],
+    workout_analyses: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Merge restitution entries and workout analyses into a per-day timeline."""
+    restitution_by_date: dict[str, dict[str, Any]] = {}
+    for entry in daily_entries:
+        if entry.restitution:
+            r = entry.restitution
+            restitution_by_date[entry.date] = {
+                "sleep_hours": r.sleep_hours,
+                "sleep_quality": r.sleep_quality,
+                "hrv": r.hrv,
+                "resting_hr": r.resting_hr,
+                "readiness": r.readiness,
+            }
+
+    training_by_date: dict[str, list[dict[str, Any]]] = {}
+    for analysis in workout_analyses:
+        session = analysis.get("session", {})
+        start_time = session.get("start_time")
+        if not start_time:
+            continue
+        day_str = start_time.date().isoformat() if hasattr(start_time, "date") else str(start_time)[:10]
+        training_by_date.setdefault(day_str, []).append(analysis)
+
+    def _aggregate_training(analyses: list[dict[str, Any]]) -> dict[str, Any]:
+        tss_values = [
+            a.get("metrics", {}).get("training_stress_score")
+            for a in analyses
+            if a.get("metrics", {}).get("training_stress_score") is not None
+        ]
+        if_values = [
+            a.get("metrics", {}).get("intensity_factor")
+            for a in analyses
+            if a.get("metrics", {}).get("intensity_factor") is not None
+        ]
+        total_minutes = sum(
+            (a.get("session", {}).get("duration_sec") or 0) / 60
+            for a in analyses
+        )
+        sports = list({
+            a.get("session", {}).get("category") or a.get("session", {}).get("sport")
+            for a in analyses
+            if a.get("session", {}).get("category") or a.get("session", {}).get("sport")
+        })
+        return {
+            "activity_count": len(analyses),
+            "total_tss": round(sum(tss_values), 1) if tss_values else None,
+            "avg_if": round(sum(if_values) / len(if_values), 3) if if_values else None,
+            "total_minutes": round(total_minutes),
+            "sports": sports,
+        }
+
+    start = date.fromisoformat(start_date)
+    end = date.fromisoformat(end_date)
+    timeline = []
+    current = start
+    while current <= end:
+        day_str = current.isoformat()
+        training_analyses = training_by_date.get(day_str)
+        timeline.append({
+            "date": day_str,
+            "restitution": restitution_by_date.get(day_str),
+            "training": _aggregate_training(training_analyses) if training_analyses else None,
+        })
+        current += timedelta(days=1)
+
+    return timeline
 
 
 class _WorkoutDataTool(BaseTool):
@@ -89,6 +167,27 @@ class _PlansDataTool(BaseTool):
         return self._payload
 
 
+class _RestitutionDataTool(BaseTool):
+    name: str = "get_restitution_data"
+    description: str = (
+        "Retrieve the daily recovery and training load timeline for the analysis period. "
+        "Returns a JSON array with one entry per calendar day, each containing 'date', "
+        "'restitution' (HRV, resting HR, sleep, readiness — null if not recorded), and "
+        "'training' (TSS, IF, duration — null if no workouts that day). Call this first."
+    )
+    _payload: str = ""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, payload: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        object.__setattr__(self, "_payload", payload)
+
+    def _run(self, **kwargs: Any) -> str:
+        return self._payload
+
+
 def _load_yaml(filename: str) -> dict[str, Any]:
     path = _CREW_DIR / filename
     with path.open("r", encoding="utf-8") as f:
@@ -109,17 +208,22 @@ def _make_agent(agent_def: dict[str, Any], tools: list, default_llm: str) -> Age
     )
 
 
-def _make_task(task_def: dict[str, Any], agent: Agent, context: list[Task] | None = None) -> Task:
+def _make_task(task_def: dict[str, Any], agent: Agent, context: list[Task] | None = None, async_execution: bool = False) -> Task:
     return Task(
         description=task_def["description"].strip(),
         expected_output=task_def["expected_output"].strip(),
         agent=agent,
         context=context or [],
+        async_execution=async_execution,
     )
 
 
 def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
-    """Build and run the two-agent daily analysis crew (synchronous — use asyncio.to_thread)."""
+    """Build and run the three-agent daily analysis crew (synchronous — use asyncio.to_thread).
+
+    The workout performance analyst and restitution analyst run in parallel; their
+    outputs are both passed as context to the daily coach.
+    """
     if settings.anthropic_api_key:
         os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
     if settings.openai_api_key:
@@ -128,6 +232,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     agents_cfg = _load_yaml("agents.yaml")
     tasks_cfg = _load_yaml("tasks.yaml")
 
+    from datetime import datetime
     weekday = datetime.fromisoformat(input.date).strftime("%A")
     athlete_name = f"{input.athlete.firstname or ''} {input.athlete.lastname or ''}".strip() or "athlete"
 
@@ -143,35 +248,63 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         "planned_activities": [p.model_dump(mode="json") for p in input.planned_activities],
     }, default=str)
 
+    restitution_start = (
+        date.fromisoformat(input.date) - timedelta(days=_RESTITUTION_WINDOW_DAYS - 1)
+    ).isoformat()
+    timeline = _build_timeline(
+        restitution_start,
+        input.date,
+        input.daily_entries,
+        input.recent_workout_analyses,
+    )
+    restitution_payload = json.dumps(timeline, default=str)
+
     workout_tool = _WorkoutDataTool(payload=workout_payload)
     plans_tool = _PlansDataTool(payload=plans_payload)
+    restitution_tool = _RestitutionDataTool(payload=restitution_payload)
 
     llm = settings.llm_model
 
     analyst = _make_agent(agents_cfg["workout_performance_analyst"], tools=[workout_tool], default_llm=llm)
+    restitution_analyst = _make_agent(agents_cfg["restitution_analyst"], tools=[restitution_tool], default_llm=llm)
     coach = _make_agent(agents_cfg["daily_coach"], tools=[plans_tool], default_llm=llm)
 
-    inputs = {"date": input.date, "weekday": weekday, "athlete_name": athlete_name}
+    shared_inputs = {"date": input.date, "weekday": weekday, "athlete_name": athlete_name}
+    restitution_inputs = {
+        "athlete_name": athlete_name,
+        "start_date": restitution_start,
+        "end_date": input.date,
+        "days": _RESTITUTION_WINDOW_DAYS,
+    }
 
     analysis_task = _make_task(
         {
-            "description": tasks_cfg["workout_analysis_task"]["description"].format(**inputs),
-            "expected_output": tasks_cfg["workout_analysis_task"]["expected_output"].format(**inputs),
+            "description": tasks_cfg["workout_analysis_task"]["description"].format(**shared_inputs),
+            "expected_output": tasks_cfg["workout_analysis_task"]["expected_output"].format(**shared_inputs),
         },
         agent=analyst,
+        async_execution=True,
+    )
+    restitution_task = _make_task(
+        {
+            "description": tasks_cfg["restitution_analysis_task"]["description"].format(**restitution_inputs),
+            "expected_output": tasks_cfg["restitution_analysis_task"]["expected_output"].format(**restitution_inputs),
+        },
+        agent=restitution_analyst,
+        async_execution=True,
     )
     coaching_task = _make_task(
         {
-            "description": tasks_cfg["daily_coaching_task"]["description"].format(**inputs),
-            "expected_output": tasks_cfg["daily_coaching_task"]["expected_output"].format(**inputs),
+            "description": tasks_cfg["daily_coaching_task"]["description"].format(**shared_inputs),
+            "expected_output": tasks_cfg["daily_coaching_task"]["expected_output"].format(**shared_inputs),
         },
         agent=coach,
-        context=[analysis_task],
+        context=[analysis_task, restitution_task],
     )
 
     crew = Crew(
-        agents=[analyst, coach],
-        tasks=[analysis_task, coaching_task],
+        agents=[analyst, restitution_analyst, coach],
+        tasks=[analysis_task, restitution_task, coaching_task],
         verbose=True,
     )
 
@@ -179,8 +312,13 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     result = crew.kickoff()
 
     workout_analysis = ""
+    restitution_analysis = ""
     coaching_feedback = ""
-    if result.tasks_output and len(result.tasks_output) >= 2:
+    if result.tasks_output and len(result.tasks_output) >= 3:
+        workout_analysis = result.tasks_output[0].raw
+        restitution_analysis = result.tasks_output[1].raw
+        coaching_feedback = result.tasks_output[2].raw
+    elif result.tasks_output and len(result.tasks_output) >= 2:
         workout_analysis = result.tasks_output[0].raw
         coaching_feedback = result.tasks_output[1].raw
     elif result.tasks_output:
@@ -190,5 +328,6 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
 
     return {
         "workout_analysis": workout_analysis,
+        "restitution_analysis": restitution_analysis,
         "coaching_feedback": coaching_feedback,
     }
