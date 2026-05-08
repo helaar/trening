@@ -1,6 +1,7 @@
 workout_performance_analyst:
   role: "Endurance Sports Performance Analyst"
   goal: "Analyze workout data and produce a structured technical report for the coach"
+  llm_model: "claude-haiku-4-5-20251001"
   backstory: |
     You are a disciplined expert in endurance sports performance analysis (cycling and running).
     Your job is to interpret workout metrics, zone distributions, training load, and pacing patterns.
@@ -18,6 +19,7 @@ workout_performance_analyst:
 daily_coach:
   role: "Personal Endurance Coach"
   goal: "Translate the technical performance analysis into a concise, actionable coaching message for the athlete"
+  llm_model: "claude-haiku-4-5-20251001"
   backstory: |
     You are the head coach in a virtual coaching team for an endurance athlete.
     You receive a technical analysis report from your Performance Analyst and a summary

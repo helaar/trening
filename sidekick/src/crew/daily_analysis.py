@@ -95,7 +95,8 @@ def _load_yaml(filename: str) -> dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
-def _make_agent(agent_def: dict[str, Any], tools: list, llm: str) -> Agent:
+def _make_agent(agent_def: dict[str, Any], tools: list, default_llm: str) -> Agent:
+    llm = agent_def.get("llm_model") or default_llm
     return Agent(
         role=agent_def["role"],
         goal=agent_def["goal"],
@@ -121,6 +122,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     """Build and run the two-agent daily analysis crew (synchronous — use asyncio.to_thread)."""
     if settings.anthropic_api_key:
         os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
+    if settings.openai_api_key:
+        os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
 
     agents_cfg = _load_yaml("agents.yaml")
     tasks_cfg = _load_yaml("tasks.yaml")
@@ -145,8 +148,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
 
     llm = settings.llm_model
 
-    analyst = _make_agent(agents_cfg["workout_performance_analyst"], tools=[workout_tool], llm=llm)
-    coach = _make_agent(agents_cfg["daily_coach"], tools=[plans_tool], llm=llm)
+    analyst = _make_agent(agents_cfg["workout_performance_analyst"], tools=[workout_tool], default_llm=llm)
+    coach = _make_agent(agents_cfg["daily_coach"], tools=[plans_tool], default_llm=llm)
 
     inputs = {"date": input.date, "weekday": weekday, "athlete_name": athlete_name}
 
