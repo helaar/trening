@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays, Trash2 } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays, Trash2, Brain } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
+import { AnalysisPanel } from "../components/AnalysisPanel"
 import { fetchCurrentAthlete } from "../api/auth"
 import { fetchDetailedWorkouts, deleteWorkout, type WorkoutAnalysis } from "../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
 import { fetchPlansForDate } from "../api/plans"
+import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskStatus } from "../api/tasks"
 import { PlanCard } from "../components/PlanCard"
 
 function todayDate(): string {
@@ -42,11 +44,13 @@ export function TodayTraining() {
   const [assessments, setAssessments] = useState<AssessmentMap>({})
   const [saved, setSaved] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ activityId: number; name: string } | null>(null)
+  const [analysisTaskId, setAnalysisTaskId] = useState<string | null>(null)
 
   useEffect(() => {
     setRestitution({})
     setAssessments({})
     setSaved(false)
+    setAnalysisTaskId(null)
   }, [selectedDate])
 
   function goToPrevDay() {
@@ -95,6 +99,41 @@ export function TodayTraining() {
     queryFn: () => fetchPlansForDate(athlete!.athlete_id, selectedDate),
     enabled: !!athlete,
   })
+
+  const { data: storedAnalysis } = useQuery({
+    queryKey: ["daily-analysis", athlete?.athlete_id, selectedDate],
+    queryFn: () => fetchStoredAnalysis(athlete!.athlete_id, selectedDate),
+    enabled: !!athlete,
+    staleTime: Infinity,
+  })
+
+  const { data: analysisTask } = useQuery({
+    queryKey: ["task", analysisTaskId],
+    queryFn: () => getTaskStatus(analysisTaskId!),
+    enabled: !!analysisTaskId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === "completed" || status === "failed" ? false : 3000
+    },
+  })
+
+  async function triggerAnalysis() {
+    if (!athlete) return
+    const task = await createDailyAnalysisTask(athlete.athlete_id, selectedDate)
+    setAnalysisTaskId(task.task_id)
+  }
+
+  const analysisRunning =
+    !!analysisTaskId &&
+    analysisTask?.status !== "completed" &&
+    analysisTask?.status !== "failed"
+
+  // Invalidate cached result once the running task finishes
+  useEffect(() => {
+    if (analysisTask?.status === "completed" || analysisTask?.status === "failed") {
+      queryClient.invalidateQueries({ queryKey: ["daily-analysis", athlete?.athlete_id, selectedDate] })
+    }
+  }, [analysisTask?.status])
 
   // Pre-fill forms from existing entry
   useEffect(() => {
@@ -207,6 +246,16 @@ export function TodayTraining() {
           >
             <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={triggerAnalysis}
+            disabled={!athlete || analysisRunning}
+            aria-label="Run AI analysis"
+            title="Run AI coaching analysis"
+          >
+            <Brain className="h-4 w-4" />
+          </Button>
           <Link to="/plans">
             <Button variant="ghost" size="icon" aria-label="Training plans">
               <CalendarDays className="h-4 w-4" />
@@ -275,6 +324,26 @@ export function TodayTraining() {
           )
         })}
       </section>
+
+      {analysisRunning && analysisTask && (
+        <AnalysisPanel
+          status={analysisTask.status}
+          progress={analysisTask.progress}
+          result={analysisTask.result}
+          error={analysisTask.error}
+        />
+      )}
+      {!analysisRunning && storedAnalysis && (
+        <AnalysisPanel
+          status="completed"
+          progress={1}
+          result={{
+            workout_analysis: storedAnalysis.workout_analysis,
+            coaching_feedback: storedAnalysis.coaching_feedback,
+          }}
+          analyzedAt={storedAnalysis.analyzed_at}
+        />
+      )}
 
       {pendingDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

@@ -15,6 +15,7 @@ class TaskStatus(str, Enum):
 class TaskType(str, Enum):
     """Task type enumeration."""
     TRAINING_ANALYSIS = "training_analysis"
+    DAILY_LLM_ANALYSIS = "daily_llm_analysis"
 
 
 class Task(BaseModel):

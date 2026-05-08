@@ -6,7 +6,9 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from auth.dependencies import get_current_athlete_id
 from database.athlete_repository import AthleteRepository
+from database.daily_analysis_repository import DailyAnalysisRepository
 from database.mongodb import get_db
+from database.plan_repository import PlanRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
 from models.task import TaskCreateRequest, TaskResponse, TaskStatus
@@ -32,13 +34,25 @@ def get_workout_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> Wor
     return WorkoutRepository(db)
 
 
+def get_plan_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> PlanRepository:
+    """Dependency to get plan repository."""
+    return PlanRepository(db)
+
+
+def get_daily_analysis_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> DailyAnalysisRepository:
+    """Dependency to get daily analysis repository."""
+    return DailyAnalysisRepository(db)
+
+
 def get_task_processor(
     task_repo: Annotated[TaskRepository, Depends(get_task_repository)],
     athlete_repo: Annotated[AthleteRepository, Depends(get_athlete_repository)],
     workout_repo: Annotated[WorkoutRepository, Depends(get_workout_repository)],
+    plan_repo: Annotated[PlanRepository, Depends(get_plan_repository)],
+    daily_analysis_repo: Annotated[DailyAnalysisRepository, Depends(get_daily_analysis_repository)],
 ) -> TaskProcessor:
     """Dependency to get task processor."""
-    return TaskProcessor(task_repo, athlete_repo, workout_repo)
+    return TaskProcessor(task_repo, athlete_repo, workout_repo, plan_repo, daily_analysis_repo)
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
