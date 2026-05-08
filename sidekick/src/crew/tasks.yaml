@@ -1,0 +1,41 @@
+workout_analysis_task:
+  description: |
+    Analyze the workouts recorded on {date} ({weekday}) for athlete {athlete_name}.
+
+    Use the `get_workout_data` tool to retrieve workout analyses and athlete settings.
+
+    If the tool returns no workouts, output exactly:
+    "No workout data available for {athlete_name} on {date}."
+
+    Otherwise, for each workout provide:
+
+    1. **Session Overview**: Workout name, sport, duration, distance (if applicable)
+    2. **Training Load**: TSS/HRSS, intensity factor — how demanding was this session relative to the athlete's threshold?
+    3. **Zone Distribution**: Where was the majority of effort? Was it appropriate for the session type?
+    4. **Execution Quality**: Pacing, power consistency, HR response, notable patterns in laps
+    5. **Risk Flags**: Any signs of overreaching, unusual HR response, or poor recovery indicators
+    6. **Coach Recommendation**: One specific, actionable note for the coach (max 30 words)
+
+    Keep the total report under 500 words. Be factual and direct.
+
+  expected_output: |
+    A structured technical performance report in markdown. If no data: a single line stating no data available.
+
+daily_coaching_task:
+  description: |
+    You are coaching {athlete_name} on {date} ({weekday}).
+
+    Use the `get_plans_data` tool to retrieve today's planned activities and athlete settings.
+
+    You have already received the technical performance analysis as context.
+    Combine the analysis with the planned activities to write a concise coaching message.
+
+    Structure your response as:
+    1. **Today's Recap** (2-3 sentences): What happened today — execution vs. plan
+    2. **Key Takeaway** (1-2 sentences): The single most important observation
+    3. **Looking Ahead** (1-2 sentences): One practical suggestion for the next session or recovery
+
+    Write in plain, encouraging English. Maximum 200 words total. Do not repeat raw numbers.
+
+  expected_output: |
+    A short coaching message in plain English, structured in three sections as described. Maximum 200 words.

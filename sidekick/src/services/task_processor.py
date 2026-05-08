@@ -4,10 +4,11 @@ from typing import Any
 import uuid
 
 from database.athlete_repository import AthleteRepository
+from database.plan_repository import PlanRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
 from models.task import Task, TaskStatus, TaskType
-from services.handlers import TaskHandler, TrainingAnalysisHandler
+from services.handlers import DailyAnalysisHandler, TaskHandler, TrainingAnalysisHandler
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +21,12 @@ class TaskProcessor:
         task_repo: TaskRepository,
         athlete_repo: AthleteRepository,
         workout_repo: WorkoutRepository,
+        plan_repo: PlanRepository,
     ):
         self.task_repo = task_repo
         self._handlers: dict[TaskType, TaskHandler] = {
             TaskType.TRAINING_ANALYSIS: TrainingAnalysisHandler(task_repo, athlete_repo, workout_repo),
+            TaskType.DAILY_LLM_ANALYSIS: DailyAnalysisHandler(task_repo, athlete_repo, workout_repo, plan_repo),
         }
 
     async def process_task(self, task_id: str) -> None:
