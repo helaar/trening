@@ -339,6 +339,7 @@ export function TodayTraining() {
           progress={1}
           result={{
             workout_analysis: storedAnalysis.workout_analysis,
+            restitution_analysis: storedAnalysis.restitution_analysis,
             coaching_feedback: storedAnalysis.coaching_feedback,
           }}
           analyzedAt={storedAnalysis.analyzed_at}
