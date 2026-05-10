@@ -18,6 +18,7 @@ export interface StoredAnalysis {
   athlete_id: number
   date: string
   workout_analysis: string
+  restitution_analysis: string
   coaching_feedback: string
   analyzed_at: string
 }

@@ -200,6 +200,31 @@ class WorkoutRepository:
 
         return analyses
 
+    async def get_analyses_for_range(
+        self,
+        athlete_id: int,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list[dict[str, Any]]:
+        """Get all cached analyses for an athlete over an inclusive date range.
+
+        start_date and end_date are treated as calendar-day boundaries in UTC.
+        """
+        start_of_range = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_exclusive = end_date.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+
+        cursor = self.analyses_collection.find({
+            "athlete_id": athlete_id,
+            "analysis_data.session.start_time": {"$gte": start_of_range, "$lt": end_exclusive},
+        }).sort("analysis_data.session.start_time", 1)
+
+        analyses = []
+        async for doc in cursor:
+            doc.pop("_id", None)
+            analyses.append(doc.get("analysis_data", {}))
+
+        return analyses
+
     async def store_analysis(
         self,
         athlete_id: int,
