@@ -46,6 +46,7 @@ function Section({ title, content, defaultOpen }: { title: string; content: stri
 export function AnalysisPanel({ status, progress, result, error, analyzedAt }: Props) {
   const coachingFeedback = result?.coaching_feedback as string | undefined
   const workoutAnalysis = result?.workout_analysis as string | undefined
+  const restitutionAnalysis = result?.restitution_analysis as string | undefined
 
   return (
     <Card>
@@ -85,7 +86,10 @@ export function AnalysisPanel({ status, progress, result, error, analyzedAt }: P
             {workoutAnalysis && (
               <Section title="Performance Analysis" content={workoutAnalysis} defaultOpen={false} />
             )}
-            {!coachingFeedback && !workoutAnalysis && (
+            {restitutionAnalysis && (
+              <Section title="Recovery Analysis" content={restitutionAnalysis} defaultOpen={false} />
+            )}
+            {!coachingFeedback && !workoutAnalysis && !restitutionAnalysis && (
               <p className="text-sm text-gray-500">No analysis output returned.</p>
             )}
           </div>
