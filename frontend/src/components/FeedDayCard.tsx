@@ -170,7 +170,7 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
                   </span>
                   <span className="flex-1 flex items-center gap-1 min-w-0">
                     <span className="truncate">{w.session.name ?? "Workout"}</span>
-                    {isCommute(w) && <span className="shrink-0">🚲</span>}
+                    {isCommute(w) && <span className="shrink-0">🏷️</span>}
                   </span>
                   <span className="text-muted-foreground shrink-0 text-xs">
                     {formatDuration(w.session.duration_sec)}
