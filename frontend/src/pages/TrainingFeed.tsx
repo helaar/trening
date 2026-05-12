@@ -36,6 +36,7 @@ export function TrainingFeed() {
   } = useInfiniteQuery({
     queryKey: ["feed", athleteId],
     enabled: !!athleteId,
+    staleTime: 0,
     initialPageParam: todayDate(),
     queryFn: ({ pageParam }) => {
       const end = pageParam as string
