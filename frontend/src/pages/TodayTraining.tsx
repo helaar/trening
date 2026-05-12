@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays, Trash2, Brain, LayoutList } from "lucide-react"
-import { Link } from "@tanstack/react-router"
+import { Link, useSearch } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
@@ -36,8 +36,9 @@ type AssessmentMap = Record<number, { rpe?: number; notes?: string }>
 
 export function TodayTraining() {
   const queryClient = useQueryClient()
+  const { date: dateParam } = useSearch({ from: "/" })
 
-  const [selectedDate, setSelectedDate] = useState<string>(todayDate())
+  const [selectedDate, setSelectedDate] = useState<string>(dateParam ?? todayDate())
   const isToday = selectedDate === todayDate()
 
   const [restitution, setRestitution] = useState<Restitution>({})

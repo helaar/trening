@@ -31,6 +31,9 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: TodayTraining,
+  validateSearch: (search: Record<string, unknown>) => ({
+    date: typeof search.date === "string" ? search.date : undefined,
+  }),
 })
 
 const settingsRoute = createRoute({

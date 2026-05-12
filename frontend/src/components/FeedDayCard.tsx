@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import {
   Accordion,
   AccordionContent,
@@ -196,6 +197,16 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
                 Missing: {missing.join(", ")}
               </div>
             )}
+
+            <div className="pt-2 border-t mt-2">
+              <Link
+                to="/"
+                search={{ date: day.date }}
+                className="text-xs text-primary hover:underline"
+              >
+                Open day view →
+              </Link>
+            </div>
           </div>
         </AccordionContent>
       </AccordionItem>
