@@ -1,10 +1,7 @@
+import * as AccordionPrimitive from "@radix-ui/react-accordion"
+import { ChevronDown, Pencil } from "lucide-react"
 import { Link } from "@tanstack/react-router"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "./ui/accordion"
+import { Accordion, AccordionContent, AccordionItem } from "./ui/accordion"
 import type { FeedDay } from "../api/feed"
 import type { WorkoutAnalysis } from "../api/workouts"
 
@@ -111,42 +108,41 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
 
   return (
     <Accordion type="single" collapsible>
-      <AccordionItem value="day">
-        <div className="flex items-center gap-3 pl-6 pr-3">
+      <AccordionItem value="day" className="group">
+        <AccordionPrimitive.Header className="flex items-center gap-2 px-4">
+          <AccordionPrimitive.Trigger className="flex flex-1 items-center gap-3 py-3 text-left min-w-0 transition-all">
+            <span className="font-medium text-sm w-28 shrink-0">{formatDate(day.date)}</span>
+            {sportEmojis && <span className="text-base shrink-0">{sportEmojis}</span>}
+            {totalTss > 0 && (
+              <span className="text-xs text-muted-foreground shrink-0">
+                TSS {Math.round(totalTss)}
+              </span>
+            )}
+            {maxRpe !== null && (
+              <span className="text-xs text-muted-foreground shrink-0">RPE {maxRpe}</span>
+            )}
+            {emptyDay && (
+              <span className="text-xs text-muted-foreground italic truncate">
+                Rest day — add a plan?
+              </span>
+            )}
+          </AccordionPrimitive.Trigger>
           <Link
             to="/"
             search={{ date: day.date }}
-            className="font-medium text-sm w-28 shrink-0 hover:underline"
+            className="shrink-0 p-1 text-muted-foreground hover:text-foreground rounded"
           >
-            {formatDate(day.date)}
+            <Pencil className="h-3.5 w-3.5" />
           </Link>
-          <div className="flex-1 min-w-0">
-            <AccordionTrigger className="hover:no-underline py-3 px-0">
-              <div className="flex items-center gap-3 text-left min-w-0">
-                {sportEmojis && <span className="text-base shrink-0">{sportEmojis}</span>}
-                {totalTss > 0 && (
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    TSS {Math.round(totalTss)}
-                  </span>
-                )}
-                {maxRpe !== null && (
-                  <span className="text-xs text-muted-foreground shrink-0">RPE {maxRpe}</span>
-                )}
-                {emptyDay && (
-                  <span className="text-xs text-muted-foreground italic truncate">
-                    Rest day — add a plan?
-                  </span>
-                )}
-              </div>
-            </AccordionTrigger>
-          </div>
           <GapBadge points={points} count={missing.length} />
-        </div>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+        </AccordionPrimitive.Header>
         <AccordionContent>
           <div className="space-y-1.5 pt-1 pb-3">
             {displayWorkouts.map((w, i) => {
               const rpe = w.activity_id !== null ? rpeById.get(w.activity_id) : undefined
-              const missingRpe = nonCommutes.includes(w) && w.activity_id !== null && rpe === undefined
+              const missingRpe =
+                nonCommutes.includes(w) && w.activity_id !== null && rpe === undefined
               return (
                 <div key={w.activity_id ?? i} className="flex items-center gap-2 text-sm">
                   <span className="shrink-0">{sportEmoji(w.session.sport)}</span>
