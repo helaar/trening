@@ -14,6 +14,7 @@ export interface ActivityAssessment {
   activity_name: string
   rpe: number
   notes?: string
+  tags?: string[]
 }
 
 export interface DailyEntryRequest {

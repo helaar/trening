@@ -182,6 +182,13 @@ def _create_session_info(parser: StravaDataParser, duration_sec: float, data_poi
     else:
         commute_status = "no"
     
+    derived_tags: list[str] = []
+    if commute_status != "no":
+        derived_tags.append("commute")
+    workout_type = getattr(parser.activity, "workout_type", None)
+    if workout_type in {1, 11}:
+        derived_tags.append("race")
+
     return SessionInfo(
         name=parser.workout.name,
         sport=parser.workout.sport,
@@ -195,7 +202,8 @@ def _create_session_info(parser: StravaDataParser, duration_sec: float, data_poi
         device_name=parser.activity.device_name,
         manual=parser.activity.manual,
         from_accepted_tag=parser.activity.from_accepted_tag,
-        commute=commute_status
+        commute=commute_status,
+        tags=derived_tags,
     )
 
 

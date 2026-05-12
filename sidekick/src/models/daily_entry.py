@@ -16,6 +16,7 @@ class ActivityAssessment(BaseModel):
     activity_name: str
     rpe: int = Field(..., ge=1, le=10, description="Rate of Perceived Exertion (1-10)")
     notes: str | None = None
+    tags: list[str] = Field(default_factory=list)
 
 
 class DailyEntry(BaseModel):

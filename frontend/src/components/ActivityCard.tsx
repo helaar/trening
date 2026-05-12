@@ -1,13 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
+import { X } from "lucide-react"
 import { cn } from "../lib/utils"
 import type { WorkoutAnalysis } from "../api/workouts"
 
 interface Props {
   workout: WorkoutAnalysis
-  value: { rpe?: number; notes?: string }
-  onChange: (value: { rpe?: number; notes?: string }) => void
+  value: { rpe?: number; notes?: string; tags?: string[] }
+  onChange: (value: { rpe?: number; notes?: string; tags?: string[] }) => void
 }
 
 function formatDuration(seconds: number): string {
@@ -38,6 +39,30 @@ function sportLabel(category: string): string {
 export function ActivityCard({ workout, value, onChange }: Props) {
   const { session, metrics } = workout
   const isCommute = session.commute !== "no"
+
+  const tags = value.tags ?? []
+
+  function addTag(raw: string) {
+    const trimmed = raw.trim().replace(/,+$/, "").trim()
+    if (trimmed && !tags.includes(trimmed)) {
+      onChange({ ...value, tags: [...tags, trimmed] })
+    }
+  }
+
+  function removeTag(tag: string) {
+    onChange({ ...value, tags: tags.filter((t) => t !== tag) })
+  }
+
+  function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const input = e.currentTarget
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault()
+      addTag(input.value)
+      input.value = ""
+    } else if (e.key === "Backspace" && input.value === "" && tags.length > 0) {
+      onChange({ ...value, tags: tags.slice(0, -1) })
+    }
+  }
 
   return (
     <Card className={isCommute ? "opacity-60" : undefined}>
@@ -113,6 +138,41 @@ export function ActivityCard({ workout, value, onChange }: Props) {
                 onChange({ ...value, notes: e.target.value || undefined })
               }
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Tags</Label>
+            <div className="flex min-h-9 flex-wrap gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label={`Remove ${tag}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                onKeyDown={handleTagKeyDown}
+                onBlur={(e) => {
+                  if (e.target.value) {
+                    addTag(e.target.value)
+                    e.target.value = ""
+                  }
+                }}
+                placeholder={tags.length === 0 ? "race, indoor, long…" : ""}
+                className="min-w-24 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Press Enter or comma to add a tag</p>
           </div>
         </CardContent>
       )}
