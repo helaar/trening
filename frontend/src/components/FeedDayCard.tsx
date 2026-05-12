@@ -166,13 +166,10 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
                 nonCommutes.includes(w) && w.activity_id !== null && rpe === undefined
               return (
                 <div key={w.activity_id ?? i} className="flex items-center gap-2 text-sm">
-                  <span className="shrink-0">{sportEmoji(w.session.sport)}</span>
+                  <span className="shrink-0">
+                    {workoutIsRace(w, day.activity_assessments) ? "🏆" : sportEmoji(w.session.sport)}
+                  </span>
                   <span className="flex-1 truncate">{w.session.name ?? "Workout"}</span>
-                  {workoutIsRace(w, day.activity_assessments) && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 shrink-0">
-                      race
-                    </span>
-                  )}
                   <span className="text-muted-foreground shrink-0 text-xs">
                     {formatDuration(w.session.duration_sec)}
                   </span>
