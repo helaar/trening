@@ -106,14 +106,13 @@ function GapBadge({ points, count }: { points: number; count: number }) {
 
 export function FeedDayCard({ day }: { day: FeedDay }) {
   const nonCommutes = day.workouts.filter((w) => !isCommute(w))
-  const displayWorkouts = nonCommutes.length > 0 ? nonCommutes : day.workouts
 
   const rpeById = new Map(day.activity_assessments.map((a) => [a.activity_id, a.rpe]))
 
-  const sportSet = new Set(displayWorkouts.map((w) => w.session.sport))
+  const sportSet = new Set(day.workouts.map((w) => w.session.sport))
   const sportEmojis = [...sportSet].map(sportEmoji).join("")
 
-  const totalTss = displayWorkouts.reduce(
+  const totalTss = day.workouts.reduce(
     (sum, w) => sum + (w.metrics.training_stress_score ?? 0),
     0
   )
@@ -160,7 +159,7 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
         </AccordionPrimitive.Header>
         <AccordionContent>
           <div className="space-y-1.5 pt-1 pb-3">
-            {displayWorkouts.map((w, i) => {
+            {day.workouts.map((w, i) => {
               const rpe = w.activity_id !== null ? rpeById.get(w.activity_id) : undefined
               const missingRpe =
                 nonCommutes.includes(w) && w.activity_id !== null && rpe === undefined
@@ -169,7 +168,10 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
                   <span className="shrink-0">
                     {workoutIsRace(w, day.activity_assessments) ? "🏆" : sportEmoji(w.session.sport)}
                   </span>
-                  <span className="flex-1 truncate">{w.session.name ?? "Workout"}</span>
+                  <span className="flex-1 flex items-center gap-1 min-w-0">
+                    <span className="truncate">{w.session.name ?? "Workout"}</span>
+                    {isCommute(w) && <span className="shrink-0">🏷️</span>}
+                  </span>
                   <span className="text-muted-foreground shrink-0 text-xs">
                     {formatDuration(w.session.duration_sec)}
                   </span>
@@ -197,7 +199,7 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
               <div key={p.id} className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="shrink-0">📋</span>
                 <span className="flex-1 truncate">{p.name}</span>
-                {displayWorkouts.length === 0 && (
+                {day.workouts.length === 0 && (
                   <span className="text-orange-600 text-xs shrink-0">no log</span>
                 )}
               </div>
