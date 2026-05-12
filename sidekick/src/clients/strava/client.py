@@ -54,6 +54,8 @@ class StravaActivity:
         self.manual = data.get('manual', False)
         self.from_accepted_tag = data.get('from_accepted_tag', False)
         self.commute = data.get('commute', False)
+        # Strava workout_type: 1=race run, 11=race ride
+        self.workout_type: int | None = data.get('workout_type')
         # Extract map data including summary_polyline
         map_data = data.get('map', {})
         self.summary_polyline = map_data.get('summary_polyline', '') if isinstance(map_data, dict) else ''

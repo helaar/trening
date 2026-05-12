@@ -28,6 +28,7 @@ class SessionInfo(BaseModel):
     manual: bool = False
     from_accepted_tag: bool = False
     commute: Literal["yes, marked by athlete", "yes, detected", "no"] = "no"
+    tags: list[str] = Field(default_factory=list)
 
 
 class StatsSummary(BaseModel):

@@ -16,6 +16,7 @@ export interface SessionInfo {
   duration_sec: number
   distance_km: number
   commute: "yes, marked by athlete" | "yes, detected" | "no"
+  tags: string[]
 }
 
 export interface WorkoutAnalysis {

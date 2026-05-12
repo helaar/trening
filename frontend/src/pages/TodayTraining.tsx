@@ -32,7 +32,7 @@ function workoutKey(workout: { activity_id: number | null }, index: number): num
   return workout.activity_id ?? -(index + 1)
 }
 
-type AssessmentMap = Record<number, { rpe?: number; notes?: string }>
+type AssessmentMap = Record<number, { rpe?: number; notes?: string; tags?: string[] }>
 
 export function TodayTraining() {
   const queryClient = useQueryClient()
@@ -142,13 +142,13 @@ export function TodayTraining() {
       if (existingEntry.restitution) setRestitution(existingEntry.restitution)
       const map: AssessmentMap = {}
       for (const a of existingEntry.activity_assessments) {
-        map[a.activity_id] = { rpe: a.rpe, notes: a.notes }
+        map[a.activity_id] = { rpe: a.rpe, notes: a.notes, tags: a.tags }
       }
       setAssessments(map)
     }
   }, [existingEntry])
 
-  // Initialise RPE=5 for non-commute activities not yet in state
+  // Initialise RPE and tags for non-commute activities not yet in state
   useEffect(() => {
     if (!workouts) return
     setAssessments((prev) => {
@@ -156,7 +156,9 @@ export function TodayTraining() {
       workouts.forEach((w, i) => {
         if (w.session.commute !== "no") return
         const key = workoutKey(w, i)
-        if (!(key in next)) next[key] = {}
+        if (!(key in next)) {
+          next[key] = { tags: w.session.tags?.length ? [...w.session.tags] : undefined }
+        }
       })
       return next
     })
@@ -177,6 +179,7 @@ export function TodayTraining() {
             activity_name: w.session.name ?? w.session.category,
             rpe: assessment.rpe,
             notes: assessment.notes,
+            tags: assessment.tags?.length ? assessment.tags : undefined,
           }
         })
         .filter((a): a is ActivityAssessment => a !== null)

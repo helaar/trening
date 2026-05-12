@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router"
 import { Accordion, AccordionContent, AccordionItem } from "./ui/accordion"
 import type { FeedDay } from "../api/feed"
 import type { WorkoutAnalysis } from "../api/workouts"
+import type { ActivityAssessment } from "../api/dailyEntry"
 
 const SPORT_EMOJI: Record<string, string> = {
   cycling: "🚴",
@@ -70,6 +71,24 @@ function computeSeverity(day: FeedDay, nonCommutes: WorkoutAnalysis[]): Severity
   return { points, missing, emptyDay }
 }
 
+function workoutIsRace(workout: WorkoutAnalysis, assessments: ActivityAssessment[]): boolean {
+  if (workout.session.tags?.includes("race")) return true
+  const a = assessments.find((a) => a.activity_id === workout.activity_id)
+  return a?.tags?.includes("race") ?? false
+}
+
+function dayHasRace(day: FeedDay): boolean {
+  return day.workouts.some((w) => workoutIsRace(w, day.activity_assessments))
+}
+
+function RaceBadge() {
+  return (
+    <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-amber-100 text-amber-700 border-amber-300">
+      🏆 Race
+    </span>
+  )
+}
+
 function GapBadge({ points, count }: { points: number; count: number }) {
   if (count === 0) return null
   const cls =
@@ -105,6 +124,7 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
       : null
 
   const { points, missing, emptyDay } = computeSeverity(day, nonCommutes)
+  const hasRace = dayHasRace(day)
 
   return (
     <Accordion type="single" collapsible>
@@ -134,6 +154,7 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
           >
             <Pencil className="h-3.5 w-3.5" />
           </Link>
+          {hasRace && <RaceBadge />}
           <GapBadge points={points} count={missing.length} />
           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
         </AccordionPrimitive.Header>
@@ -145,7 +166,9 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
                 nonCommutes.includes(w) && w.activity_id !== null && rpe === undefined
               return (
                 <div key={w.activity_id ?? i} className="flex items-center gap-2 text-sm">
-                  <span className="shrink-0">{sportEmoji(w.session.sport)}</span>
+                  <span className="shrink-0">
+                    {workoutIsRace(w, day.activity_assessments) ? "🏆" : sportEmoji(w.session.sport)}
+                  </span>
                   <span className="flex-1 truncate">{w.session.name ?? "Workout"}</span>
                   <span className="text-muted-foreground shrink-0 text-xs">
                     {formatDuration(w.session.duration_sec)}
