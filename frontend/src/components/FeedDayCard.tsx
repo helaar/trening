@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router"
-import { Pencil } from "lucide-react"
 import {
   Accordion,
   AccordionContent,
@@ -113,11 +112,17 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
   return (
     <Accordion type="single" collapsible>
       <AccordionItem value="day">
-        <div className="flex items-center gap-2 pr-3">
+        <div className="flex items-center gap-3 pl-6 pr-3">
+          <Link
+            to="/"
+            search={{ date: day.date }}
+            className="font-medium text-sm w-28 shrink-0 hover:underline"
+          >
+            {formatDate(day.date)}
+          </Link>
           <div className="flex-1 min-w-0">
-            <AccordionTrigger className="hover:no-underline py-3">
+            <AccordionTrigger className="hover:no-underline py-3 px-0">
               <div className="flex items-center gap-3 text-left min-w-0">
-                <span className="font-medium text-sm w-28 shrink-0">{formatDate(day.date)}</span>
                 {sportEmojis && <span className="text-base shrink-0">{sportEmojis}</span>}
                 {totalTss > 0 && (
                   <span className="text-xs text-muted-foreground shrink-0">
@@ -136,13 +141,6 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
             </AccordionTrigger>
           </div>
           <GapBadge points={points} count={missing.length} />
-          <Link
-            to="/"
-            search={{ date: day.date }}
-            className="shrink-0 p-1 text-muted-foreground hover:text-foreground rounded"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Link>
         </div>
         <AccordionContent>
           <div className="space-y-1.5 pt-1 pb-3">
