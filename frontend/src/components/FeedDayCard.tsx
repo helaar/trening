@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { ArrowUpRight } from "lucide-react"
+import { Pencil } from "lucide-react"
 import {
   Accordion,
   AccordionContent,
@@ -74,8 +74,8 @@ function computeSeverity(day: FeedDay, nonCommutes: WorkoutAnalysis[]): Severity
   return { points, missing, emptyDay }
 }
 
-function GapBadge({ points }: { points: number }) {
-  if (points === 0) return null
+function GapBadge({ points, count }: { points: number; count: number }) {
+  if (count === 0) return null
   const cls =
     points >= 3
       ? "bg-red-100 text-red-700 border-red-300"
@@ -84,7 +84,7 @@ function GapBadge({ points }: { points: number }) {
         : "bg-yellow-100 text-yellow-700 border-yellow-300"
   return (
     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cls}`}>
-      ⚠ {points} gap{points !== 1 ? "s" : ""}
+      ⚠ {count} gap{count !== 1 ? "s" : ""}
     </span>
   )
 }
@@ -113,36 +113,36 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
   return (
     <Accordion type="single" collapsible>
       <AccordionItem value="day">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2 pr-3">
+          <div className="flex-1 min-w-0">
+            <AccordionTrigger className="hover:no-underline py-3">
+              <div className="flex items-center gap-3 text-left min-w-0">
+                <span className="font-medium text-sm w-28 shrink-0">{formatDate(day.date)}</span>
+                {sportEmojis && <span className="text-base shrink-0">{sportEmojis}</span>}
+                {totalTss > 0 && (
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    TSS {Math.round(totalTss)}
+                  </span>
+                )}
+                {maxRpe !== null && (
+                  <span className="text-xs text-muted-foreground shrink-0">RPE {maxRpe}</span>
+                )}
+                {emptyDay && (
+                  <span className="text-xs text-muted-foreground italic truncate">
+                    Rest day — add a plan?
+                  </span>
+                )}
+              </div>
+            </AccordionTrigger>
+          </div>
+          <GapBadge points={points} count={missing.length} />
           <Link
             to="/"
             search={{ date: day.date }}
-            className="pl-4 pr-1 py-3 text-muted-foreground hover:text-foreground shrink-0"
+            className="shrink-0 p-1 text-muted-foreground hover:text-foreground rounded"
           >
-            <ArrowUpRight className="h-4 w-4" />
+            <Pencil className="h-3.5 w-3.5" />
           </Link>
-          <AccordionTrigger className="flex-1 hover:no-underline py-3 pl-2 pr-4">
-            <div className="flex items-center gap-3 text-left w-full min-w-0">
-              <span className="font-medium text-sm w-28 shrink-0">{formatDate(day.date)}</span>
-              {sportEmojis && <span className="text-base shrink-0">{sportEmojis}</span>}
-              {totalTss > 0 && (
-                <span className="text-xs text-muted-foreground shrink-0">
-                  TSS {Math.round(totalTss)}
-                </span>
-              )}
-              {maxRpe !== null && (
-                <span className="text-xs text-muted-foreground shrink-0">RPE {maxRpe}</span>
-              )}
-              {emptyDay && (
-                <span className="text-xs text-muted-foreground italic truncate">
-                  Rest day — add a plan?
-                </span>
-              )}
-              <div className="ml-auto mr-2 shrink-0">
-                <GapBadge points={points} />
-              </div>
-            </div>
-          </AccordionTrigger>
         </div>
         <AccordionContent>
           <div className="space-y-1.5 pt-1 pb-3">
