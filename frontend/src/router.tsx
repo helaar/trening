@@ -8,6 +8,7 @@ import {
 import { TodayTraining } from "./pages/TodayTraining"
 import { AthleteConfig } from "./pages/AthleteConfig"
 import { Plans } from "./pages/Plans"
+import { TrainingFeed } from "./pages/TrainingFeed"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,7 +45,13 @@ const plansRoute = createRoute({
   component: Plans,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, settingsRoute, plansRoute])
+const feedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/feed",
+  component: TrainingFeed,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, settingsRoute, plansRoute, feedRoute])
 
 export const router = createRouter({ routeTree })
 

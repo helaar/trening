@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays, Trash2, Brain } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays, Trash2, Brain, LayoutList } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
@@ -259,6 +259,11 @@ export function TodayTraining() {
           <Link to="/plans">
             <Button variant="ghost" size="icon" aria-label="Training plans">
               <CalendarDays className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link to="/feed">
+            <Button variant="ghost" size="icon" aria-label="Training feed">
+              <LayoutList className="h-4 w-4" />
             </Button>
           </Link>
           <Link to="/settings">
