@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Type
+from typing import Any
 
 import yaml
 from crewai import Agent, Crew, Task
@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from config import settings
 from models.athlete import Athlete
+from models.crew_outputs import CoachingOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
 from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
 
@@ -208,13 +209,20 @@ def _make_agent(agent_def: dict[str, Any], tools: list, default_llm: str) -> Age
     )
 
 
-def _make_task(task_def: dict[str, Any], agent: Agent, context: list[Task] | None = None, async_execution: bool = False) -> Task:
+def _make_task(
+    task_def: dict[str, Any],
+    agent: Agent,
+    context: list[Task] | None = None,
+    async_execution: bool = False,
+    output_pydantic: type[BaseModel] | None = None,
+) -> Task:
     return Task(
         description=task_def["description"].strip(),
         expected_output=task_def["expected_output"].strip(),
         agent=agent,
         context=context or [],
         async_execution=async_execution,
+        output_pydantic=output_pydantic,
     )
 
 
@@ -303,6 +311,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         },
         agent=analyst,
         async_execution=True,
+        output_pydantic=WorkoutAnalysisOutput,
     )
     restitution_task = _make_task(
         {
@@ -311,6 +320,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         },
         agent=restitution_analyst,
         async_execution=True,
+        output_pydantic=RestitutionAnalysisOutput,
     )
     coaching_task = _make_task(
         {
@@ -319,6 +329,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         },
         agent=coach,
         context=[analysis_task, restitution_task],
+        output_pydantic=CoachingOutput,
     )
 
     crew = Crew(
@@ -330,23 +341,26 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     logger.info("Starting daily analysis crew for %s on %s", athlete_name, input.date)
     result = crew.kickoff()
 
-    workout_analysis = ""
-    restitution_analysis = ""
-    coaching_feedback = ""
+    workout_output: WorkoutAnalysisOutput | None = None
+    restitution_output: RestitutionAnalysisOutput | None = None
+    coaching_output: CoachingOutput | None = None
+
     if result.tasks_output and len(result.tasks_output) >= 3:
-        workout_analysis = result.tasks_output[0].raw
-        restitution_analysis = result.tasks_output[1].raw
-        coaching_feedback = result.tasks_output[2].raw
-    elif result.tasks_output and len(result.tasks_output) >= 2:
-        workout_analysis = result.tasks_output[0].raw
-        coaching_feedback = result.tasks_output[1].raw
-    elif result.tasks_output:
-        coaching_feedback = result.tasks_output[0].raw
+        t0, t1, t2 = result.tasks_output[:3]
+        workout_output = t0.pydantic if isinstance(t0.pydantic, WorkoutAnalysisOutput) else None
+        restitution_output = t1.pydantic if isinstance(t1.pydantic, RestitutionAnalysisOutput) else None
+        coaching_output = t2.pydantic if isinstance(t2.pydantic, CoachingOutput) else None
+        if workout_output is None:
+            logger.warning("workout_analysis_task pydantic output missing, raw=%r", t0.raw[:200])
+        if restitution_output is None:
+            logger.warning("restitution_analysis_task pydantic output missing, raw=%r", t1.raw[:200])
+        if coaching_output is None:
+            logger.warning("daily_coaching_task pydantic output missing, raw=%r", t2.raw[:200])
     else:
-        coaching_feedback = str(result.raw)
+        logger.warning("Unexpected tasks_output length: %d", len(result.tasks_output or []))
 
     return {
-        "workout_analysis": workout_analysis,
-        "restitution_analysis": restitution_analysis,
-        "coaching_feedback": coaching_feedback,
+        "workout_analysis": workout_output,
+        "restitution_analysis": restitution_output,
+        "coaching_feedback": coaching_output,
     }
