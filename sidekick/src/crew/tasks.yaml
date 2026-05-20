@@ -26,6 +26,12 @@ workout_analysis_task:
     6. Coach recommendations: specific and actionable (max 30 words each)
     7. Data gaps: missing data that materially limits the analysis
 
+    If a workout includes `athlete_rpe` (Rate of Perceived Exertion, 1-10) or `athlete_notes`,
+    treat these as primary evidence. RPE gives the athlete's subjective effort signal; notes may
+    describe incidents, external conditions, or other context that affects how the session was
+    executed. Factor both into the qualitative assessment, risk flags, and recommendations.
+    A mismatch between objective load (IF, HR) and RPE is itself a meaningful finding.
+
     Verify all metric comparisons numerically from the provided data.
     List key sessions first, commutes last in the workouts array.
     Set no_data=true (and leave workouts empty) if the tool returns no workout data.
@@ -75,6 +81,8 @@ daily_coaching_task:
     Use the `get_plans_data` tool to retrieve today's planned activities and athlete settings.
 
     You have already received the technical performance analysis and recovery analysis as context.
+    The performance analysis reflects any athlete_rpe and athlete_notes provided for today's
+    sessions — use these to personalise your feedback where relevant.
     Combine all three sources to produce both coach-facing notes and an athlete-facing message.
 
     Coach-facing fields (todays_recap, key_takeaway, looking_ahead, coach_notes):

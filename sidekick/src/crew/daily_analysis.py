@@ -246,23 +246,31 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
 
     athlete_settings = _athlete_settings_summary(input.athlete)
 
-    # Build a lookup of user tags per activity_id from the day's daily entry
-    assessment_tags_by_id: dict[int, list[str]] = {}
+    # Build a lookup of athlete assessments per activity_id from the day's daily entry
+    from models.daily_entry import ActivityAssessment as _ActivityAssessment
+    assessment_by_id: dict[int, _ActivityAssessment] = {}
     for entry in input.daily_entries:
         if entry.date == input.date:
             for a in entry.activity_assessments:
-                if a.tags:
-                    assessment_tags_by_id[a.activity_id] = a.tags
+                assessment_by_id[a.activity_id] = a
 
     def _enrich_workout(w: dict) -> dict:
         aid = w.get("activity_id")
-        user_tags = assessment_tags_by_id.get(aid, []) if aid else []
+        assessment = assessment_by_id.get(aid) if aid else None
+        user_tags = assessment.tags if assessment else []
         session_tags = w.get("session", {}).get("tags", [])
         all_tags = list(dict.fromkeys(session_tags + user_tags))
-        if not all_tags:
+
+        if not assessment and not all_tags:
             return w
+
         enriched = dict(w)
-        enriched["tags"] = all_tags
+        if all_tags:
+            enriched["tags"] = all_tags
+        if assessment:
+            enriched["athlete_rpe"] = assessment.rpe
+            if assessment.notes:
+                enriched["athlete_notes"] = assessment.notes
         return enriched
 
     workout_payload = json.dumps({
