@@ -22,16 +22,47 @@ export interface CoachingFeedback {
   athlete_message: string
 }
 
+export interface RiskFlag {
+  description: string
+  severity: "low" | "moderate" | "high"
+}
+
+export interface WorkoutOutput {
+  activity_id: number | null
+  session_name: string
+  is_commute: boolean
+  is_erg_mode: boolean
+  executive_summary: string
+  quantitative_summary: string
+  qualitative_assessment: string
+  progress_indicators: string
+  risk_flags: RiskFlag[]
+  coach_recommendations: string[]
+  commute_note: string
+  data_gaps: string[]
+}
+
 export interface WorkoutAnalysis {
   daily_summary: string
   no_data: boolean
-  workouts: unknown[]
+  workouts: WorkoutOutput[]
+}
+
+export interface RecoveryBaseline {
+  hrv_typical: number | null
+  resting_hr_typical: number | null
+  sleep_hours_typical_weekday: number | null
+  sleep_hours_typical_weekend: number | null
+  sleep_quality_typical: number | null
+  readiness_typical: number | null
 }
 
 export interface RestitutionAnalysis {
   data_quality_note: string
+  recovery_baseline: RecoveryBaseline
   trend_analysis: string
   load_recovery_correlation: string
+  risk_flags: RiskFlag[]
   overall_recovery_quality: "good" | "adequate" | "concerning"
   coach_recommendations: string[]
 }
