@@ -4,24 +4,36 @@ workout_analysis_task:
 
     Use the `get_workout_data` tool to retrieve workout analyses and athlete settings.
 
-    If the tool returns no workouts, output exactly:
-    "No workout data available for {athlete_name} on {date}."
+    Before analysing any session, check if it is a commute or transport activity. Commutes
+    require only a one-sentence note (commute_note) — do NOT produce training quality analysis
+    for them. Set is_commute=true and leave coach_recommendations empty.
 
-    Otherwise, for each workout provide:
+    For ERG mode sessions (is_erg_mode=true): note that ERG was active, then focus exclusively
+    on cadence patterns and HR response. Do NOT comment on power stability, pacing evenness,
+    or power consistency — these are controlled by the trainer, not the athlete.
 
-    1. **Session Overview**: Workout name, sport, duration, distance (if applicable). Note any tags
-       (e.g. "race", "commute") — races warrant full performance scrutiny; commutes are low-priority
-       utility rides and should be flagged as such rather than analysed for training quality.
-    2. **Training Load**: TSS/HRSS, intensity factor — how demanding was this session relative to the athlete's threshold?
-    3. **Zone Distribution**: Where was the majority of effort? Was it appropriate for the session type and tags?
-    4. **Execution Quality**: Pacing, power consistency, HR response, notable patterns in laps
-    5. **Risk Flags**: Any signs of overreaching, unusual HR response, or poor recovery indicators
-    6. **Coach Recommendation**: One specific, actionable note for the coach (max 30 words)
+    Cadence units: cycling=RPM, running=SPM. Never compare cadence values across sports.
+    Running power (GPS/foot pod) is not the same as cycling power — do not cross-reference.
 
-    Keep the total report under 500 words. Be factual and direct.
+    Ignore isolated abnormal values at the very start of an activity (warm-up artefacts).
+
+    For all other sessions, for each workout provide:
+    1. Executive summary: coach-facing takeaway (2-3 sentences, max 50 words)
+    2. Quantitative summary: TSS, IF, power vs FTP, HR response, zone distribution
+    3. Qualitative assessment: execution quality, pacing, zone adherence
+    4. Progress indicators: how this session fits the athlete's training trajectory
+    5. Risk flags: genuine concerns only — not low-severity power blips or single-lap anomalies
+    6. Coach recommendations: specific and actionable (max 30 words each)
+    7. Data gaps: missing data that materially limits the analysis
+
+    Verify all metric comparisons numerically from the provided data.
+    List key sessions first, commutes last in the workouts array.
+    Set no_data=true (and leave workouts empty) if the tool returns no workout data.
 
   expected_output: |
-    A structured technical performance report in markdown. If no data: a single line stating no data available.
+    A JSON object with the workout analysis. If no workouts: no_data=true, workouts=[].
+    daily_summary captures the key highlight and primary recommendation for the whole day.
+    Each workout in the workouts array includes all fields defined in the schema.
 
 restitution_analysis_task:
   description: |
@@ -29,29 +41,32 @@ restitution_analysis_task:
     ({days} days).
 
     Use the `get_restitution_data` tool to retrieve the daily recovery and training load timeline.
+    The timeline includes per-day sleep_quality scores (not just sleep hours) and TSS/IF aggregates
+    from all workouts that day — use both in your analysis.
 
     For each metric, analyze:
     1. **HRV**: baseline level, direction of trend, response after high-TSS days (apply the
-       1-day lag — HRV on day N reflects day N-1 training)
+       1-day lag — HRV on day N reflects day N-1 training). Same lag applies to resting HR.
     2. **Resting HR**: baseline, rising/falling trend, spikes after load
-    3. **Sleep**: hours and quality over time, any progressive decline
-    4. **Readiness**: self-reported overall feeling (given sleep duration and quality),
-       relative to training days and recovery metrics
+    3. **Sleep**: both hours and quality over time, any progressive decline. Compare weekday
+       sleep to the athlete's own weekday pattern and weekend sleep to their weekend pattern —
+       do not apply a universal baseline (e.g. "8 hours is optimal").
+    4. **Readiness**: self-reported overall feeling relative to training days and recovery metrics
     5. **Training load context**: TSS and IF patterns per day, how recovery metrics track them
 
-    If fewer than 5 days have restitution data, note the limitation prominently.
+    Distinguish acute fatigue (short spikes in resting HR or HRV dips that resolve within 1-2 days
+    after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,
+    rising resting HR trend, or persistent low readiness regardless of training load).
+
+    If fewer than 5 days have restitution data, state this prominently in data_quality_note.
     Focus on multi-day patterns, not individual outliers.
 
   expected_output: |
-    A structured recovery analysis report in English containing:
-    1. **Recovery Baseline**: Typical HRV, resting HR, sleep hours, and readiness for this athlete
-    2. **Trend Analysis**: Direction and magnitude of key metrics across the period
-    3. **Load–Recovery Correlation**: How metrics respond to training stress (TSS/IF) patterns
-    4. **Risk Flags**: Any patterns suggesting overreach, chronic fatigue, or inadequate recovery
-    5. **Overall Recovery Quality**: Qualitative summary — Good / Adequate / Concerning — with justification
-    6. **Coach Recommendations**: 1–2 specific, actionable recovery-focused adjustments
-
-    Be concise. Avoid restating raw numbers when a trend description suffices.
+    A JSON object with the recovery analysis. recovery_baseline captures the athlete's typical
+    metrics computed from the window. trend_analysis and load_recovery_correlation should be
+    as detailed as the data supports — do not truncate important observations.
+    overall_recovery_quality must be one of: "good", "adequate", "concerning".
+    risk_flags contains only genuine multi-day patterns; empty list if none.
 
 daily_coaching_task:
   description: |
@@ -59,15 +74,25 @@ daily_coaching_task:
 
     Use the `get_plans_data` tool to retrieve today's planned activities and athlete settings.
 
-    You have already received the technical performance analysis as context.
-    Combine the analysis with the planned activities to write a concise coaching message.
+    You have already received the technical performance analysis and recovery analysis as context.
+    Combine all three sources to produce both coach-facing notes and an athlete-facing message.
 
-    Structure your response as:
-    1. **Today's Recap** (2-3 sentences): What happened today — execution vs. plan
-    2. **Key Takeaway** (1-2 sentences): The single most important observation
-    3. **Looking Ahead** (1-2 sentences): One practical suggestion for the next session or recovery
+    Coach-facing fields (todays_recap, key_takeaway, looking_ahead, coach_notes):
+    - Be factual and direct; these are internal notes
+    - coach_notes: flag anything the coach needs to monitor that the athlete should NOT see
+      (e.g. HRV trend concerns, overreach risk, load accumulation)
 
-    Write in plain, encouraging English. Maximum 200 words total. Do not repeat raw numbers.
+    Athlete-facing field (athlete_message):
+    - Casual and conversational — no headers, no bullet points
+    - Do NOT praise ERG power stability (it is automatic, not an achievement)
+    - Sleep commentary: compare to the athlete's own weekday or weekend pattern — not a fixed
+      external baseline ("8 hours is ideal")
+    - Avoid false continuity: do not say "again", "as usual", "like yesterday" unless the data
+      explicitly supports a recurring pattern
+    - If sessions were missed or cut short: be empathetic, not prescriptive
+    - Verify every claim against the context provided; do not invent observations
 
   expected_output: |
-    A short coaching message in plain English, structured in three sections as described. Maximum 200 words.
+    A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
+    coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
+    max 150 words).

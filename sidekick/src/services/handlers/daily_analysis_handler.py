@@ -102,8 +102,8 @@ class DailyAnalysisHandler(TaskHandler):
         return {
             "analysis_type": "daily_llm_analysis",
             "date": date_str,
-            "workout_analysis": crew_result["workout_analysis"],
-            "restitution_analysis": crew_result["restitution_analysis"],
-            "coaching_feedback": crew_result["coaching_feedback"],
+            "workout_analysis": stored.workout_analysis.model_dump() if stored.workout_analysis else None,
+            "restitution_analysis": stored.restitution_analysis.model_dump() if stored.restitution_analysis else None,
+            "coaching_feedback": stored.coaching_feedback.model_dump() if stored.coaching_feedback else None,
             "completed_at": stored.analyzed_at.isoformat(),
         }

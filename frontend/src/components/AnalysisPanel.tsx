@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Brain, ChevronDown, ChevronUp, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import type { TaskStatus } from "../api/tasks"
+import type { TaskStatus, CoachingFeedback, WorkoutAnalysis, RestitutionAnalysis } from "../api/tasks"
 
 interface Props {
   status: TaskStatus
@@ -43,10 +43,24 @@ function Section({ title, content, defaultOpen }: { title: string; content: stri
   )
 }
 
+function restitutionContent(r: RestitutionAnalysis): string {
+  const parts: string[] = []
+  if (r.data_quality_note) parts.push(r.data_quality_note)
+  if (r.trend_analysis) parts.push(r.trend_analysis)
+  if (r.load_recovery_correlation) parts.push(r.load_recovery_correlation)
+  if (r.overall_recovery_quality) parts.push(`Overall: ${r.overall_recovery_quality}`)
+  if (r.coach_recommendations?.length) parts.push(r.coach_recommendations.join("\n"))
+  return parts.join("\n\n")
+}
+
 export function AnalysisPanel({ status, progress, result, error, analyzedAt }: Props) {
-  const coachingFeedback = result?.coaching_feedback as string | undefined
-  const workoutAnalysis = result?.workout_analysis as string | undefined
-  const restitutionAnalysis = result?.restitution_analysis as string | undefined
+  const coachingFeedback = result?.coaching_feedback as CoachingFeedback | null | undefined
+  const workoutAnalysis = result?.workout_analysis as WorkoutAnalysis | null | undefined
+  const restitutionAnalysis = result?.restitution_analysis as RestitutionAnalysis | null | undefined
+
+  const coachingText = coachingFeedback?.athlete_message
+  const workoutText = workoutAnalysis && !workoutAnalysis.no_data ? workoutAnalysis.daily_summary : undefined
+  const restitutionText = restitutionAnalysis ? restitutionContent(restitutionAnalysis) : undefined
 
   return (
     <Card>
@@ -80,16 +94,16 @@ export function AnalysisPanel({ status, progress, result, error, analyzedAt }: P
 
         {status === "completed" && (
           <div className="space-y-2">
-            {coachingFeedback && (
-              <Section title="Coaching Feedback" content={coachingFeedback} defaultOpen={true} />
+            {coachingText && (
+              <Section title="Coaching Feedback" content={coachingText} defaultOpen={true} />
             )}
-            {workoutAnalysis && (
-              <Section title="Performance Analysis" content={workoutAnalysis} defaultOpen={false} />
+            {workoutText && (
+              <Section title="Performance Analysis" content={workoutText} defaultOpen={false} />
             )}
-            {restitutionAnalysis && (
-              <Section title="Recovery Analysis" content={restitutionAnalysis} defaultOpen={false} />
+            {restitutionText && (
+              <Section title="Recovery Analysis" content={restitutionText} defaultOpen={false} />
             )}
-            {!coachingFeedback && !workoutAnalysis && !restitutionAnalysis && (
+            {!coachingText && !workoutText && !restitutionText && (
               <p className="text-sm text-gray-500">No analysis output returned.</p>
             )}
           </div>
