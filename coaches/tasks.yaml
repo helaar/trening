@@ -109,7 +109,7 @@ daily_feedback_task:
     **STEP 2 - Gather Information:**
     - Use athlete_lookup to get profile and preferred language.
     - Use daily_self_assessment_reader for {date} and optionally 1-2 days prior if relevant to plan adherence.
-    - Use athlete_plan_lookup for planned workouts on {date} and up to 2 days ahead.
+    - Use athlete_plan_lookup to get upcoming planned workouts. Today is {date}, so use start_date=one day after {date} and end_date=two days after {date}. Do NOT include {date} itself — today's plan is already available in the analysis context.
     
     **STEP 3 - Verification & ERG Handling:**
     - **Verify all claims:** Do not forward metrics, deviations, or facts from the analysis without cross-checking them against provided data. Do the math if possible.
