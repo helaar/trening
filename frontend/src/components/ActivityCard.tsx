@@ -45,12 +45,8 @@ export function ActivityCard({ workout, value, onChange }: Props) {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-base">{session.name}</CardTitle>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
-              Note
-            </span>
-          </div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Note</p>
+          <p className="text-sm">{session.name}</p>
         </CardHeader>
       </Card>
     )
