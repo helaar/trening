@@ -77,7 +77,7 @@ export interface StoredAnalysis {
 }
 
 export async function createDailyAnalysisTask(
-  athleteId: number,
+  _athleteId: number,
   date: string,
 ): Promise<TaskResponse> {
   return apiFetch<TaskResponse>("/api/v1/tasks", {
