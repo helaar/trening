@@ -194,7 +194,7 @@ class WorkoutAnalysis(BaseModel):
     """Top-level container for complete workout analysis results."""
 
     # Required fields (no defaults) must come first
-    analysis_type: Literal["endurance", "strength"]
+    analysis_type: Literal["endurance", "strength", "note"]
     session: SessionInfo
     metrics: WorkoutMetrics
 

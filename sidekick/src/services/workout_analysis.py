@@ -306,5 +306,10 @@ class WorkoutAnalysisService:
                 athlete_id, activity.id, refresh
             )
             analyses.append(analysis)
-        
+
+        # Append any manually-created day notes for this date
+        manual_notes_data = await self.workout_repo.get_manual_notes_for_date(athlete_id, activity_date)
+        for note_data in manual_notes_data:
+            analyses.append(WorkoutAnalysis(**note_data))
+
         return analyses

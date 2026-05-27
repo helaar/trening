@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card"
 import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
 import { X } from "lucide-react"
@@ -38,7 +38,23 @@ function sportLabel(category: string): string {
 
 export function ActivityCard({ workout, value, onChange }: Props) {
   const { session, metrics } = workout
+  const isNote = session.manual === true
   const isCommute = session.commute !== "no"
+
+  if (isNote) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="text-base">{session.name}</CardTitle>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
+              Note
+            </span>
+          </div>
+        </CardHeader>
+      </Card>
+    )
+  }
 
   const tags = value.tags ?? []
 
