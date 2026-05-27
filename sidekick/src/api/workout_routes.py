@@ -20,6 +20,10 @@ class NoteRequest(BaseModel):
     date: str  # YYYY-MM-DD
     text: str
 
+
+class NoteUpdateRequest(BaseModel):
+    text: str
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/athlete", tags=["workouts"])
 
@@ -147,6 +151,28 @@ async def create_workout_note(
     )
     await workout_repo.store_analysis(athlete_id, note_id, analysis.model_dump())
     return analysis
+
+
+@router.patch("/{athlete_id}/activities/{activity_id}/note", response_model=WorkoutAnalysis)
+async def update_workout_note(
+    athlete_id: int,
+    activity_id: int,
+    update: NoteUpdateRequest,
+    current_athlete_id: int = Depends(get_current_athlete_id),
+    workout_repo: WorkoutRepository = Depends(get_workout_repository),
+) -> WorkoutAnalysis:
+    """Update the text of an existing manual day note."""
+    if athlete_id != current_athlete_id:
+        raise HTTPException(status_code=403, detail="You can only access your own workout data")
+    cached = await workout_repo.get_analysis(athlete_id, activity_id)
+    if not cached:
+        raise HTTPException(status_code=404, detail="Note not found")
+    analysis_data, _ = cached
+    if not analysis_data.get("session", {}).get("manual"):
+        raise HTTPException(status_code=400, detail="Activity is not a manual note")
+    analysis_data["session"]["name"] = update.text
+    await workout_repo.store_analysis(athlete_id, activity_id, analysis_data)
+    return WorkoutAnalysis(**analysis_data)
 
 
 @router.delete("/{athlete_id}/activities/{activity_id}", status_code=204)

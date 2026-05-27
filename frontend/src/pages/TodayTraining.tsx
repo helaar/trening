@@ -7,7 +7,7 @@ import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
 import { AnalysisPanel } from "../components/AnalysisPanel"
 import { fetchCurrentAthlete } from "../api/auth"
-import { fetchDetailedWorkouts, deleteWorkout, createNote, type WorkoutAnalysis } from "../api/workouts"
+import { fetchDetailedWorkouts, deleteWorkout, createNote, updateNote, type WorkoutAnalysis } from "../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
 import { fetchPlansForDate } from "../api/plans"
@@ -222,6 +222,17 @@ export function TodayTraining() {
     },
   })
 
+  const updateNoteMutation = useMutation({
+    mutationFn: ({ activityId, text }: { activityId: number; text: string }) =>
+      updateNote(athlete!.athlete_id, activityId, text),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<WorkoutAnalysis[]>(
+        ["workouts", athlete?.athlete_id, selectedDate],
+        (old) => old?.map((w) => (w.activity_id === updated.activity_id ? updated : w)) ?? []
+      )
+    },
+  })
+
   if (loadingAthlete) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -338,6 +349,9 @@ export function TodayTraining() {
                 workout={workout}
                 value={assessments[key] ?? {}}
                 onChange={(v) => setAssessments((prev) => ({ ...prev, [key]: v }))}
+                onSaveNote={workout.session.manual && workout.activity_id !== null
+                  ? (text) => updateNoteMutation.mutate({ activityId: workout.activity_id!, text })
+                  : undefined}
               />
               {workout.activity_id !== null && (
                 <button
