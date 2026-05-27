@@ -64,20 +64,21 @@ export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
         <CardHeader className="pb-3">
           <Label>Note</Label>
           {editingNote ? (
-            <input
+            <textarea
               autoFocus
+              rows={3}
               value={noteDraft}
               onChange={(e) => setNoteDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") commitEdit()
                 if (e.key === "Escape") { setNoteDraft(session.name ?? ""); setEditingNote(false) }
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) commitEdit()
               }}
               onBlur={commitEdit}
-              className="w-full text-sm bg-transparent outline-none border-b border-input focus:border-ring"
+              className="w-full text-sm bg-transparent outline-none border border-input rounded-md px-2 py-1 resize-none focus:border-ring"
             />
           ) : (
             <p
-              className="text-sm cursor-pointer hover:text-foreground/70 transition-colors"
+              className="text-sm cursor-pointer hover:text-foreground/70 transition-colors whitespace-pre-wrap"
               onClick={() => setEditingNote(true)}
               title="Click to edit"
             >
