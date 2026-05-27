@@ -1,7 +1,9 @@
 import logging
+import time
 
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
 from pymongo.asynchronous.database import AsyncDatabase
 
 from auth.dependencies import get_current_athlete_id, get_strava_client, get_athlete_repository
@@ -10,8 +12,17 @@ from database.mongodb import get_db
 from database.workout_repository import WorkoutRepository
 from database.athlete_repository import AthleteRepository
 from models.workout import DailySummary
-from analysis.models import WorkoutAnalysis
+from analysis.models import WorkoutAnalysis, SessionInfo, WorkoutMetrics
 from services.workout_analysis import WorkoutAnalysisService
+
+
+class NoteRequest(BaseModel):
+    date: str  # YYYY-MM-DD
+    text: str
+
+
+class NoteUpdateRequest(BaseModel):
+    text: str
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/athlete", tags=["workouts"])
@@ -101,6 +112,69 @@ async def get_athlete_workouts(
     return daily_summary
 
 
+@router.post("/{athlete_id}/workouts/note", response_model=WorkoutAnalysis, status_code=201)
+async def create_workout_note(
+    athlete_id: int,
+    note: NoteRequest,
+    current_athlete_id: int = Depends(get_current_athlete_id),
+    workout_repo: WorkoutRepository = Depends(get_workout_repository),
+) -> WorkoutAnalysis:
+    """Create a manual day note (e.g. 'Day off', 'Travel') for a given date."""
+    if athlete_id != current_athlete_id:
+        raise HTTPException(status_code=403, detail="You can only access your own workout data")
+    try:
+        activity_date = datetime.strptime(note.date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
+
+    note_id = -int(time.time() * 1000)
+    start_time = activity_date.replace(hour=12, minute=0, second=0)
+
+    analysis = WorkoutAnalysis(
+        analysis_type="note",
+        activity_id=note_id,
+        session=SessionInfo(
+            name=note.text,
+            sport="note",
+            sub_sport=None,
+            category="other",
+            start_time=start_time,
+            distance_km=0.0,
+            duration_sec=0.0,
+            data_points=0,
+            sample_interval=1.0,
+            manual=True,
+            commute="no",
+            tags=[],
+        ),
+        metrics=WorkoutMetrics(),
+    )
+    await workout_repo.store_analysis(athlete_id, note_id, analysis.model_dump())
+    return analysis
+
+
+@router.patch("/{athlete_id}/activities/{activity_id}/note", response_model=WorkoutAnalysis)
+async def update_workout_note(
+    athlete_id: int,
+    activity_id: int,
+    update: NoteUpdateRequest,
+    current_athlete_id: int = Depends(get_current_athlete_id),
+    workout_repo: WorkoutRepository = Depends(get_workout_repository),
+) -> WorkoutAnalysis:
+    """Update the text of an existing manual day note."""
+    if athlete_id != current_athlete_id:
+        raise HTTPException(status_code=403, detail="You can only access your own workout data")
+    cached = await workout_repo.get_analysis(athlete_id, activity_id)
+    if not cached:
+        raise HTTPException(status_code=404, detail="Note not found")
+    analysis_data, _ = cached
+    if not analysis_data.get("session", {}).get("manual"):
+        raise HTTPException(status_code=400, detail="Activity is not a manual note")
+    analysis_data["session"]["name"] = update.text
+    await workout_repo.store_analysis(athlete_id, activity_id, analysis_data)
+    return WorkoutAnalysis(**analysis_data)
+
+
 @router.delete("/{athlete_id}/activities/{activity_id}", status_code=204)
 async def delete_activity(
     athlete_id: int,
@@ -110,10 +184,10 @@ async def delete_activity(
 ) -> None:
     if athlete_id != current_athlete_id:
         raise HTTPException(status_code=403, detail="You can only access your own workout data")
-    deleted = await workout_repo.delete_activity(athlete_id, activity_id)
-    if not deleted:
+    deleted_activity = await workout_repo.delete_activity(athlete_id, activity_id)
+    deleted_analysis = await workout_repo.delete_analysis(athlete_id, activity_id)
+    if not deleted_activity and not deleted_analysis:
         raise HTTPException(status_code=404, detail="Activity not found")
-    await workout_repo.delete_analysis(athlete_id, activity_id)
 
 
 @router.get("/{athlete_id}/activities/{activity_id}/analysis", response_model=WorkoutAnalysis)

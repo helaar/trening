@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays, Trash2, Brain, LayoutList } from "lucide-react"
+import { Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Settings, CalendarDays, Trash2, Brain, LayoutList, StickyNote } from "lucide-react"
 import { Link, useSearch } from "@tanstack/react-router"
 import { Button } from "../components/ui/button"
 import { RestitutionForm } from "../components/RestitutionForm"
 import { ActivityCard } from "../components/ActivityCard"
 import { AnalysisPanel } from "../components/AnalysisPanel"
 import { fetchCurrentAthlete } from "../api/auth"
-import { fetchDetailedWorkouts, deleteWorkout, type WorkoutAnalysis } from "../api/workouts"
+import { fetchDetailedWorkouts, deleteWorkout, createNote, updateNote, type WorkoutAnalysis } from "../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../api/dailyEntry"
 import { fetchPlansForDate } from "../api/plans"
@@ -46,6 +46,8 @@ export function TodayTraining() {
   const [saved, setSaved] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ activityId: number; name: string } | null>(null)
   const [analysisTaskId, setAnalysisTaskId] = useState<string | null>(null)
+  const [showNoteModal, setShowNoteModal] = useState(false)
+  const [noteText, setNoteText] = useState("Day off")
 
   useEffect(() => {
     setRestitution({})
@@ -208,6 +210,29 @@ export function TodayTraining() {
     },
   })
 
+  const createNoteMutation = useMutation({
+    mutationFn: () => createNote(athlete!.athlete_id, selectedDate, noteText),
+    onSuccess: (newNote) => {
+      queryClient.setQueryData<WorkoutAnalysis[]>(
+        ["workouts", athlete?.athlete_id, selectedDate],
+        (old) => [...(old ?? []), newNote]
+      )
+      setShowNoteModal(false)
+      setNoteText("Day off")
+    },
+  })
+
+  const updateNoteMutation = useMutation({
+    mutationFn: ({ activityId, text }: { activityId: number; text: string }) =>
+      updateNote(athlete!.athlete_id, activityId, text),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<WorkoutAnalysis[]>(
+        ["workouts", athlete?.athlete_id, selectedDate],
+        (old) => old?.map((w) => (w.activity_id === updated.activity_id ? updated : w)) ?? []
+      )
+    },
+  })
+
   if (loadingAthlete) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -290,10 +315,20 @@ export function TodayTraining() {
       )}
 
       <section className="space-y-4">
-        <h2 className="font-semibold text-muted-foreground">
-          Workouts
-          {loadingWorkouts && <Loader2 className="ml-2 inline h-4 w-4 animate-spin" />}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-muted-foreground">
+            Workouts
+            {loadingWorkouts && <Loader2 className="ml-2 inline h-4 w-4 animate-spin" />}
+          </h2>
+          <button
+            className="ml-auto p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Add day note"
+            title="Add a note for this day"
+            onClick={() => setShowNoteModal(true)}
+          >
+            <StickyNote className="h-4 w-4" />
+          </button>
+        </div>
 
         {workoutsError && (
           <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
@@ -314,6 +349,9 @@ export function TodayTraining() {
                 workout={workout}
                 value={assessments[key] ?? {}}
                 onChange={(v) => setAssessments((prev) => ({ ...prev, [key]: v }))}
+                onSaveNote={workout.session.manual && workout.activity_id !== null
+                  ? (text) => updateNoteMutation.mutate({ activityId: workout.activity_id!, text })
+                  : undefined}
               />
               {workout.activity_id !== null && (
                 <button
@@ -376,6 +414,44 @@ export function TodayTraining() {
               >
                 {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNoteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-lg space-y-4">
+            <h3 className="font-semibold">Add day note</h3>
+            <p className="text-sm text-muted-foreground">
+              Tell your coach what kind of day this was.
+            </p>
+            <input
+              type="text"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && noteText.trim()) createNoteMutation.mutate()
+                if (e.key === "Escape") setShowNoteModal(false)
+              }}
+              placeholder="Day off, Travel, Rest…"
+              autoFocus
+            />
+            {createNoteMutation.isError && (
+              <p className="text-sm text-destructive">Failed to save note. Try again.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setShowNoteModal(false)} disabled={createNoteMutation.isPending}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => createNoteMutation.mutate()}
+                disabled={createNoteMutation.isPending || !noteText.trim()}
+              >
+                {createNoteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save
               </Button>
             </div>
           </div>

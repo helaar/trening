@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card"
 import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
 import { X } from "lucide-react"
@@ -9,6 +10,7 @@ interface Props {
   workout: WorkoutAnalysis
   value: { rpe?: number; notes?: string; tags?: string[] }
   onChange: (value: { rpe?: number; notes?: string; tags?: string[] }) => void
+  onSaveNote?: (text: string) => void
 }
 
 function formatDuration(seconds: number): string {
@@ -36,9 +38,57 @@ function sportLabel(category: string): string {
   return labels[category] ?? category
 }
 
-export function ActivityCard({ workout, value, onChange }: Props) {
+export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
   const { session, metrics } = workout
+  const isNote = session.manual === true
   const isCommute = session.commute !== "no"
+
+  // Note editing state — declared before any early return to satisfy hook rules
+  const [editingNote, setEditingNote] = useState(false)
+  const [noteDraft, setNoteDraft] = useState(session.name ?? "")
+
+  // Keep draft in sync when parent updates the note text after a successful save
+  useEffect(() => {
+    setNoteDraft(session.name ?? "")
+  }, [session.name])
+
+  if (isNote) {
+    function commitEdit() {
+      const trimmed = noteDraft.trim()
+      if (trimmed && trimmed !== session.name) onSaveNote?.(trimmed)
+      setEditingNote(false)
+    }
+
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <Label>Note</Label>
+          {editingNote ? (
+            <textarea
+              autoFocus
+              rows={3}
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") { setNoteDraft(session.name ?? ""); setEditingNote(false) }
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) commitEdit()
+              }}
+              onBlur={commitEdit}
+              className="w-full text-sm bg-transparent outline-none border border-input rounded-md px-2 py-1 resize-none focus:border-ring"
+            />
+          ) : (
+            <p
+              className="text-sm cursor-pointer hover:text-foreground/70 transition-colors whitespace-pre-wrap"
+              onClick={() => setEditingNote(true)}
+              title="Click to edit"
+            >
+              {session.name}
+            </p>
+          )}
+        </CardHeader>
+      </Card>
+    )
+  }
 
   const tags = value.tags ?? []
 

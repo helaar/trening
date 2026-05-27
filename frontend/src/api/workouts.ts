@@ -17,6 +17,7 @@ export interface SessionInfo {
   distance_km: number
   commute: "yes, marked by athlete" | "yes, detected" | "no"
   tags: string[]
+  manual?: boolean
 }
 
 export interface WorkoutAnalysis {
@@ -30,6 +31,22 @@ export interface WorkoutAnalysis {
 export function deleteWorkout(athleteId: number, activityId: number): Promise<void> {
   return apiFetch<void>(`/api/v1/athlete/${athleteId}/activities/${activityId}`, {
     method: "DELETE",
+  })
+}
+
+export function updateNote(athleteId: number, activityId: number, text: string): Promise<WorkoutAnalysis> {
+  return apiFetch<WorkoutAnalysis>(`/api/v1/athlete/${athleteId}/activities/${activityId}/note`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+}
+
+export function createNote(athleteId: number, date: string, text: string): Promise<WorkoutAnalysis> {
+  return apiFetch<WorkoutAnalysis>(`/api/v1/athlete/${athleteId}/workouts/note`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date, text }),
   })
 }
 

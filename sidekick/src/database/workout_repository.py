@@ -225,6 +225,29 @@ class WorkoutRepository:
 
         return analyses
 
+    async def get_manual_notes_for_date(
+        self,
+        athlete_id: int,
+        activity_date: datetime,
+    ) -> list[dict[str, Any]]:
+        """
+        Get all manually-created notes for a specific athlete and date.
+
+        Notes are stored in workout_analyses with session.manual=True.
+        """
+        start = activity_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+        cursor = self.analyses_collection.find({
+            "athlete_id": athlete_id,
+            "analysis_data.session.manual": True,
+            "analysis_data.session.start_time": {"$gte": start, "$lt": end},
+        })
+        notes = []
+        async for doc in cursor:
+            doc.pop("_id", None)
+            notes.append(doc.get("analysis_data", {}))
+        return notes
+
     async def store_analysis(
         self,
         athlete_id: int,
