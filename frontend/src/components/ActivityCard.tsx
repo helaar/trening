@@ -45,7 +45,7 @@ export function ActivityCard({ workout, value, onChange }: Props) {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Note</p>
+          <Label>Note</Label>
           <p className="text-sm">{session.name}</p>
         </CardHeader>
       </Card>
