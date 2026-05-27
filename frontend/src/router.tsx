@@ -3,12 +3,11 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  Outlet,
 } from "@tanstack/react-router"
-import { TodayTraining } from "./pages/TodayTraining"
+import { AppLayout } from "./components/layout/AppLayout"
+import { CalendarPage } from "./pages/CalendarPage"
+import { InsightsPage } from "./pages/InsightsPage"
 import { AthleteConfig } from "./pages/AthleteConfig"
-import { Plans } from "./pages/Plans"
-import { TrainingFeed } from "./pages/TrainingFeed"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,7 +21,7 @@ const queryClient = new QueryClient({
 const rootRoute = createRootRoute({
   component: () => (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <AppLayout />
     </QueryClientProvider>
   ),
 })
@@ -30,10 +29,16 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: TodayTraining,
+  component: CalendarPage,
   validateSearch: (search: Record<string, unknown>) => ({
     date: typeof search.date === "string" ? search.date : undefined,
   }),
+})
+
+const insightsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/insights",
+  component: InsightsPage,
 })
 
 const settingsRoute = createRoute({
@@ -42,19 +47,7 @@ const settingsRoute = createRoute({
   component: AthleteConfig,
 })
 
-const plansRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/plans",
-  component: Plans,
-})
-
-const feedRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/feed",
-  component: TrainingFeed,
-})
-
-const routeTree = rootRoute.addChildren([indexRoute, settingsRoute, plansRoute, feedRoute])
+const routeTree = rootRoute.addChildren([indexRoute, insightsRoute, settingsRoute])
 
 export const router = createRouter({ routeTree })
 
