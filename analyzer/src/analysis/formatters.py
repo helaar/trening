@@ -430,10 +430,6 @@ class JSONFormatter:
         if metrics.cadence:
             data["cadence"] = self._format_stats_summary(metrics.cadence)
         
-        # Speed metrics
-        if metrics.speed:
-            data["speed"] = self._format_stats_summary(metrics.speed)
-        
         # Athlete reference values
         athlete_data = {}
         if metrics.athlete_ftp is not None:

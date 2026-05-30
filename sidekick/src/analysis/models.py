@@ -56,10 +56,7 @@ class WorkoutMetrics(BaseModel):
     
     # Cadence metrics (RPM for cycling, SPM for running)
     cadence: StatsSummary | None = None
-    
-    # Speed metrics
-    speed: StatsSummary | None = None
-    
+
     # Athlete reference values
     athlete_ftp: float | None = None
     athlete_max_hr: int | None = None
@@ -212,7 +209,6 @@ class WorkoutAnalysis(BaseModel):
     has_power_data: bool = False
     has_heart_rate_data: bool = False
     has_cadence_data: bool = False
-    has_speed_data: bool = False
     
     @property
     def is_virtual_activity(self) -> bool:
