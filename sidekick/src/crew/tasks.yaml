@@ -24,7 +24,11 @@ workout_analysis_task:
     4. Progress indicators: how this session fits the athlete's training trajectory
     5. Risk flags: genuine concerns only — not low-severity power blips or single-lap anomalies
     6. Coach recommendations: specific and actionable (max 30 words each)
-    7. Data gaps: missing data that materially limits the analysis
+    7. Data gaps: missing data that materially limits the analysis. Do NOT flag
+       missing speed or pace data for power-based cycling sessions — speed is not
+       needed when power, HR, and zone data are present. Only flag missing speed/pace
+       for GPS running or cycling sessions where pace is the primary training metric
+       and power data is absent.
 
     If a workout includes `athlete_rpe` (Rate of Perceived Exertion, 1-10) or `athlete_notes`,
     treat these as primary evidence. RPE gives the athlete's subjective effort signal; notes may

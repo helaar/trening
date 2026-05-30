@@ -463,7 +463,6 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
             has_power_data=False,
             has_heart_rate_data=False,
             has_cadence_data=False,
-            has_speed_data=False
         )
     
     # Create settings wrapper
@@ -479,7 +478,6 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     has_power = "power" in df.columns and not df["power"].isna().all()
     has_hr = "heart_rate" in df.columns and not df["heart_rate"].isna().all()
     has_cadence = "cadence" in df.columns and not df["cadence"].isna().all()
-    has_speed = "avg_speed" in df.columns and not df["avg_speed"].isna().all()  # Approximate
     
     # Create session info
     session = _create_session_info(parser, duration_sec, len(df), sample_interval)
@@ -536,7 +534,6 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
         has_power_data=has_power,
         has_heart_rate_data=has_hr,
         has_cadence_data=has_cadence,
-        has_speed_data=has_speed
     )
 
 
@@ -569,7 +566,6 @@ def analyze_strength_workout(parser: StravaDataParser, athlete_settings: Athlete
             has_power_data=False,
             has_heart_rate_data=False,
             has_cadence_data=False,
-            has_speed_data=False
         )
     
     # Calculate sample interval and duration
@@ -627,7 +623,6 @@ def analyze_strength_workout(parser: StravaDataParser, athlete_settings: Athlete
         has_power_data=False,
         has_heart_rate_data=has_hr,
         has_cadence_data=False,
-        has_speed_data=False
     )
 
 
