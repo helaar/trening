@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle } from "lucide-react"
+import { Loader2, CheckCircle, Clipboard, ClipboardCheck, Upload } from "lucide-react"
 import { Button } from "../components/ui/button"
 import { Textarea } from "../components/ui/textarea"
 import {
@@ -9,7 +9,7 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "../components/ui/accordion"
-import { fetchPrompts, savePrompts, type PromptConfig } from "../api/prompts"
+import { fetchPrompts, savePrompts, type PromptConfig, type PromptConfigUpdate } from "../api/prompts"
 
 // Group keys by their top-level prefix (e.g. "agents.daily_coach.backstory" -> "agents.daily_coach")
 function groupPrompts(prompts: PromptConfig[]): Map<string, PromptConfig[]> {
@@ -47,6 +47,55 @@ export function SetupPage() {
 
   const [edits, setEdits] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const importRef = useRef<HTMLInputElement>(null)
+
+  function handleExport() {
+    const current = (prompts ?? []).map((p) => ({
+      key: p.key,
+      value: edits[p.key] ?? p.value,
+    }))
+    navigator.clipboard.writeText(JSON.stringify(current, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 3000)
+  }
+
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        applyImport(ev.target?.result as string)
+      } catch {
+        alert("Invalid JSON — could not import prompts.")
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ""
+  }
+
+  async function handleImportClipboard() {
+    try {
+      const text = await navigator.clipboard.readText()
+      applyImport(text)
+    } catch {
+      alert("Could not read clipboard. Paste the JSON into a .json file and use the file import instead.")
+    }
+  }
+
+  function applyImport(json: string) {
+    const parsed: unknown = JSON.parse(json)
+    if (!Array.isArray(parsed)) throw new Error("Expected array")
+    const incoming = parsed as PromptConfigUpdate[]
+    const next: Record<string, string> = { ...edits }
+    for (const item of incoming) {
+      if (typeof item.key === "string" && typeof item.value === "string") {
+        next[item.key] = item.value
+      }
+    }
+    setEdits(next)
+  }
 
   const mutation = useMutation({
     mutationFn: savePrompts,
@@ -98,13 +147,22 @@ export function SetupPage() {
             Overrides are stored in the database. Clearing a field and saving restores the YAML default.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {saved && (
             <span className="flex items-center gap-1.5 text-sm text-green-600">
               <CheckCircle className="h-4 w-4" /> Saved
             </span>
           )}
-          <Button onClick={handleSave} disabled={!hasChanges || mutation.isPending}>
+          <Button variant="outline" size="sm" onClick={handleExport} title="Copy all prompts as JSON">
+            {copied ? <ClipboardCheck className="h-4 w-4 mr-1.5 text-green-600" /> : <Clipboard className="h-4 w-4 mr-1.5" />}
+            {copied ? "Copied!" : "Export"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleImportClipboard} title="Paste JSON from clipboard">
+            <Upload className="h-4 w-4 mr-1.5" />
+            Import
+          </Button>
+          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
+          <Button size="sm" onClick={handleSave} disabled={!hasChanges || mutation.isPending}>
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Save changes
           </Button>
