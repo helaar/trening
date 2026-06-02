@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, CheckCircle, Clipboard, ClipboardCheck, Upload } from "lucide-react"
 import { Button } from "../components/ui/button"
@@ -9,14 +9,20 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "../components/ui/accordion"
-import { fetchPrompts, savePrompts, type PromptConfig, type PromptConfigUpdate } from "../api/prompts"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "../components/ui/dialog"
+import { fetchPrompts, savePrompts, type PromptConfig } from "../api/prompts"
 
-// Group keys by their top-level prefix (e.g. "agents.daily_coach.backstory" -> "agents.daily_coach")
 function groupPrompts(prompts: PromptConfig[]): Map<string, PromptConfig[]> {
   const groups = new Map<string, PromptConfig[]>()
   for (const p of prompts) {
     const parts = p.key.split(".")
-    // Group by first two segments (e.g. "agents.daily_coach") when available
     const groupKey = parts.length >= 2 ? `${parts[0]}.${parts[1]}` : parts[0]
     const list = groups.get(groupKey) ?? []
     list.push(p)
@@ -38,6 +44,73 @@ function fieldLabel(key: string): string {
   return parts[parts.length - 1].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+interface ImportModalProps {
+  promptKey: string
+  onImport: (key: string, value: string) => void
+  onClose: () => void
+}
+
+function ImportModal({ promptKey, onImport, onClose }: ImportModalProps) {
+  const [text, setText] = useState("")
+  const [error, setError] = useState<string | null>(null)
+
+  function handleApply() {
+    const trimmed = text.trim()
+    if (!trimmed) {
+      setError("Paste the prompt text above.")
+      return
+    }
+    onImport(promptKey, trimmed)
+    onClose()
+  }
+
+  return (
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Import prompt</DialogTitle>
+        <DialogDescription className="font-mono">{promptKey}</DialogDescription>
+      </DialogHeader>
+      <Textarea
+        autoFocus
+        placeholder="Paste the updated prompt text here…"
+        value={text}
+        onChange={(e) => { setText(e.target.value); setError(null) }}
+        rows={12}
+        className="font-mono text-xs resize-y"
+      />
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+      <div className="flex justify-end gap-2 mt-4">
+        <DialogClose asChild>
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+        </DialogClose>
+        <Button size="sm" onClick={handleApply}>Apply</Button>
+      </div>
+    </DialogContent>
+  )
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy() {
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="text-muted-foreground hover:text-foreground transition-colors"
+      title="Copy prompt"
+    >
+      {copied
+        ? <ClipboardCheck className="h-3.5 w-3.5 text-green-600" />
+        : <Clipboard className="h-3.5 w-3.5" />
+      }
+    </button>
+  )
+}
+
 export function SetupPage() {
   const queryClient = useQueryClient()
   const { data: prompts, isLoading } = useQuery({
@@ -47,55 +120,7 @@ export function SetupPage() {
 
   const [edits, setEdits] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const importRef = useRef<HTMLInputElement>(null)
-
-  function handleExport() {
-    const current = (prompts ?? []).map((p) => ({
-      key: p.key,
-      value: edits[p.key] ?? p.value,
-    }))
-    navigator.clipboard.writeText(JSON.stringify(current, null, 2))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 3000)
-  }
-
-  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      try {
-        applyImport(ev.target?.result as string)
-      } catch {
-        alert("Invalid JSON — could not import prompts.")
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ""
-  }
-
-  async function handleImportClipboard() {
-    try {
-      const text = await navigator.clipboard.readText()
-      applyImport(text)
-    } catch {
-      alert("Could not read clipboard. Paste the JSON into a .json file and use the file import instead.")
-    }
-  }
-
-  function applyImport(json: string) {
-    const parsed: unknown = JSON.parse(json)
-    if (!Array.isArray(parsed)) throw new Error("Expected array")
-    const incoming = parsed as PromptConfigUpdate[]
-    const next: Record<string, string> = { ...edits }
-    for (const item of incoming) {
-      if (typeof item.key === "string" && typeof item.value === "string") {
-        next[item.key] = item.value
-      }
-    }
-    setEdits(next)
-  }
+  const [importKey, setImportKey] = useState<string | null>(null)
 
   const mutation = useMutation({
     mutationFn: savePrompts,
@@ -119,6 +144,10 @@ export function SetupPage() {
     setEdits((prev) => ({ ...prev, [key]: value }))
   }
 
+  function handleImport(key: string, value: string) {
+    setEdits((prev) => ({ ...prev, [key]: value }))
+  }
+
   function handleSave() {
     const updates = Object.entries(edits).map(([key, value]) => ({ key, value }))
     if (updates.length > 0) mutation.mutate(updates)
@@ -139,61 +168,75 @@ export function SetupPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">LLM Prompt Configuration</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Overrides are stored in the database. Clearing a field and saving restores the YAML default.
-          </p>
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold">LLM Prompt Configuration</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Overrides are stored in the database. Clearing a field and saving restores the YAML default.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {saved && (
+              <span className="flex items-center gap-1.5 text-sm text-green-600">
+                <CheckCircle className="h-4 w-4" /> Saved
+              </span>
+            )}
+            <Button size="sm" onClick={handleSave} disabled={!hasChanges || mutation.isPending}>
+              {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Save changes
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {saved && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600">
-              <CheckCircle className="h-4 w-4" /> Saved
-            </span>
-          )}
-          <Button variant="outline" size="sm" onClick={handleExport} title="Copy all prompts as JSON">
-            {copied ? <ClipboardCheck className="h-4 w-4 mr-1.5 text-green-600" /> : <Clipboard className="h-4 w-4 mr-1.5" />}
-            {copied ? "Copied!" : "Export"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleImportClipboard} title="Paste JSON from clipboard">
-            <Upload className="h-4 w-4 mr-1.5" />
-            Import
-          </Button>
-          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
-          <Button size="sm" onClick={handleSave} disabled={!hasChanges || mutation.isPending}>
-            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save changes
-          </Button>
-        </div>
+
+        <Accordion type="multiple" className="space-y-2">
+          {Array.from(groups.entries()).map(([groupKey, items]) => (
+            <AccordionItem key={groupKey} value={groupKey} className="border rounded-lg px-4">
+              <AccordionTrigger className="text-sm font-medium py-3">
+                {groupLabel(groupKey)}
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4 pb-4">
+                {items.map((p) => (
+                  <div key={p.key} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {fieldLabel(p.key)}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <CopyButton value={currentValue(p)} />
+                        <button
+                          type="button"
+                          onClick={() => setImportKey(p.key)}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="Import prompt"
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <Textarea
+                      value={currentValue(p)}
+                      onChange={(e) => handleChange(p.key, e.target.value)}
+                      rows={Math.min(Math.max(currentValue(p).split("\n").length + 1, 3), 12)}
+                      className="font-mono text-xs resize-y"
+                    />
+                  </div>
+                ))}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
       </div>
 
-      <Accordion type="multiple" className="space-y-2">
-        {Array.from(groups.entries()).map(([groupKey, items]) => (
-          <AccordionItem key={groupKey} value={groupKey} className="border rounded-lg px-4">
-            <AccordionTrigger className="text-sm font-medium py-3">
-              {groupLabel(groupKey)}
-            </AccordionTrigger>
-            <AccordionContent className="space-y-4 pb-4">
-              {items.map((p) => (
-                <div key={p.key} className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {fieldLabel(p.key)}
-                  </label>
-                  <Textarea
-                    value={currentValue(p)}
-                    onChange={(e) => handleChange(p.key, e.target.value)}
-                    rows={Math.min(Math.max(currentValue(p).split("\n").length + 1, 3), 12)}
-                    className="font-mono text-xs resize-y"
-                  />
-                </div>
-              ))}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
-    </div>
+      <Dialog open={importKey !== null} onOpenChange={(open) => { if (!open) setImportKey(null) }}>
+        {importKey !== null && (
+          <ImportModal
+            promptKey={importKey}
+            onImport={handleImport}
+            onClose={() => setImportKey(null)}
+          />
+        )}
+      </Dialog>
     </div>
   )
 }
