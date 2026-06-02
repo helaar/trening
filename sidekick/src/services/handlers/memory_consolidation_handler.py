@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -120,21 +120,7 @@ class MemoryConsolidationHandler(TaskHandler):
         }
 
     async def _get_recent_analysis_summaries(self, athlete_id: int, start_date: str, end_date: str) -> list[dict]:
-        summaries = []
-        current = date.fromisoformat(start_date)
-        end = date.fromisoformat(end_date)
-        while current <= end:
-            analysis = await self.daily_analysis_repo.get(athlete_id, current.isoformat())
-            if analysis:
-                entry: dict[str, Any] = {"date": current.isoformat()}
-                if analysis.coaching_feedback:
-                    entry["key_takeaway"] = analysis.coaching_feedback.key_takeaway
-                    entry["coach_notes"] = analysis.coaching_feedback.coach_notes
-                if analysis.restitution_analysis:
-                    entry["recovery_quality"] = analysis.restitution_analysis.overall_recovery_quality
-                summaries.append(entry)
-            current += timedelta(days=1)
-        return summaries
+        return await self.daily_analysis_repo.get_summaries_for_range(athlete_id, start_date, end_date)
 
     def _run_consolidation_crew(
         self,
