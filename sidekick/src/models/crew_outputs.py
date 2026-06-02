@@ -144,6 +144,70 @@ class RestitutionAnalysisOutput(BaseModel):
     )
 
 
+class MemoryDraft(BaseModel):
+    """A new memory observation to be stored."""
+
+    category: Literal["recovery", "habit", "performance", "risk", "goal"] = Field(
+        description="Category this memory belongs to"
+    )
+    scope: Literal["recent", "long_term"] = Field(
+        description="recent=30-day relevance, long_term=multi-month pattern"
+    )
+    content: str = Field(description="1-3 sentence natural language observation about the athlete")
+    confidence: float = Field(ge=0.0, le=1.0, description="How confident you are in this observation (0.0-1.0)")
+    evidence_dates: list[str] = Field(
+        default_factory=list,
+        description="YYYY-MM-DD dates from the context that support this observation",
+    )
+
+
+class MemoryUpdate(BaseModel):
+    """An update to an existing memory."""
+
+    memory_id: str = Field(description="ID of the memory to update")
+    content: str = Field(description="Updated 1-3 sentence observation")
+    confidence: float = Field(ge=0.0, le=1.0, description="Updated confidence score")
+    evidence_dates: list[str] = Field(default_factory=list, description="Updated supporting dates")
+
+
+class MemoryExtractionOutput(BaseModel):
+    """Output for the memory_extractor task run after each daily analysis."""
+
+    new_memories: list[MemoryDraft] = Field(
+        default_factory=list,
+        description="Brand-new observations not covered by existing memories",
+    )
+    updated_memories: list[MemoryUpdate] = Field(
+        default_factory=list,
+        description="Refinements or corrections to existing memories",
+    )
+    deactivated_memory_ids: list[str] = Field(
+        default_factory=list,
+        description="IDs of memories that are now contradicted or no longer relevant",
+    )
+
+
+class MemoryConsolidationOutput(BaseModel):
+    """Output for the memory_consolidation task (weekly background job)."""
+
+    updates: list[MemoryUpdate] = Field(
+        default_factory=list,
+        description="Updated content for memories whose pattern has changed",
+    )
+    promotions: list[str] = Field(
+        default_factory=list,
+        description="memory_ids to promote from recent to long_term scope",
+    )
+    deactivations: list[str] = Field(
+        default_factory=list,
+        description="memory_ids that are obsolete or contradicted",
+    )
+    new_long_term: list[MemoryDraft] = Field(
+        default_factory=list,
+        description="New long-term pattern observations identified across the review window",
+    )
+
+
 class CoachingOutput(BaseModel):
     """Output for the daily_coach task."""
 

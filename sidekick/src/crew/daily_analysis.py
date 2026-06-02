@@ -14,7 +14,8 @@ from pydantic import BaseModel
 
 from config import settings
 from models.athlete import Athlete
-from models.crew_outputs import CoachingOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
+from models.crew_outputs import CoachingOutput, MemoryExtractionOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
+from models.memory import Memory
 from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
 
@@ -33,6 +34,7 @@ class DailyAnalysisInput:
     date: str
     daily_entries: list[DailyEntry] = field(default_factory=list)
     recent_workout_analyses: list[dict[str, Any]] = field(default_factory=list)
+    active_memories: list[Memory] = field(default_factory=list)
 
 
 def _athlete_settings_summary(athlete: Athlete) -> dict[str, Any]:
@@ -189,6 +191,39 @@ class _RestitutionDataTool(BaseTool):
         return self._payload
 
 
+class _MemoryDataTool(BaseTool):
+    name: str = "get_memory_data"
+    description: str = (
+        "Retrieve the current active memories for the athlete and today's coaching output. "
+        "Returns JSON with 'active_memories' and 'coaching_output' keys. Call this first."
+    )
+    _payload: str = ""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, payload: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        object.__setattr__(self, "_payload", payload)
+
+    def _run(self, **kwargs: Any) -> str:
+        return self._payload
+
+
+def _format_memories(memories: list[Memory]) -> list[dict[str, Any]]:
+    return [
+        {
+            "memory_id": m.memory_id,
+            "scope": m.scope,
+            "category": m.category,
+            "content": m.content,
+            "confidence": m.confidence,
+            "evidence_dates": m.evidence_dates,
+        }
+        for m in memories
+    ]
+
+
 def _load_yaml(filename: str) -> dict[str, Any]:
     path = _CREW_DIR / filename
     with path.open("r", encoding="utf-8") as f:
@@ -294,6 +329,11 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
     restitution_payload = json.dumps(timeline, default=str)
 
+    memory_payload = json.dumps(
+        {"active_memories": _format_memories(input.active_memories)},
+        default=str,
+    )
+
     workout_tool = _WorkoutDataTool(payload=workout_payload)
     plans_tool = _PlansDataTool(payload=plans_payload)
     restitution_tool = _RestitutionDataTool(payload=restitution_payload)
@@ -340,9 +380,21 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         output_pydantic=CoachingOutput,
     )
 
+    memory_tool = _MemoryDataTool(payload=memory_payload)
+    memory_extractor = _make_agent(agents_cfg["memory_extractor"], tools=[memory_tool], default_llm=llm)
+    memory_task = _make_task(
+        {
+            "description": tasks_cfg["memory_extraction_task"]["description"].format(**shared_inputs),
+            "expected_output": tasks_cfg["memory_extraction_task"]["expected_output"].format(**shared_inputs),
+        },
+        agent=memory_extractor,
+        context=[coaching_task],
+        output_pydantic=MemoryExtractionOutput,
+    )
+
     crew = Crew(
-        agents=[analyst, restitution_analyst, coach],
-        tasks=[analysis_task, restitution_task, coaching_task],
+        agents=[analyst, restitution_analyst, coach, memory_extractor],
+        tasks=[analysis_task, restitution_task, coaching_task, memory_task],
         verbose=True,
     )
 
@@ -352,18 +404,22 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     workout_output: WorkoutAnalysisOutput | None = None
     restitution_output: RestitutionAnalysisOutput | None = None
     coaching_output: CoachingOutput | None = None
+    memory_extraction_output: MemoryExtractionOutput | None = None
 
-    if result.tasks_output and len(result.tasks_output) >= 3:
-        t0, t1, t2 = result.tasks_output[:3]
+    if result.tasks_output and len(result.tasks_output) >= 4:
+        t0, t1, t2, t3 = result.tasks_output[:4]
         workout_output = t0.pydantic if isinstance(t0.pydantic, WorkoutAnalysisOutput) else None
         restitution_output = t1.pydantic if isinstance(t1.pydantic, RestitutionAnalysisOutput) else None
         coaching_output = t2.pydantic if isinstance(t2.pydantic, CoachingOutput) else None
+        memory_extraction_output = t3.pydantic if isinstance(t3.pydantic, MemoryExtractionOutput) else None
         if workout_output is None:
             logger.warning("workout_analysis_task pydantic output missing, raw=%r", t0.raw[:200])
         if restitution_output is None:
             logger.warning("restitution_analysis_task pydantic output missing, raw=%r", t1.raw[:200])
         if coaching_output is None:
             logger.warning("daily_coaching_task pydantic output missing, raw=%r", t2.raw[:200])
+        if memory_extraction_output is None:
+            logger.warning("memory_extraction_task pydantic output missing, raw=%r", t3.raw[:200])
     else:
         logger.warning("Unexpected tasks_output length: %d", len(result.tasks_output or []))
 
@@ -371,4 +427,5 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         "workout_analysis": workout_output,
         "restitution_analysis": restitution_output,
         "coaching_feedback": coaching_output,
+        "memory_extraction": memory_extraction_output,
     }

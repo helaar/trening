@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+
+from pydantic import BaseModel, Field, model_validator
+
+_RECENT_TTL_DAYS = 30
+_LONG_TERM_TTL_DAYS = 365
+
+
+class MemoryScope(str, Enum):
+    RECENT = "recent"
+    LONG_TERM = "long_term"
+
+
+class MemoryCategory(str, Enum):
+    RECOVERY = "recovery"
+    HABIT = "habit"
+    PERFORMANCE = "performance"
+    RISK = "risk"
+    GOAL = "goal"
+
+
+class Memory(BaseModel):
+    memory_id: str
+    athlete_id: int
+    scope: MemoryScope
+    category: MemoryCategory
+    content: str = Field(description="1-3 sentence natural language observation")
+    confidence: float = Field(ge=0.0, le=1.0)
+    evidence_dates: list[str] = Field(default_factory=list, description="YYYY-MM-DD dates supporting this memory")
+    created_at: datetime
+    updated_at: datetime
+    expires_at: datetime
+    active: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def compute_expires_at(cls, values: dict) -> dict:
+        if "expires_at" not in values or values.get("expires_at") is None:
+            scope = values.get("scope")
+            updated_at = values.get("updated_at") or datetime.now(timezone.utc)
+            ttl = _LONG_TERM_TTL_DAYS if scope == MemoryScope.LONG_TERM or scope == "long_term" else _RECENT_TTL_DAYS
+            values["expires_at"] = updated_at + timedelta(days=ttl)
+        return values
+
+    def refresh_expiry(self) -> "Memory":
+        ttl = _LONG_TERM_TTL_DAYS if self.scope == MemoryScope.LONG_TERM else _RECENT_TTL_DAYS
+        return self.model_copy(update={"expires_at": self.updated_at + timedelta(days=ttl)})

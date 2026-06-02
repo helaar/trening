@@ -78,6 +78,67 @@ restitution_analysis_task:
     overall_recovery_quality must be one of: "good", "adequate", "concerning".
     risk_flags contains only genuine multi-day patterns; empty list if none.
 
+memory_extraction_task:
+  description: |
+    Review the coaching output for {athlete_name} on {date} and update the memory bank.
+
+    Use the `get_memory_data` tool to retrieve the current active memories and the coaching output
+    from today's session.
+
+    Your job:
+    1. Identify observations in today's coaching output that represent durable patterns (not one-off events)
+    2. For each observation, check whether an existing memory already covers it:
+       - If yes: decide whether to update the content and/or confidence, or leave it unchanged
+       - If no: create a new memory with appropriate scope (recent or long_term) and category
+    3. Deactivate any existing memories that today's data clearly contradicts
+
+    Scope guidance:
+    - recent: behaviour observed over days to a few weeks; may still be forming
+    - long_term: pattern confirmed over multiple weeks with consistent evidence
+
+    Categories:
+    - recovery: sleep patterns, HRV trends, readiness
+    - habit: recurring athlete behaviours (e.g. consistently skips warm-up, trains early)
+    - performance: power/pace trends, zone adherence patterns
+    - risk: overtraining signals, injury risk flags
+    - goal: short-term targets the athlete mentioned or demonstrated
+
+    Only create memories for patterns with at least 2 data points. A single day is not a pattern.
+
+  expected_output: |
+    A JSON object with three fields:
+    - new_memories: list of new memory drafts (may be empty)
+    - updated_memories: list of updates to existing memory IDs (may be empty)
+    - deactivated_memory_ids: list of memory IDs to deactivate (may be empty)
+    All three fields must be present even if empty.
+
+memory_consolidation_task:
+  description: |
+    Perform a full memory review for {athlete_name} covering the past {window_days} days.
+
+    Use the `get_consolidation_data` tool to retrieve:
+    - All active memories for the athlete
+    - Daily analysis results from the review window
+
+    Your tasks:
+    1. For each memory: evaluate whether the pattern still holds, has changed, or has reversed
+       - Update content if the pattern evolved
+       - Deactivate if clearly reversed or no longer observed
+    2. Review recent-scope memories for promotion:
+       - Promote to long_term only if confirmed across multiple weeks with high confidence
+    3. Identify any new long-term patterns across the window not yet captured in memory
+
+    Be conservative with promotions. A pattern needs consistent evidence over several weeks
+    before earning long_term scope.
+
+  expected_output: |
+    A JSON object with four fields:
+    - updates: list of memory updates (may be empty)
+    - promotions: list of memory_ids to promote to long_term scope (may be empty)
+    - deactivations: list of memory_ids to deactivate (may be empty)
+    - new_long_term: list of new long-term memory drafts (may be empty)
+    All four fields must be present even if empty.
+
 daily_coaching_task:
   description: |
     You are coaching {athlete_name} on {date} ({weekday}).
