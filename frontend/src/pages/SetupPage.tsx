@@ -79,7 +79,7 @@ export function SetupPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-12 text-muted-foreground">
+      <div className="h-full overflow-y-auto flex items-center justify-center p-12 text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin mr-2" />
         Loading prompts…
       </div>
@@ -89,6 +89,7 @@ export function SetupPage() {
   const groups = groupPrompts(prompts ?? [])
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -134,6 +135,7 @@ export function SetupPage() {
           </AccordionItem>
         ))}
       </Accordion>
+    </div>
     </div>
   )
 }
