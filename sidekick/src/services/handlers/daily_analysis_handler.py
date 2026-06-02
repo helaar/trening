@@ -10,6 +10,7 @@ from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
 from database.memory_repository import MemoryRepository
 from database.plan_repository import PlanRepository
+from database.prompt_repository import PromptRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
 from models.daily_analysis import DailyAnalysisResult
@@ -33,6 +34,7 @@ class DailyAnalysisHandler(TaskHandler):
         daily_analysis_repo: DailyAnalysisRepository,
         daily_entry_repo: DailyEntryRepository,
         memory_repo: MemoryRepository,
+        prompt_repo: PromptRepository | None = None,
     ):
         self.task_repo = task_repo
         self.athlete_repo = athlete_repo
@@ -41,6 +43,7 @@ class DailyAnalysisHandler(TaskHandler):
         self.daily_analysis_repo = daily_analysis_repo
         self.daily_entry_repo = daily_entry_repo
         self.memory_repo = memory_repo
+        self.prompt_repo = prompt_repo
 
     async def execute(
         self,
@@ -63,6 +66,11 @@ class DailyAnalysisHandler(TaskHandler):
         restitution_start = (
             date.fromisoformat(date_str) - timedelta(days=_RESTITUTION_WINDOW_DAYS - 1)
         ).isoformat()
+
+        prompt_overrides: dict[str, str] = {}
+        if self.prompt_repo:
+            configs = await self.prompt_repo.get_all()
+            prompt_overrides = {p.key: p.value for p in configs}
 
         workout_analyses, planned_activities, daily_entries, recent_workout_analyses, active_memories = (
             await asyncio.gather(
@@ -91,6 +99,7 @@ class DailyAnalysisHandler(TaskHandler):
             daily_entries=daily_entries,
             recent_workout_analyses=recent_workout_analyses,
             active_memories=active_memories,
+            prompt_overrides=prompt_overrides,
         )
 
         crew_result = await asyncio.to_thread(run_daily_analysis, analysis_input)

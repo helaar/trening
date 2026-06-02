@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router"
-import { CalendarDays, TrendingUp, User } from "lucide-react"
+import { CalendarDays, Settings, TrendingUp, User } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { fetchCurrentAthlete } from "../../api/auth"
 import { cn } from "../../lib/utils"
@@ -17,6 +17,7 @@ export function Sidebar() {
   })
 
   const profileActive = location.pathname.startsWith("/settings")
+  const setupActive = location.pathname.startsWith("/setup")
 
   return (
     <aside className="hidden sm:flex h-full w-52 shrink-0 flex-col border-r bg-background">
@@ -46,7 +47,18 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="px-3 pb-4">
+      <div className="px-3 pb-4 space-y-1">
+        <Link
+          to="/setup"
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+            "hover:bg-accent hover:text-accent-foreground",
+            setupActive && "bg-accent text-accent-foreground"
+          )}
+        >
+          <Settings className="h-4 w-4 shrink-0" />
+          Setup
+        </Link>
         <Link
           to="/settings"
           className={cn(
@@ -67,6 +79,7 @@ export function Sidebar() {
           Profile
         </Link>
       </div>
+
     </aside>
   )
 }

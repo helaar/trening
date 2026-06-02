@@ -35,6 +35,7 @@ class DailyAnalysisInput:
     daily_entries: list[DailyEntry] = field(default_factory=list)
     recent_workout_analyses: list[dict[str, Any]] = field(default_factory=list)
     active_memories: list[Memory] = field(default_factory=list)
+    prompt_overrides: dict[str, str] = field(default_factory=dict)
 
 
 def _athlete_settings_summary(athlete: Athlete) -> dict[str, Any]:
@@ -230,6 +231,33 @@ def _load_yaml(filename: str) -> dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
+def _apply_prompt_overrides(cfg: dict[str, Any], prefix: str, overrides: dict[str, str]) -> dict[str, Any]:
+    """Return a copy of cfg with string values replaced by matching overrides.
+
+    Override keys use dot-notation relative to the YAML stem, e.g.
+    "agents.daily_coach.backstory" -> prefix="agents", key="daily_coach.backstory".
+    """
+    if not overrides:
+        return cfg
+    import copy
+    result = copy.deepcopy(cfg)
+    for full_key, value in overrides.items():
+        if not full_key.startswith(f"{prefix}."):
+            continue
+        relative = full_key[len(prefix) + 1:]
+        parts = relative.split(".")
+        target = result
+        for part in parts[:-1]:
+            if not isinstance(target, dict) or part not in target:
+                break
+            target = target[part]
+        else:
+            leaf = parts[-1]
+            if isinstance(target, dict) and leaf in target:
+                target[leaf] = value
+    return result
+
+
 def _make_agent(agent_def: dict[str, Any], tools: list, default_llm: str) -> Agent:
     llm = agent_def.get("llm_model") or default_llm
     return Agent(
@@ -272,8 +300,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     if settings.openai_api_key:
         os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
 
-    agents_cfg = _load_yaml("agents.yaml")
-    tasks_cfg = _load_yaml("tasks.yaml")
+    agents_cfg = _apply_prompt_overrides(_load_yaml("agents.yaml"), "agents", input.prompt_overrides)
+    tasks_cfg = _apply_prompt_overrides(_load_yaml("tasks.yaml"), "tasks", input.prompt_overrides)
 
     from datetime import datetime
     weekday = datetime.fromisoformat(input.date).strftime("%A")

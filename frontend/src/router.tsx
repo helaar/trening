@@ -8,6 +8,7 @@ import { AppLayout } from "./components/layout/AppLayout"
 import { CalendarPage } from "./pages/CalendarPage"
 import { InsightsPage } from "./pages/InsightsPage"
 import { AthleteConfig } from "./pages/AthleteConfig"
+import { SetupPage } from "./pages/SetupPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,7 +48,13 @@ const settingsRoute = createRoute({
   component: AthleteConfig,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, insightsRoute, settingsRoute])
+const setupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/setup",
+  component: SetupPage,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, insightsRoute, settingsRoute, setupRoute])
 
 export const router = createRouter({ routeTree })
 
