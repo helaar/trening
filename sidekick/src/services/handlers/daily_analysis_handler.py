@@ -1,16 +1,19 @@
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+import uuid
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from crew.daily_analysis import DailyAnalysisInput, run_daily_analysis
 from database.athlete_repository import AthleteRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
+from database.memory_repository import MemoryRepository
 from database.plan_repository import PlanRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
 from models.daily_analysis import DailyAnalysisResult
+from models.memory import Memory, MemoryScope
 from services.handlers.base import TaskHandler
 
 logger = logging.getLogger(__name__)
@@ -29,6 +32,7 @@ class DailyAnalysisHandler(TaskHandler):
         plan_repo: PlanRepository,
         daily_analysis_repo: DailyAnalysisRepository,
         daily_entry_repo: DailyEntryRepository,
+        memory_repo: MemoryRepository,
     ):
         self.task_repo = task_repo
         self.athlete_repo = athlete_repo
@@ -36,6 +40,7 @@ class DailyAnalysisHandler(TaskHandler):
         self.plan_repo = plan_repo
         self.daily_analysis_repo = daily_analysis_repo
         self.daily_entry_repo = daily_entry_repo
+        self.memory_repo = memory_repo
 
     async def execute(
         self,
@@ -59,7 +64,7 @@ class DailyAnalysisHandler(TaskHandler):
             date.fromisoformat(date_str) - timedelta(days=_RESTITUTION_WINDOW_DAYS - 1)
         ).isoformat()
 
-        workout_analyses, planned_activities, daily_entries, recent_workout_analyses = (
+        workout_analyses, planned_activities, daily_entries, recent_workout_analyses, active_memories = (
             await asyncio.gather(
                 self.workout_repo.get_analyses_for_date(athlete_id, activity_date),
                 self.plan_repo.get_for_date(athlete_id, date_str),
@@ -69,11 +74,12 @@ class DailyAnalysisHandler(TaskHandler):
                     datetime.fromisoformat(restitution_start),
                     activity_date,
                 ),
+                self.memory_repo.get_active(athlete_id),
             )
         )
         logger.info(
-            "Retrieved %d workout analyses, %d plans, %d daily entries, %d recent analyses for %s",
-            len(workout_analyses), len(planned_activities), len(daily_entries), len(recent_workout_analyses), date_str,
+            "Retrieved %d workout analyses, %d plans, %d daily entries, %d recent analyses, %d memories for %s",
+            len(workout_analyses), len(planned_activities), len(daily_entries), len(recent_workout_analyses), len(active_memories), date_str,
         )
         await self.task_repo.update_task_progress(task_id, 0.3)
 
@@ -84,6 +90,7 @@ class DailyAnalysisHandler(TaskHandler):
             date=date_str,
             daily_entries=daily_entries,
             recent_workout_analyses=recent_workout_analyses,
+            active_memories=active_memories,
         )
 
         crew_result = await asyncio.to_thread(run_daily_analysis, analysis_input)
@@ -99,6 +106,8 @@ class DailyAnalysisHandler(TaskHandler):
         await self.daily_analysis_repo.upsert(stored)
         logger.info("Stored daily analysis result for athlete %s on %s", athlete_id, date_str)
 
+        await self._apply_memory_extraction(athlete_id, date_str, crew_result.get("memory_extraction"), active_memories)
+
         return {
             "analysis_type": "daily_llm_analysis",
             "date": date_str,
@@ -107,3 +116,54 @@ class DailyAnalysisHandler(TaskHandler):
             "coaching_feedback": stored.coaching_feedback.model_dump() if stored.coaching_feedback else None,
             "completed_at": stored.analyzed_at.isoformat(),
         }
+
+    async def _apply_memory_extraction(
+        self,
+        athlete_id: int,
+        date_str: str,
+        extraction,
+        existing_memories: list[Memory],
+    ) -> None:
+        from models.crew_outputs import MemoryExtractionOutput
+        if not isinstance(extraction, MemoryExtractionOutput):
+            logger.warning("Memory extraction output missing or invalid for athlete %s on %s", athlete_id, date_str)
+            return
+
+        existing_by_id = {m.memory_id: m for m in existing_memories}
+        now = datetime.now(timezone.utc)
+
+        for draft in extraction.new_memories:
+            memory = Memory(
+                memory_id=str(uuid.uuid4()),
+                athlete_id=athlete_id,
+                scope=MemoryScope(draft.scope),
+                category=draft.category,
+                content=draft.content,
+                confidence=draft.confidence,
+                evidence_dates=draft.evidence_dates,
+                created_at=now,
+                updated_at=now,
+                expires_at=None,  # computed by model_validator
+            )
+            await self.memory_repo.upsert(memory)
+
+        for update in extraction.updated_memories:
+            existing = existing_by_id.get(update.memory_id)
+            if not existing:
+                logger.warning("Memory update targets unknown memory_id=%s", update.memory_id)
+                continue
+            updated = existing.model_copy(update={
+                "content": update.content,
+                "confidence": update.confidence,
+                "evidence_dates": update.evidence_dates,
+                "updated_at": now,
+            }).refresh_expiry()
+            await self.memory_repo.upsert(updated)
+
+        for memory_id in extraction.deactivated_memory_ids:
+            await self.memory_repo.deactivate(memory_id)
+
+        logger.info(
+            "Memory extraction applied for athlete %s: +%d new, %d updated, %d deactivated",
+            athlete_id, len(extraction.new_memories), len(extraction.updated_memories), len(extraction.deactivated_memory_ids),
+        )
