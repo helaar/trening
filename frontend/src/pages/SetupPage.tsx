@@ -44,38 +44,79 @@ function fieldLabel(key: string): string {
   return parts[parts.length - 1].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+function GroupCopyButton({
+  items,
+  currentValues,
+}: {
+  items: PromptConfig[]
+  currentValues: (p: PromptConfig) => string
+}) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation()
+    const payload = items.map((p) => ({ key: p.key, value: currentValues(p) }))
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+      title="Copy as JSON"
+    >
+      {copied
+        ? <ClipboardCheck className="h-4 w-4 text-green-600" />
+        : <Clipboard className="h-4 w-4" />}
+    </button>
+  )
+}
+
 interface ImportModalProps {
-  promptKey: string
-  onImport: (key: string, value: string) => void
+  groupKey: string
+  onImport: (updates: Record<string, string>) => void
   onClose: () => void
 }
 
-function ImportModal({ promptKey, onImport, onClose }: ImportModalProps) {
+function ImportModal({ groupKey, onImport, onClose }: ImportModalProps) {
   const [text, setText] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   function handleApply() {
     const trimmed = text.trim()
-    if (!trimmed) {
-      setError("Paste the prompt text above.")
-      return
+    if (!trimmed) { setError("Paste the JSON above."); return }
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (!Array.isArray(parsed)) throw new Error()
+      const updates: Record<string, string> = {}
+      for (const item of parsed) {
+        if (typeof item.key === "string" && typeof item.value === "string") {
+          updates[item.key] = item.value
+        }
+      }
+      if (Object.keys(updates).length === 0) throw new Error()
+      onImport(updates)
+      onClose()
+    } catch {
+      setError("Invalid JSON — expected [{key, value}, …].")
     }
-    onImport(promptKey, trimmed)
-    onClose()
   }
 
   return (
     <DialogContent className="max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Import prompt</DialogTitle>
-        <DialogDescription className="font-mono">{promptKey}</DialogDescription>
+        <DialogTitle>Import — {groupLabel(groupKey)}</DialogTitle>
+        <DialogDescription>
+          Paste the JSON array back from the LLM.
+        </DialogDescription>
       </DialogHeader>
       <Textarea
         autoFocus
-        placeholder="Paste the updated prompt text here…"
+        placeholder={'[\n  { "key": "…", "value": "…" }\n]'}
         value={text}
         onChange={(e) => { setText(e.target.value); setError(null) }}
-        rows={12}
+        rows={14}
         className="font-mono text-xs resize-y"
       />
       {error && <p className="text-xs text-destructive mt-1">{error}</p>}
@@ -89,28 +130,6 @@ function ImportModal({ promptKey, onImport, onClose }: ImportModalProps) {
   )
 }
 
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false)
-  function handleCopy() {
-    navigator.clipboard.writeText(value)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="text-muted-foreground hover:text-foreground transition-colors"
-      title="Copy prompt"
-    >
-      {copied
-        ? <ClipboardCheck className="h-3.5 w-3.5 text-green-600" />
-        : <Clipboard className="h-3.5 w-3.5" />
-      }
-    </button>
-  )
-}
-
 export function SetupPage() {
   const queryClient = useQueryClient()
   const { data: prompts, isLoading } = useQuery({
@@ -120,7 +139,7 @@ export function SetupPage() {
 
   const [edits, setEdits] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
-  const [importKey, setImportKey] = useState<string | null>(null)
+  const [importGroup, setImportGroup] = useState<string | null>(null)
 
   const mutation = useMutation({
     mutationFn: savePrompts,
@@ -144,8 +163,8 @@ export function SetupPage() {
     setEdits((prev) => ({ ...prev, [key]: value }))
   }
 
-  function handleImport(key: string, value: string) {
-    setEdits((prev) => ({ ...prev, [key]: value }))
+  function handleImport(updates: Record<string, string>) {
+    setEdits((prev) => ({ ...prev, ...updates }))
   }
 
   function handleSave() {
@@ -193,27 +212,25 @@ export function SetupPage() {
           {Array.from(groups.entries()).map(([groupKey, items]) => (
             <AccordionItem key={groupKey} value={groupKey} className="border rounded-lg px-4">
               <AccordionTrigger className="text-sm font-medium py-3">
-                {groupLabel(groupKey)}
+                <span className="flex-1 text-left">{groupLabel(groupKey)}</span>
+                <div className="flex items-center gap-1 mr-2" onClick={(e) => e.stopPropagation()}>
+                  <GroupCopyButton items={items} currentValues={currentValue} />
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setImportGroup(groupKey) }}
+                    className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    title="Import from JSON"
+                  >
+                    <Upload className="h-4 w-4" />
+                  </button>
+                </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-4 pb-4">
                 {items.map((p) => (
                   <div key={p.key} className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {fieldLabel(p.key)}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <CopyButton value={currentValue(p)} />
-                        <button
-                          type="button"
-                          onClick={() => setImportKey(p.key)}
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                          title="Import prompt"
-                        >
-                          <Upload className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {fieldLabel(p.key)}
+                    </label>
                     <Textarea
                       value={currentValue(p)}
                       onChange={(e) => handleChange(p.key, e.target.value)}
@@ -228,12 +245,12 @@ export function SetupPage() {
         </Accordion>
       </div>
 
-      <Dialog open={importKey !== null} onOpenChange={(open) => { if (!open) setImportKey(null) }}>
-        {importKey !== null && (
+      <Dialog open={importGroup !== null} onOpenChange={(open) => { if (!open) setImportGroup(null) }}>
+        {importGroup !== null && (
           <ImportModal
-            promptKey={importKey}
+            groupKey={importGroup}
             onImport={handleImport}
-            onClose={() => setImportKey(null)}
+            onClose={() => setImportGroup(null)}
           />
         )}
       </Dialog>
