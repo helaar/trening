@@ -149,9 +149,16 @@ export function CalendarDayCell({
             {day.has_analysis && (
               <Brain className="h-3 w-3 text-muted-foreground" aria-label="AI analysis available" />
             )}
-            {hasWarning && (
+            {hasWarning && flags && (
               <AlertTriangle
                 className="h-3 w-3 text-amber-500"
+                title={[
+                  flags.hasMissingWorkout && "Planned workout not recorded",
+                  flags.hasMissingRecovery && "No health/recovery data",
+                  flags.hasMissingAssessment && "No self-assessment",
+                ]
+                  .filter(Boolean)
+                  .join("\n")}
                 aria-label="Missing data"
               />
             )}
