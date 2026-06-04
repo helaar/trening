@@ -75,7 +75,7 @@ export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekVi
             date={d}
             isToday={d === today}
             isSelected={d === selectedDate}
-            compact={false}
+
             maxTss={maxTss}
             onClick={() => onSelectDate(d)}
           />

@@ -89,7 +89,7 @@ export function MonthView({ athleteId, date, selectedDate, onSelectDate }: Month
               date={cellDate}
               isToday={cellDate === today}
               isSelected={cellDate === selectedDate}
-              compact={true}
+
               maxTss={maxTss}
               onClick={() => onSelectDate(cellDate)}
             />

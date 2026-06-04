@@ -49,7 +49,6 @@ interface CalendarDayCellProps {
   date: string
   isToday: boolean
   isSelected: boolean
-  compact: boolean
   maxTss?: number
   onClick: () => void
 }
@@ -59,7 +58,6 @@ export function CalendarDayCell({
   date,
   isToday,
   isSelected,
-  compact,
   maxTss = 150,
   onClick,
 }: CalendarDayCellProps) {
@@ -76,7 +74,7 @@ export function CalendarDayCell({
       className={cn(
         "relative flex flex-col w-full rounded-md border text-left transition-colors",
         "hover:bg-accent hover:border-accent-foreground/20",
-        compact ? "min-h-[80px] p-1.5" : "min-h-[120px] p-2",
+        "min-h-[80px] p-1.5",
         isSelected && "border-primary ring-1 ring-primary",
         isToday && !isSelected && "border-primary/50 bg-primary/5",
         !isToday && !isSelected && "border-border",
@@ -97,46 +95,21 @@ export function CalendarDayCell({
 
       {day && (
         <>
-          {/* Sport dots */}
-          <div className="mt-1 flex flex-wrap gap-0.5">
+          {/* Activity labels */}
+          <div className="mt-1 space-y-0.5">
             {day.plans.map((plan, i) => (
-              <span
-                key={`plan-${i}`}
-                title={`Plan: ${plan.sport}`}
-                className={cn(
-                  "h-1.5 w-1.5 rounded-full opacity-60",
-                  SPORT_COLORS_MUTED[plan.sport] ?? "bg-gray-300"
-                )}
-              />
-            ))}
-            {day.workouts.map((w, i) => (
-              <span
-                key={`workout-${i}`}
-                title={`Workout: ${w.session.sport}`}
-                className={cn(
-                  "h-1.5 w-1.5 rounded-full",
-                  SPORT_COLORS[w.session.category] ?? "bg-gray-500"
-                )}
-              />
-            ))}
-          </div>
-
-          {/* Week view labels */}
-          {!compact && (
-            <div className="mt-1 space-y-0.5">
-              {day.plans.map((plan, i) => (
-                <div key={`plan-label-${i}`} className="flex items-center gap-1">
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 shrink-0 rounded-full opacity-60",
-                      SPORT_COLORS_MUTED[plan.sport] ?? "bg-gray-300"
-                    )}
-                  />
-                  <span className="truncate text-xs text-muted-foreground">
-                    {plan.name}
-                    {plan.estimated_duration_min ? ` · ${plan.estimated_duration_min}m` : ""}
-                  </span>
-                </div>
+              <div key={`plan-label-${i}`} className="flex items-center gap-1">
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 shrink-0 rounded-full opacity-60",
+                    SPORT_COLORS_MUTED[plan.sport] ?? "bg-gray-300"
+                  )}
+                />
+                <span className="truncate text-xs text-muted-foreground">
+                  {plan.name}
+                  {plan.estimated_duration_min ? ` · ${plan.estimated_duration_min}m` : ""}
+                </span>
+              </div>
               ))}
               {day.workouts.map((w, i) => (
                 <div key={`workout-label-${i}`} className="flex items-center gap-1">
@@ -155,7 +128,6 @@ export function CalendarDayCell({
                 </div>
               ))}
             </div>
-          )}
 
           {/* TSS load bar */}
           {tssBarWidth > 0 && (
