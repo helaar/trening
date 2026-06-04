@@ -57,6 +57,18 @@ export function CalendarDayCell({
   return (
     <button
       onClick={onClick}
+      title={
+        hasWarning && flags
+          ? "Warning:\n" +
+            [
+              flags.hasMissingWorkout && "Planned workout not recorded",
+              flags.hasMissingRecovery && "No health/recovery data",
+              flags.hasMissingAssessment && "No self-assessment",
+            ]
+              .filter(Boolean)
+              .join("\n")
+          : undefined
+      }
       className={cn(
         "relative flex flex-col w-full rounded-md border text-left transition-colors",
         "hover:bg-accent hover:border-accent-foreground/20",
@@ -130,18 +142,8 @@ export function CalendarDayCell({
             {day.has_analysis && (
               <Brain className="h-3 w-3 text-muted-foreground" aria-label="AI analysis available" />
             )}
-            {hasWarning && flags && (
-              <span
-                title={[
-                  flags.hasMissingWorkout && "Planned workout not recorded",
-                  flags.hasMissingRecovery && "No health/recovery data",
-                  flags.hasMissingAssessment && "No self-assessment",
-                ]
-                  .filter(Boolean)
-                  .join("\n")}
-              >
-                <AlertTriangle className="h-3 w-3 text-amber-500" aria-label="Missing data" />
-              </span>
+            {hasWarning && (
+              <AlertTriangle className="h-3 w-3 text-amber-500" aria-label="Missing data" />
             )}
           </div>
         </>
