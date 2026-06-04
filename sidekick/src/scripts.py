@@ -10,7 +10,7 @@ def dev_server():
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=5175,
         reload=True,
         log_level="info"
     )
@@ -19,7 +19,7 @@ def dev_server():
 def start_task():
     """Test the asynchronous task API."""
     
-    def create_task(base_url: str = "http://localhost:8000"):
+    def create_task(base_url: str = "http://localhost:5175"):
         """Create a new task via the API."""
         url = f"{base_url}/api/v1/tasks"
         
@@ -61,7 +61,7 @@ def start_task():
         except Exception as e:
             print(f"\n❌ Error: {str(e)}")
     
-    def get_task_status(task_id: str, base_url: str = "http://localhost:8000"):
+    def get_task_status(task_id: str, base_url: str = "http://localhost:5175"):
         """Get task status via the API."""
         url = f"{base_url}/api/v1/tasks/{task_id}"
         
