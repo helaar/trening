@@ -25,9 +25,9 @@ poetry run dev
 ```
 
 API will be available at:
-- **API**: http://localhost:8000
-- **Docs**: http://localhost:8000/docs
-- **Health**: http://localhost:8000/health
+- **API**: http://localhost:5175
+- **Docs**: http://localhost:5175/docs
+- **Health**: http://localhost:5175/health
 
 ## Configuration
 

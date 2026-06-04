@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Strava OAuth settings
     strava_client_id: str
     strava_client_secret: str
-    strava_redirect_uri: str = "http://localhost:8000/auth/strava/callback"
+    strava_redirect_uri: str = "http://localhost:5175/auth/strava/callback"
 
     # JWT settings for session management
     jwt_secret_key: str

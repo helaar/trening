@@ -13,7 +13,7 @@
 3. Authorize your athlete:
    ```bash
    # Visit in browser
-   http://localhost:8000/auth/strava/authorize
+   http://localhost:5175/auth/strava/authorize
    
    # Save the JWT token from response
    export TOKEN="eyJ0eXAiOiJKV1Qi..."
@@ -21,7 +21,7 @@
 
 4. Use the token for API requests:
    ```bash
-   curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/auth/me
+   curl -H "Authorization: Bearer $TOKEN" http://localhost:5175/auth/me
    ```
 
 ## Architecture
