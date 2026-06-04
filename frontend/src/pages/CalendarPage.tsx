@@ -115,6 +115,7 @@ export function CalendarPage() {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName
       if (tag === "INPUT" || tag === "TEXTAREA") return
+      if (e.altKey || e.ctrlKey || e.metaKey) return
       if (e.key === "Escape" && view === "day") handleBack()
       else if (e.key === "ArrowLeft") handlePrev()
       else if (e.key === "ArrowRight") handleNext()
