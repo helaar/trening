@@ -59,7 +59,7 @@ export function CalendarDayCell({
       onClick={onClick}
       title={
         hasWarning && flags
-          ? "Warning:\n" +
+          ? "⚠ Warning:\n" +
             [
               flags.hasMissingWorkout && "Planned workout not recorded",
               flags.hasMissingRecovery && "No health/recovery data",
