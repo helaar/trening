@@ -44,6 +44,17 @@ class DailyAnalysisRepository:
             summaries.append(entry)
         return summaries
 
+    async def get_dates_with_analysis(self, athlete_id: int, dates: list[str]) -> set[str]:
+        """Return the subset of dates that have a stored analysis."""
+        cursor = self.collection.find(
+            {"athlete_id": athlete_id, "date": {"$in": dates}},
+            {"_id": 0, "date": 1},
+        )
+        result: set[str] = set()
+        async for doc in cursor:
+            result.add(doc["date"])
+        return result
+
     async def upsert(self, result: DailyAnalysisResult) -> None:
         await self.collection.update_one(
             {"athlete_id": result.athlete_id, "date": result.date},

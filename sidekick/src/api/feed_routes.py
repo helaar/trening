@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from pymongo.asynchronous.database import AsyncDatabase
 
 from auth.dependencies import get_current_athlete_id
+from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
 from database.mongodb import get_db
 from database.plan_repository import PlanRepository
@@ -25,6 +26,7 @@ class FeedDay(BaseModel):
     plans: list[PlannedActivity]
     restitution: Restitution | None
     activity_assessments: list[ActivityAssessment]
+    has_analysis: bool = False
 
 
 def _date_str(start_time: str | datetime | None) -> str | None:
@@ -52,6 +54,7 @@ async def get_feed(
     workout_repo = WorkoutRepository(db)
     plan_repo = PlanRepository(db)
     entry_repo = DailyEntryRepository(db)
+    analysis_repo = DailyAnalysisRepository(db)
 
     workouts, plans, entries = await _fetch_all(
         workout_repo, plan_repo, entry_repo, athlete_id, start, end, start_dt, end_dt
@@ -70,6 +73,9 @@ async def get_feed(
     entries_by_date = {e.date: e for e in entries}
 
     all_dates = set(workouts_by_date) | set(plans_by_date) | set(entries_by_date)
+    dates_with_analysis = await analysis_repo.get_dates_with_analysis(
+        athlete_id, list(all_dates)
+    )
 
     result = []
     for date in sorted(all_dates, reverse=True):
@@ -81,6 +87,7 @@ async def get_feed(
                 plans=plans_by_date[date],
                 restitution=entry.restitution if entry else None,
                 activity_assessments=entry.activity_assessments if entry else [],
+                has_analysis=date in dates_with_analysis,
             )
         )
 
