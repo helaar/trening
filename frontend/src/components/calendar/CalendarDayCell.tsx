@@ -28,12 +28,16 @@ interface MissingFlags {
   hasMissingAssessment: boolean
 }
 
-function getMissingFlags(day: FeedDay): MissingFlags {
+function getMissingFlags(day: FeedDay, date: string, today: string): MissingFlags {
+  // Only flag past days — future dates simply haven't happened yet
+  if (date >= today) return { hasMissingWorkout: false, hasMissingRecovery: false, hasMissingAssessment: false }
+
   const hasPlannedTraining = day.plans.some((p) => p.sport !== "day_off")
-  const hasMissingWorkout = hasPlannedTraining && day.workouts.length === 0
-  const hasMissingRecovery = day.workouts.length > 0 && !day.restitution
-  const hasMissingAssessment =
-    day.workouts.length > 0 && day.activity_assessments.length === 0
+  // Manual notes (e.g. "Day off") are not real workouts for warning purposes
+  const realWorkouts = day.workouts.filter((w) => !w.session.manual)
+  const hasMissingWorkout = hasPlannedTraining && realWorkouts.length === 0
+  const hasMissingRecovery = realWorkouts.length > 0 && !day.restitution
+  const hasMissingAssessment = realWorkouts.length > 0 && day.activity_assessments.length === 0
   return { hasMissingWorkout, hasMissingRecovery, hasMissingAssessment }
 }
 
@@ -61,8 +65,9 @@ export function CalendarDayCell({
   maxTss = 150,
   onClick,
 }: CalendarDayCellProps) {
+  const today = new Date().toISOString().split("T")[0]
   const dayNum = parseInt(date.split("-")[2], 10)
-  const flags = day ? getMissingFlags(day) : null
+  const flags = day ? getMissingFlags(day, date, today) : null
   const hasWarning =
     flags && (flags.hasMissingWorkout || flags.hasMissingRecovery || flags.hasMissingAssessment)
   const tss = day ? getTotalTss(day) : 0
