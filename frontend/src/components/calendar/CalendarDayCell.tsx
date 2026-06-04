@@ -34,16 +34,16 @@ interface CalendarDayCellProps {
   date: string
   isToday: boolean
   isSelected: boolean
-  maxTss?: number
   onClick: () => void
 }
+
+const TSS_SCALE = 500
 
 export function CalendarDayCell({
   day,
   date,
   isToday,
   isSelected,
-  maxTss = 150,
   onClick,
 }: CalendarDayCellProps) {
   const today = new Date().toISOString().split("T")[0]
@@ -52,7 +52,7 @@ export function CalendarDayCell({
   const hasWarning =
     flags && (flags.hasMissingWorkout || flags.hasMissingRecovery || flags.hasMissingAssessment)
   const tss = day ? getTotalTss(day) : 0
-  const tssBarWidth = tss > 0 ? Math.min((tss / maxTss) * 100, 100) : 0
+  const tssBarWidth = tss > 0 ? Math.min((tss / TSS_SCALE) * 100, 100) : 0
 
   return (
     <button

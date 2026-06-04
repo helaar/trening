@@ -17,14 +17,6 @@ function getWeekRange(date: string): { start: string; end: string; dates: string
   return { start: dates[0], end: dates[6], dates }
 }
 
-function maxTssInFeed(feed: FeedDay[]): number {
-  let max = 0
-  for (const day of feed) {
-    const tss = day.workouts.reduce((s, w) => s + (w.metrics?.training_stress_score ?? 0), 0)
-    if (tss > max) max = tss
-  }
-  return Math.max(max, 50)
-}
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -48,8 +40,6 @@ export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekVi
   for (const day of feed ?? []) {
     feedMap.set(day.date, day)
   }
-
-  const maxTss = maxTssInFeed(feed ?? [])
 
   return (
     <div className="relative">
@@ -76,7 +66,7 @@ export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekVi
             isToday={d === today}
             isSelected={d === selectedDate}
 
-            maxTss={maxTss}
+
             onClick={() => onSelectDate(d)}
           />
         ))}

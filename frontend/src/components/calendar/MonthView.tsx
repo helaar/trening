@@ -35,14 +35,6 @@ function buildCalendarGrid(
   return cells
 }
 
-function maxTssInFeed(feed: FeedDay[]): number {
-  let max = 0
-  for (const day of feed) {
-    const tss = day.workouts.reduce((s, w) => s + (w.metrics?.training_stress_score ?? 0), 0)
-    if (tss > max) max = tss
-  }
-  return Math.max(max, 50)
-}
 
 interface MonthViewProps {
   athleteId: number
@@ -67,8 +59,6 @@ export function MonthView({ athleteId, date, selectedDate, onSelectDate }: Month
   }
 
   const cells = buildCalendarGrid(year, month, feedMap)
-  const maxTss = maxTssInFeed(feed ?? [])
-
   return (
     <div className="relative">
       {isLoading && (
@@ -90,7 +80,7 @@ export function MonthView({ athleteId, date, selectedDate, onSelectDate }: Month
               isToday={cellDate === today}
               isSelected={cellDate === selectedDate}
 
-              maxTss={maxTss}
+
               onClick={() => onSelectDate(cellDate)}
             />
           </div>
