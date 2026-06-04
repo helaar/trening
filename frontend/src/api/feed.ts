@@ -9,6 +9,7 @@ export interface FeedDay {
   plans: PlannedActivity[]
   restitution: Restitution | null
   activity_assessments: ActivityAssessment[]
+  has_analysis: boolean
 }
 
 export function fetchFeed(athleteId: number, start: string, end: string): Promise<FeedDay[]> {

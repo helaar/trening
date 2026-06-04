@@ -1,8 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router"
-import { CalendarDays, Settings, TrendingUp, User } from "lucide-react"
+import { CalendarDays, CalendarCheck, Settings, TrendingUp, User } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { fetchCurrentAthlete } from "../../api/auth"
 import { cn } from "../../lib/utils"
+
+function todayDate(): string {
+  return new Date().toISOString().split("T")[0]
+}
 
 const NAV_ITEMS = [
   { to: "/", label: "Calendar", icon: CalendarDays, exact: true },
@@ -45,6 +49,17 @@ export function Sidebar() {
             </Link>
           )
         })}
+        <Link
+          to="/"
+          search={{ view: "day", date: todayDate() }}
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+            "hover:bg-accent hover:text-accent-foreground"
+          )}
+        >
+          <CalendarCheck className="h-4 w-4 shrink-0" />
+          Today
+        </Link>
       </nav>
 
       <div className="px-3 pb-4 space-y-1">
