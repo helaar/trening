@@ -74,9 +74,9 @@ export function CalendarDayCell({
     <button
       onClick={onClick}
       className={cn(
-        "relative flex flex-col rounded-md border text-left transition-colors",
+        "relative flex flex-col w-full rounded-md border text-left transition-colors",
         "hover:bg-accent hover:border-accent-foreground/20",
-        compact ? "min-h-[72px] p-1.5" : "min-h-[120px] p-2",
+        compact ? "min-h-[80px] p-1.5" : "min-h-[120px] p-2",
         isSelected && "border-primary ring-1 ring-primary",
         isToday && !isSelected && "border-primary/50 bg-primary/5",
         !isToday && !isSelected && "border-border",

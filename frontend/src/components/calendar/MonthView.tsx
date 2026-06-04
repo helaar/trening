@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { fetchFeed, type FeedDay } from "../../api/feed"
 import { CalendarDayCell } from "./CalendarDayCell"
+import { cn } from "../../lib/utils"
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -82,7 +83,7 @@ export function MonthView({ athleteId, date, selectedDate, onSelectDate }: Month
           </div>
         ))}
         {cells.map(({ date: cellDate, inMonth, feedDay }) => (
-          <div key={cellDate} className={inMonth ? "" : "opacity-30"}>
+          <div key={cellDate} className={cn("h-full", inMonth ? "" : "opacity-30")}>
             <CalendarDayCell
               day={feedDay}
               date={cellDate}
