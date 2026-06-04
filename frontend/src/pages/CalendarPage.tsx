@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Loader2, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, CalendarDays, ArrowLeft } from "lucide-react"
 import { useSearch, useNavigate } from "@tanstack/react-router"
 import { fetchCurrentAthlete } from "../api/auth"
 import { DayDetailPanel } from "../components/calendar/DayDetailPanel"
@@ -66,19 +66,19 @@ const VIEW_LABELS: { value: CalendarView; label: string }[] = [
 ]
 
 export function CalendarPage() {
-  const { date: dateParam, view: viewParam } = useSearch({ from: "/" })
+  const { date: dateParam, view: viewParam, from: fromParam } = useSearch({ from: "/" })
   const navigate = useNavigate({ from: "/" })
 
   const today = todayDate()
   const selectedDate = dateParam ?? today
   const view: CalendarView = viewParam ?? "month"
 
-  function update(patch: { date?: string; view?: CalendarView }) {
+  function update(patch: { date?: string; view?: CalendarView; from?: "month" | "week" | undefined }) {
     navigate({ search: (prev) => ({ ...prev, ...patch }) })
   }
 
   function handleViewChange(v: CalendarView) {
-    update({ view: v })
+    update({ view: v, from: undefined })
   }
 
   function handlePrev() {
@@ -94,7 +94,11 @@ export function CalendarPage() {
   }
 
   function handleSelectDate(date: string) {
-    update({ date, view: "day" })
+    update({ date, view: "day", from: view === "month" || view === "week" ? view : undefined })
+  }
+
+  function handleBack() {
+    update({ view: fromParam ?? "month", from: undefined })
   }
 
   function handleDateChange(date: string) {
@@ -106,7 +110,8 @@ export function CalendarPage() {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName
       if (tag === "INPUT" || tag === "TEXTAREA") return
-      if (e.key === "ArrowLeft") handlePrev()
+      if (e.key === "Escape" && view === "day") handleBack()
+      else if (e.key === "ArrowLeft") handlePrev()
       else if (e.key === "ArrowRight") handleNext()
       else if (e.key === "t" || e.key === "T") handleToday()
       else if (e.key === "m" || e.key === "M") handleViewChange("month")
@@ -144,17 +149,35 @@ export function CalendarPage() {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header bar */}
       <div className="flex shrink-0 items-center gap-2 border-b px-4 py-3">
-        {/* Period navigation */}
-        <Button variant="ghost" size="icon" onClick={handlePrev} aria-label="Previous period">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={handleNext} aria-label="Next period">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-
-        <span className="min-w-[160px] text-sm font-medium">
-          {formatPeriodLabel(view, selectedDate)}
-        </span>
+        {view === "day" ? (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+              aria-label="Back to calendar"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {fromParam === "week" ? "Week" : "Month"}
+            </Button>
+            <span className="text-sm font-medium">
+              {formatPeriodLabel(view, selectedDate)}
+            </span>
+          </>
+        ) : (
+          <>
+            <Button variant="ghost" size="icon" onClick={handlePrev} aria-label="Previous period">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleNext} aria-label="Next period">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <span className="min-w-[160px] text-sm font-medium">
+              {formatPeriodLabel(view, selectedDate)}
+            </span>
+          </>
+        )}
 
         <Button
           variant="outline"

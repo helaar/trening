@@ -36,6 +36,9 @@ const indexRoute = createRoute({
     view: (search.view === "month" || search.view === "week" || search.view === "day")
       ? (search.view as "month" | "week" | "day")
       : undefined,
+    from: (search.from === "month" || search.from === "week")
+      ? (search.from as "month" | "week")
+      : undefined,
   }),
 })
 
