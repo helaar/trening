@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Loader2, ChevronLeft, ChevronRight, CalendarDays, ArrowLeft } from "lucide-react"
-import { useSearch, useNavigate } from "@tanstack/react-router"
+import { useSearch, useNavigate, useRouter } from "@tanstack/react-router"
 import { fetchCurrentAthlete } from "../api/auth"
 import { DayDetailPanel } from "../components/calendar/DayDetailPanel"
 import { MonthView } from "../components/calendar/MonthView"
@@ -68,6 +68,7 @@ const VIEW_LABELS: { value: CalendarView; label: string }[] = [
 export function CalendarPage() {
   const { date: dateParam, view: viewParam, from: fromParam } = useSearch({ from: "/" })
   const navigate = useNavigate({ from: "/" })
+  const router = useRouter()
 
   const today = todayDate()
   const selectedDate = dateParam ?? today
@@ -98,7 +99,11 @@ export function CalendarPage() {
   }
 
   function handleBack() {
-    update({ view: fromParam ?? "month", from: undefined })
+    if (window.history.length > 1) {
+      router.history.back()
+    } else {
+      update({ view: fromParam ?? "month", from: undefined })
+    }
   }
 
   function handleDateChange(date: string) {
