@@ -150,8 +150,7 @@ export function CalendarDayCell({
               <Brain className="h-3 w-3 text-muted-foreground" aria-label="AI analysis available" />
             )}
             {hasWarning && flags && (
-              <AlertTriangle
-                className="h-3 w-3 text-amber-500"
+              <span
                 title={[
                   flags.hasMissingWorkout && "Planned workout not recorded",
                   flags.hasMissingRecovery && "No health/recovery data",
@@ -159,8 +158,9 @@ export function CalendarDayCell({
                 ]
                   .filter(Boolean)
                   .join("\n")}
-                aria-label="Missing data"
-              />
+              >
+                <AlertTriangle className="h-3 w-3 text-amber-500" aria-label="Missing data" />
+              </span>
             )}
           </div>
         </>
