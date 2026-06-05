@@ -1,7 +1,10 @@
-import { useQuery } from "@tanstack/react-query"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { fetchFeed, type FeedDay } from "../../api/feed"
 import { CalendarDayCell } from "./CalendarDayCell"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
+import { PlanForm } from "../PlanForm"
 
 function getWeekRange(date: string): { start: string; end: string; dates: string[] } {
   const d = new Date(date + "T00:00:00Z")
@@ -30,6 +33,8 @@ interface WeekViewProps {
 export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekViewProps) {
   const { start, end, dates } = getWeekRange(date)
   const today = new Date().toISOString().split("T")[0]
+  const queryClient = useQueryClient()
+  const [planFormDate, setPlanFormDate] = useState<string | null>(null)
 
   const { data: feed, isLoading } = useQuery({
     queryKey: ["feed", athleteId, start, end],
@@ -39,6 +44,11 @@ export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekVi
   const feedMap = new Map<string, FeedDay>()
   for (const day of feed ?? []) {
     feedMap.set(day.date, day)
+  }
+
+  function closePlanForm() {
+    queryClient.invalidateQueries({ queryKey: ["feed", athleteId] })
+    setPlanFormDate(null)
   }
 
   return (
@@ -65,12 +75,26 @@ export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekVi
             date={d}
             isToday={d === today}
             isSelected={d === selectedDate}
-
-
             onClick={() => onSelectDate(d)}
+            onAddPlan={() => setPlanFormDate(d)}
           />
         ))}
       </div>
+      <Dialog open={!!planFormDate} onOpenChange={(open) => !open && setPlanFormDate(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add plan — {planFormDate}</DialogTitle>
+          </DialogHeader>
+          {planFormDate && (
+            <PlanForm
+              athleteId={athleteId}
+              date={planFormDate}
+              onSaved={closePlanForm}
+              onDeleted={closePlanForm}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
