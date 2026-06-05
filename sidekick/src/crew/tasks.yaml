@@ -1,3 +1,7 @@
+# IMPORTANT: This file is outdated and just kept for a backup. 
+# The current task setup is stored in the database and  managed via the admin interface. 
+# Ask the developer for the latest version from the database 
+
 workout_analysis_task:
   description: |
     Analyze the workouts recorded on {date} ({weekday}) for athlete {athlete_name}.

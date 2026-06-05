@@ -1,3 +1,7 @@
+# IMPORTANT: This file is outdated and just kept for a backup. 
+# The current agent setup is stored in the database and  managed via the admin interface. 
+# Ask the developer for the latest version from the database 
+
 workout_performance_analyst:
   role: "Endurance Sports Performance Analyst"
   goal: "Analyze workout data and produce a structured technical report for the coach"
