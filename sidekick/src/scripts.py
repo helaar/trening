@@ -11,6 +11,7 @@ _DEV_PORT = 5175
 
 
 def _kill_port(port: int) -> None:
+    import os
     import subprocess
     result = subprocess.run(
         ["lsof", "-ti", f"tcp:{port}"],
@@ -19,7 +20,6 @@ def _kill_port(port: int) -> None:
     pids = result.stdout.strip().split()
     for pid in pids:
         try:
-            import os
             os.kill(int(pid), signal.SIGTERM)
             print(f"Killed process {pid} occupying port {port}")
         except (ProcessLookupError, ValueError):
@@ -31,11 +31,22 @@ def _port_in_use(port: int) -> bool:
         return s.connect_ex(("localhost", port)) == 0
 
 
+def _wait_for_port_free(port: int, timeout: float = 5.0) -> None:
+    import time
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _port_in_use(port):
+            return
+        time.sleep(0.2)
+    print(f"Warning: port {port} still in use after {timeout}s, proceeding anyway")
+
+
 def dev_server():
     """Run development server with auto-reload."""
     if _port_in_use(_DEV_PORT):
         print(f"Port {_DEV_PORT} already in use — killing existing process...")
         _kill_port(_DEV_PORT)
+        _wait_for_port_free(_DEV_PORT)
 
     uvicorn.run(
         "main:app",
