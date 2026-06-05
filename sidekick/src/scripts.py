@@ -1,16 +1,57 @@
 """CLI scripts for development and deployment."""
 import sys
 import json
+import signal
+import socket
 import uvicorn
 import requests
 
 
+_DEV_PORT = 5175
+
+
+def _kill_port(port: int) -> None:
+    import os
+    import subprocess
+    result = subprocess.run(
+        ["lsof", "-ti", f"tcp:{port}"],
+        capture_output=True, text=True
+    )
+    pids = result.stdout.strip().split()
+    for pid in pids:
+        try:
+            os.kill(int(pid), signal.SIGTERM)
+            print(f"Killed process {pid} occupying port {port}")
+        except (ProcessLookupError, ValueError):
+            pass
+
+
+def _port_in_use(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("localhost", port)) == 0
+
+
+def _wait_for_port_free(port: int, timeout: float = 5.0) -> None:
+    import time
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _port_in_use(port):
+            return
+        time.sleep(0.2)
+    print(f"Warning: port {port} still in use after {timeout}s, proceeding anyway")
+
+
 def dev_server():
     """Run development server with auto-reload."""
+    if _port_in_use(_DEV_PORT):
+        print(f"Port {_DEV_PORT} already in use — killing existing process...")
+        _kill_port(_DEV_PORT)
+        _wait_for_port_free(_DEV_PORT)
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=5175,
+        port=_DEV_PORT,
         reload=True,
         log_level="info"
     )
