@@ -264,7 +264,6 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               variant="ghost"
               size="icon"
               onClick={goToNextDay}
-              disabled={isToday}
               aria-label="Next day"
             >
               <ChevronRight className="h-4 w-4" />
