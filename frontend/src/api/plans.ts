@@ -13,6 +13,7 @@ export interface PlannedActivity {
   labels: string[]
   estimated_duration_min?: number
   estimated_tss?: number
+  external_reference?: string | null
   created_at: string
   updated_at: string
 }
@@ -26,6 +27,7 @@ export interface PlannedActivityRequest {
   labels?: string[]
   estimated_duration_min?: number
   estimated_tss?: number
+  external_reference?: string | null
 }
 
 export function fetchPlansForDate(athleteId: number, date: string): Promise<PlannedActivity[]> {

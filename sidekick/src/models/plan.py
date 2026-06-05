@@ -16,6 +16,7 @@ class PlannedActivity(BaseModel):
     labels: list[str] = Field(default_factory=list)
     estimated_duration_min: int | None = None
     estimated_tss: int | None = None
+    external_reference: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -29,3 +30,4 @@ class PlannedActivityRequest(BaseModel):
     labels: list[str] = Field(default_factory=list)
     estimated_duration_min: int | None = None
     estimated_tss: int | None = None
+    external_reference: str | None = None

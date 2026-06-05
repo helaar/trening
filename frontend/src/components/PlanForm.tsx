@@ -70,6 +70,7 @@ export function PlanForm({ athleteId, date, existing, prefill, onSaved, onDelete
       labels,
       estimated_duration_min: durationMin ? parseInt(durationMin, 10) : undefined,
       estimated_tss: tss ? parseInt(tss, 10) : undefined,
+      external_reference: existing?.external_reference ?? prefill?.external_reference ?? undefined,
     }
   }
 

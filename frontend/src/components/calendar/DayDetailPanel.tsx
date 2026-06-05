@@ -324,12 +324,15 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               <PlanCard plan={plan} />
             </button>
           ))}
-          {tpPlans && tpPlans.length > 0 && (
+          {(() => {
+            const importedRefs = new Set(plans?.map((p) => p.external_reference).filter(Boolean))
+            const unimported = tpPlans?.filter((tp) => !importedRefs.has(tp.uid)) ?? []
+            return unimported.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 From TrainingPeaks
               </p>
-              {tpPlans.map((tp) => (
+              {unimported.map((tp) => (
                 <div
                   key={tp.uid}
                   className="flex items-center justify-between rounded-md border border-dashed px-3 py-2 text-sm"
@@ -351,6 +354,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
                         name: tp.name,
                         description: tp.description ?? undefined,
                         estimated_duration_min: tp.duration_min ?? undefined,
+                        external_reference: tp.uid,
                       })
                       setPlanFormOpen(true)
                     }}
@@ -360,7 +364,8 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
                 </div>
               ))}
             </div>
-          )}
+            ) : null
+          })()}
         </section>
 
         <Dialog open={planFormOpen} onOpenChange={(open) => { if (!open) { setPlanFormOpen(false); setEditingPlan(null); setTpPrefill(undefined) } }}>
