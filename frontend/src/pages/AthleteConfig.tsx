@@ -456,17 +456,29 @@ function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
   })
 
   const byKey = new Map((prompts ?? []).map((p) => [p.key, p.value]))
-  const globalName = byKey.get("philosophy.name") ?? ""
-  const athleteOverride = byKey.get(`philosophy.${athleteId}.name`)
-  const availablePhilosophies = globalName ? [globalName] : []
+
+  // collect named philosophies: keys matching philosophy.{slug}.name where slug is non-numeric
+  const availablePhilosophies: { slug: string; name: string }[] = []
+  for (const [key, value] of byKey) {
+    const parts = key.split(".")
+    if (parts.length === 3 && parts[0] === "philosophy" && parts[2] === "name" && !/^\d+$/.test(parts[1])) {
+      availablePhilosophies.push({ slug: parts[1], name: value })
+    }
+  }
+
+  const athleteSelected = byKey.get(`philosophy.${athleteId}.selected`) ?? ""
 
   useEffect(() => {
-    setSelected(athleteOverride || globalName)
-  }, [athleteOverride, globalName])
+    if (athleteSelected) {
+      setSelected(athleteSelected)
+    } else if (availablePhilosophies.length > 0) {
+      setSelected(availablePhilosophies[0].slug)
+    }
+  }, [athleteSelected, availablePhilosophies.map((p) => p.slug).join(",")])
 
   const mutation = useMutation({
     mutationFn: () =>
-      savePrompts([{ key: `philosophy.${athleteId}.name`, value: selected }]),
+      savePrompts([{ key: `philosophy.${athleteId}.selected`, value: selected }]),
     onSuccess: (updated) => {
       queryClient.setQueryData<typeof prompts>(["admin-prompts"], (prev) => {
         if (!prev) return updated
@@ -480,10 +492,10 @@ function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
     },
   })
 
-  if (!globalName) {
+  if (availablePhilosophies.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No philosophy configured yet. Set a default in Setup first.
+        No philosophies configured yet. Add one in Setup first.
       </p>
     )
   }
@@ -491,14 +503,14 @@ function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        {availablePhilosophies.map((name) => (
-          <label key={name} className="flex items-center gap-3 cursor-pointer">
+        {availablePhilosophies.map(({ slug, name }) => (
+          <label key={slug} className="flex items-center gap-3 cursor-pointer">
             <input
               type="radio"
               name="philosophy"
-              value={name}
-              checked={selected === name}
-              onChange={() => setSelected(name)}
+              value={slug}
+              checked={selected === slug}
+              onChange={() => setSelected(slug)}
               className="h-4 w-4 accent-primary"
             />
             <span className="text-sm">{name}</span>
