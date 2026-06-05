@@ -25,8 +25,8 @@ import {
 } from "../../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../../api/dailyEntry"
-import { fetchPlansForDate } from "../../api/plans"
-import type { PlannedActivity } from "../../api/plans"
+import { fetchPlansForDate, fetchTPPlans } from "../../api/plans"
+import type { PlannedActivity, PlannedActivityRequest, TPPlannedWorkout } from "../../api/plans"
 import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskStatus } from "../../api/tasks"
 import { PlanCard } from "../PlanCard"
 import { PlanForm } from "../PlanForm"
@@ -73,6 +73,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   const [noteText, setNoteText] = useState("Day off")
   const [planFormOpen, setPlanFormOpen] = useState(false)
   const [editingPlan, setEditingPlan] = useState<PlannedActivity | null>(null)
+  const [tpPrefill, setTpPrefill] = useState<Partial<PlannedActivityRequest> | undefined>()
 
   useEffect(() => {
     setRestitution({})
@@ -81,6 +82,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     setAnalysisTaskId(null)
     setPlanFormOpen(false)
     setEditingPlan(null)
+    setTpPrefill(undefined)
   }, [selectedDate])
 
   function goToPrevDay() {
@@ -116,6 +118,14 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   const { data: plans } = useQuery({
     queryKey: ["plans", athleteId, selectedDate],
     queryFn: () => fetchPlansForDate(athleteId, selectedDate),
+  })
+
+  const { data: tpPlans } = useQuery<TPPlannedWorkout[]>({
+    queryKey: ["tp-plans", athleteId, selectedDate],
+    queryFn: () => fetchTPPlans(athleteId, selectedDate, selectedDate),
+    // silently ignore errors (e.g. no URL configured)
+    retry: false,
+    throwOnError: false,
   })
 
   const { data: storedAnalysis } = useQuery({
@@ -300,7 +310,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               className="ml-auto p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Add plan"
               title="Add a plan for this day"
-              onClick={() => { setEditingPlan(null); setPlanFormOpen(true) }}
+              onClick={() => { setEditingPlan(null); setTpPrefill(undefined); setPlanFormOpen(true) }}
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -309,14 +319,56 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
             <button
               key={plan.id}
               className="w-full text-left"
-              onClick={() => { setEditingPlan(plan); setPlanFormOpen(true) }}
+              onClick={() => { setTpPrefill(undefined); setEditingPlan(plan); setPlanFormOpen(true) }}
             >
               <PlanCard plan={plan} />
             </button>
           ))}
+          {(() => {
+            const importedRefs = new Set(plans?.map((p) => p.external_reference).filter(Boolean))
+            const unimported = tpPlans?.filter((tp) => !importedRefs.has(tp.uid)) ?? []
+            return unimported.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                From TrainingPeaks
+              </p>
+              {unimported.map((tp) => (
+                <div
+                  key={tp.uid}
+                  className="flex items-center justify-between rounded-md border border-dashed px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <span className="font-medium truncate">{tp.name}</span>
+                    {tp.duration_min && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {tp.duration_min} min
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    className="ml-3 shrink-0 rounded px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                    onClick={() => {
+                      setEditingPlan(null)
+                      setTpPrefill({
+                        sport: tp.sport_type,
+                        name: tp.name,
+                        description: tp.description ?? undefined,
+                        estimated_duration_min: tp.duration_min ?? undefined,
+                        external_reference: tp.uid,
+                      })
+                      setPlanFormOpen(true)
+                    }}
+                  >
+                    Add to plan
+                  </button>
+                </div>
+              ))}
+            </div>
+            ) : null
+          })()}
         </section>
 
-        <Dialog open={planFormOpen} onOpenChange={(open) => { if (!open) { setPlanFormOpen(false); setEditingPlan(null) } }}>
+        <Dialog open={planFormOpen} onOpenChange={(open) => { if (!open) { setPlanFormOpen(false); setEditingPlan(null); setTpPrefill(undefined) } }}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingPlan ? "Edit plan" : "Add plan"}</DialogTitle>
@@ -325,8 +377,9 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               athleteId={athleteId}
               date={selectedDate}
               existing={editingPlan ?? undefined}
-              onSaved={() => { setPlanFormOpen(false); setEditingPlan(null); queryClient.invalidateQueries({ queryKey: ["plans", athleteId, selectedDate] }) }}
-              onDeleted={() => { setPlanFormOpen(false); setEditingPlan(null); queryClient.invalidateQueries({ queryKey: ["plans", athleteId, selectedDate] }) }}
+              prefill={tpPrefill}
+              onSaved={() => { setPlanFormOpen(false); setEditingPlan(null); setTpPrefill(undefined); queryClient.invalidateQueries({ queryKey: ["plans", athleteId, selectedDate] }) }}
+              onDeleted={() => { setPlanFormOpen(false); setEditingPlan(null); setTpPrefill(undefined); queryClient.invalidateQueries({ queryKey: ["plans", athleteId, selectedDate] }) }}
             />
           </DialogContent>
         </Dialog>

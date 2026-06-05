@@ -13,6 +13,7 @@ export interface PlannedActivity {
   labels: string[]
   estimated_duration_min?: number
   estimated_tss?: number
+  external_reference?: string | null
   created_at: string
   updated_at: string
 }
@@ -26,6 +27,7 @@ export interface PlannedActivityRequest {
   labels?: string[]
   estimated_duration_min?: number
   estimated_tss?: number
+  external_reference?: string | null
 }
 
 export function fetchPlansForDate(athleteId: number, date: string): Promise<PlannedActivity[]> {
@@ -67,4 +69,23 @@ export function deletePlan(athleteId: number, planId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/athlete/${athleteId}/plans/${planId}`, {
     method: "DELETE",
   })
+}
+
+export interface TPPlannedWorkout {
+  uid: string
+  date: string
+  sport_type: Sport
+  name: string
+  description: string | null
+  duration_min: number | null
+}
+
+export function fetchTPPlans(
+  athleteId: number,
+  start: string,
+  end: string
+): Promise<TPPlannedWorkout[]> {
+  return apiFetch<TPPlannedWorkout[]>(
+    `/api/v1/athlete/${athleteId}/plans/trainingpeaks?start=${start}&end=${end}`
+  )
 }
