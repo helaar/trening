@@ -386,6 +386,58 @@ function AutolapSectionContent({ initial, athleteId }: AutolapSectionProps) {
   )
 }
 
+// ── trainingpeaks section ─────────────────────────────────────────────────────
+
+interface TrainingPeaksSectionProps {
+  initial: string | null
+  athleteId: number
+}
+
+function TrainingPeaksSectionContent({ initial, athleteId }: TrainingPeaksSectionProps) {
+  const queryClient = useQueryClient()
+  const [url, setUrl] = useState(initial ?? "")
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setUrl(initial ?? "")
+  }, [initial])
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      patchAthleteSettings(athleteId, { trainingpeaks_ical_url: url.trim() || null }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["athlete-settings", athleteId], data)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    },
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="tp-ical-url">Calendar sync URL</Label>
+        <Input
+          id="tp-ical-url"
+          type="url"
+          placeholder="https://www.trainingpeaks.com/api/calendar/ical/..."
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Find this in TrainingPeaks → Settings → Connect → Calendar Sync (requires Premium).
+          Paste the full .ics URL here.
+        </p>
+      </div>
+      <SaveRow
+        saved={saved}
+        isPending={mutation.isPending}
+        isError={mutation.isError}
+        onSave={() => mutation.mutate()}
+      />
+    </div>
+  )
+}
+
 // ── page ──────────────────────────────────────────────────────────────────────
 
 export function AthleteConfig() {
@@ -486,6 +538,16 @@ export function AthleteConfig() {
           <AccordionContent>
             <AutolapSectionContent
               initial={settings?.autolap ?? null}
+              athleteId={athlete!.athlete_id}
+            />
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="trainingpeaks">
+          <AccordionTrigger>TrainingPeaks</AccordionTrigger>
+          <AccordionContent>
+            <TrainingPeaksSectionContent
+              initial={settings?.trainingpeaks_ical_url ?? null}
               athleteId={athlete!.athlete_id}
             />
           </AccordionContent>

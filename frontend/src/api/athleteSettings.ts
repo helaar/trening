@@ -26,6 +26,7 @@ export interface AthleteSettings {
   running: SportSettings | null
   heart_rate: HeartRateSettings | null
   autolap: string | null
+  trainingpeaks_ical_url: string | null
 }
 
 export type AthleteSettingsPatch = Partial<AthleteSettings>
