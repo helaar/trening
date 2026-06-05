@@ -108,6 +108,11 @@ class TrainingPeaksICalClient:
             description_raw = component.get("DESCRIPTION")
             description = str(description_raw).strip() if description_raw else None
 
+            logger.debug(
+                "VEVENT fields: %s",
+                {k: str(v)[:120] for k, v in component.items()},
+            )
+
             workouts.append(
                 TPPlannedWorkout(
                     uid=uid,
