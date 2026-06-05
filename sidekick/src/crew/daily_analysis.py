@@ -258,8 +258,28 @@ def _apply_prompt_overrides(cfg: dict[str, Any], prefix: str, overrides: dict[st
     return result
 
 
+_KNOWN_LLM_PREFIXES = ("anthropic/", "openai/", "azure/", "bedrock/", "vertex_ai/")
+
+
+def _normalize_llm(model: str) -> str:
+    """Add a provider prefix when the model string lacks one.
+
+    CrewAI's router only recognises claude-* models that appear in its
+    bundled registry. Newer models (e.g. claude-sonnet-4-6) are absent
+    and fall through to the OpenAI provider, causing 404s. An explicit
+    prefix bypasses the registry lookup entirely.
+    """
+    if any(model.startswith(p) for p in _KNOWN_LLM_PREFIXES):
+        return model
+    if model.startswith("claude-"):
+        return f"anthropic/{model}"
+    if model.startswith(("gpt-", "o1-", "o3-", "o4-")):
+        return f"openai/{model}"
+    return model
+
+
 def _make_agent(agent_def: dict[str, Any], tools: list, default_llm: str) -> Agent:
-    llm = agent_def.get("llm_model") or default_llm
+    llm = _normalize_llm(agent_def.get("llm_model") or default_llm)
     return Agent(
         role=agent_def["role"],
         goal=agent_def["goal"],
