@@ -1,4 +1,4 @@
-import { Brain, AlertTriangle } from "lucide-react"
+import { Brain, AlertTriangle, Plus } from "lucide-react"
 import { cn } from "../../lib/utils"
 import type { FeedDay } from "../../api/feed"
 import { SPORT_COLORS, SPORT_COLORS_MUTED } from "./sportColors"
@@ -35,6 +35,7 @@ interface CalendarDayCellProps {
   isToday: boolean
   isSelected: boolean
   onClick: () => void
+  onAddPlan?: (e: React.MouseEvent) => void
 }
 
 const TSS_SCALE = 500
@@ -45,6 +46,7 @@ export function CalendarDayCell({
   isToday,
   isSelected,
   onClick,
+  onAddPlan,
 }: CalendarDayCellProps) {
   const today = new Date().toISOString().split("T")[0]
   const dayNum = parseInt(date.split("-")[2], 10)
@@ -70,7 +72,7 @@ export function CalendarDayCell({
           : undefined
       }
       className={cn(
-        "relative flex flex-col w-full rounded-md border text-left transition-colors",
+        "group relative flex flex-col w-full rounded-md border text-left transition-colors",
         "hover:bg-accent hover:border-accent-foreground/20",
         "min-h-[80px] p-1.5",
         isSelected && "border-primary ring-1 ring-primary",
@@ -79,17 +81,29 @@ export function CalendarDayCell({
         !day && "opacity-40"
       )}
     >
-      {/* Day number */}
-      <span
-        className={cn(
-          "text-xs font-medium leading-none",
-          isToday
-            ? "flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
-            : "text-foreground"
+      {/* Day number + add plan button */}
+      <div className="flex items-center justify-between">
+        <span
+          className={cn(
+            "text-xs font-medium leading-none",
+            isToday
+              ? "flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+              : "text-foreground"
+          )}
+        >
+          {dayNum}
+        </span>
+        {onAddPlan && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAddPlan(e) }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+            aria-label="Add plan"
+            title="Add plan"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
         )}
-      >
-        {dayNum}
-      </span>
+      </div>
 
       {day && (
         <>

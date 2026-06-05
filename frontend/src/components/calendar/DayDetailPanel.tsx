@@ -10,6 +10,7 @@ import {
   Brain,
   StickyNote,
   Trash2,
+  Plus,
 } from "lucide-react"
 import { Button } from "../ui/button"
 import { RestitutionForm } from "../RestitutionForm"
@@ -25,8 +26,11 @@ import {
 import { fetchDailyEntry, saveDailyEntry } from "../../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../../api/dailyEntry"
 import { fetchPlansForDate } from "../../api/plans"
+import type { PlannedActivity } from "../../api/plans"
 import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskStatus } from "../../api/tasks"
 import { PlanCard } from "../PlanCard"
+import { PlanForm } from "../PlanForm"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 
 function todayDate(): string {
   return new Date().toISOString().split("T")[0]
@@ -67,12 +71,16 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   const [analysisTaskId, setAnalysisTaskId] = useState<string | null>(null)
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [noteText, setNoteText] = useState("Day off")
+  const [planFormOpen, setPlanFormOpen] = useState(false)
+  const [editingPlan, setEditingPlan] = useState<PlannedActivity | null>(null)
 
   useEffect(() => {
     setRestitution({})
     setAssessments({})
     setSaved(false)
     setAnalysisTaskId(null)
+    setPlanFormOpen(false)
+    setEditingPlan(null)
   }, [selectedDate])
 
   function goToPrevDay() {
@@ -286,14 +294,43 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
 
         <RestitutionForm value={restitution} onChange={setRestitution} />
 
-        {plans && plans.length > 0 && (
-          <section className="space-y-4">
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
             <h2 className="font-semibold text-muted-foreground">Plan</h2>
-            {plans.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} />
-            ))}
-          </section>
-        )}
+            <button
+              className="ml-auto p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Add plan"
+              title="Add a plan for this day"
+              onClick={() => { setEditingPlan(null); setPlanFormOpen(true) }}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+          {plans?.map((plan) => (
+            <button
+              key={plan.id}
+              className="w-full text-left"
+              onClick={() => { setEditingPlan(plan); setPlanFormOpen(true) }}
+            >
+              <PlanCard plan={plan} />
+            </button>
+          ))}
+        </section>
+
+        <Dialog open={planFormOpen} onOpenChange={(open) => { if (!open) { setPlanFormOpen(false); setEditingPlan(null) } }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingPlan ? "Edit plan" : "Add plan"}</DialogTitle>
+            </DialogHeader>
+            <PlanForm
+              athleteId={athleteId}
+              date={selectedDate}
+              existing={editingPlan ?? undefined}
+              onSaved={() => { setPlanFormOpen(false); setEditingPlan(null); queryClient.invalidateQueries({ queryKey: ["plans", athleteId, selectedDate] }) }}
+              onDeleted={() => { setPlanFormOpen(false); setEditingPlan(null); queryClient.invalidateQueries({ queryKey: ["plans", athleteId, selectedDate] }) }}
+            />
+          </DialogContent>
+        </Dialog>
 
         <section className="space-y-4">
           <div className="flex items-center gap-2">
