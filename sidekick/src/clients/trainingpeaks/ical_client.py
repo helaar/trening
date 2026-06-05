@@ -8,21 +8,27 @@ from icalendar import Calendar, Event
 
 logger = logging.getLogger(__name__)
 
-# TrainingPeaks CATEGORIES → sidekick sport type
-_CATEGORY_MAP: dict[str, str] = {
-    "Bike": "cycling",
-    "Cycling": "cycling",
-    "Run": "running",
-    "Running": "running",
-    "Swim": "other",
-    "Swimming": "other",
-    "Strength": "strength",
-    "StrengthTraining": "strength",
-    "CrossCountrySkiing": "skiing_cross",
-    "AlpineSkiing": "skiing_alpine",
-    "Rest": "day_off",
-    "DayOff": "day_off",
+# Sport prefix in SUMMARY → sidekick sport type
+_SUMMARY_SPORT_MAP: dict[str, str] = {
+    "bike": "cycling",
+    "cycling": "cycling",
+    "run": "running",
+    "running": "running",
+    "swim": "other",
+    "swimming": "other",
+    "strength": "strength",
+    "strengthtraining": "strength",
+    "crosscountryskiing": "skiing_cross",
+    "alpineskiing": "skiing_alpine",
+    "rest": "day_off",
+    "dayoff": "day_off",
 }
+
+# TrainingPeaks CATEGORIES → sidekick sport type (fallback if CATEGORIES present)
+_CATEGORY_MAP: dict[str, str] = {k.title(): v for k, v in _SUMMARY_SPORT_MAP.items()}
+
+# "Planned Time: H:MM" or "Planned Time: HH:MM" in DESCRIPTION
+_PLANNED_TIME_RE = re.compile(r"Planned Time:\s*(\d+):(\d{2})", re.IGNORECASE)
 
 
 @dataclass
@@ -35,20 +41,35 @@ class TPPlannedWorkout:
     duration_min: int | None
 
 
-def _parse_duration_min(component: Event) -> int | None:
-    duration = component.get("DURATION")
-    if duration is None:
+def _parse_sport_and_name(summary: str) -> tuple[str, str]:
+    """Split 'Sport: [CoachPlan: ]Title' into (sport_type, title)."""
+    parts = [p.strip() for p in summary.split(":")]
+    sport_type = _SUMMARY_SPORT_MAP.get(parts[0].lower().replace(" ", ""), "other")
+    # Drop the sport segment; also drop any segment that looks like a coaching plan name
+    # (heuristic: segment before the last one that contains no lowercase letters is a label)
+    title_parts = parts[1:]
+    # If there are 2+ remaining segments, the first is likely a plan/coach name — drop it
+    if len(title_parts) >= 2:
+        title_parts = title_parts[1:]
+    name = ": ".join(title_parts).strip() or summary
+    return sport_type, name
+
+
+def _parse_duration_from_description(description: str | None) -> int | None:
+    if not description:
         return None
-    td: timedelta = duration.dt  # type: ignore[attr-defined]
-    total_seconds = int(td.total_seconds())
-    return total_seconds // 60 if total_seconds > 0 else None
+    m = _PLANNED_TIME_RE.search(description)
+    if not m:
+        return None
+    hours, minutes = int(m.group(1)), int(m.group(2))
+    total = hours * 60 + minutes
+    return total if total > 0 else None
 
 
-def _parse_sport_type(component: Event) -> str:
+def _parse_sport_type_from_categories(component: Event) -> str | None:
     categories = component.get("CATEGORIES")
     if categories is None:
-        return "other"
-    # CATEGORIES can be a single object or a list; normalise to a flat list of strings
+        return None
     cats: list[str] = []
     if hasattr(categories, "cats"):
         cats = [str(c) for c in categories.cats]
@@ -60,12 +81,20 @@ def _parse_sport_type(component: Event) -> str:
                 cats.append(str(item))
     else:
         cats = [str(categories)]
-
     for cat in cats:
         mapped = _CATEGORY_MAP.get(cat)
         if mapped:
             return mapped
-    return "other"
+    return None
+
+
+def _parse_duration_min(component: Event) -> int | None:
+    duration = component.get("DURATION")
+    if duration is None:
+        return None
+    td: timedelta = duration.dt  # type: ignore[attr-defined]
+    total_seconds = int(td.total_seconds())
+    return total_seconds // 60 if total_seconds > 0 else None
 
 
 class TrainingPeaksICalClient:
@@ -96,7 +125,6 @@ class TrainingPeaksICalClient:
                 continue
 
             event_date: date = dtstart.dt  # type: ignore[attr-defined]
-            # DTSTART may be a datetime; normalise to date
             if hasattr(event_date, "date"):
                 event_date = event_date.date()
 
@@ -104,23 +132,25 @@ class TrainingPeaksICalClient:
                 continue
 
             uid = str(component.get("UID", ""))
-            summary = str(component.get("SUMMARY", "Planned workout"))
+            raw_summary = str(component.get("SUMMARY", "Planned workout"))
             description_raw = component.get("DESCRIPTION")
             description = str(description_raw).strip() if description_raw else None
 
-            logger.debug(
-                "VEVENT fields: %s",
-                {k: str(v)[:120] for k, v in component.items()},
-            )
+            sport_type, name = _parse_sport_and_name(raw_summary)
+            # CATEGORIES takes precedence over SUMMARY prefix if present
+            sport_type = _parse_sport_type_from_categories(component) or sport_type
+
+            # Duration: prefer iCal DURATION field, fall back to "Planned Time:" in description
+            duration_min = _parse_duration_min(component) or _parse_duration_from_description(description)
 
             workouts.append(
                 TPPlannedWorkout(
                     uid=uid,
                     date=event_date,
-                    sport_type=_parse_sport_type(component),
-                    name=summary,
+                    sport_type=sport_type,
+                    name=name,
                     description=description or None,
-                    duration_min=_parse_duration_min(component),
+                    duration_min=duration_min,
                 )
             )
 
@@ -131,3 +161,4 @@ class TrainingPeaksICalClient:
             end_date,
         )
         return workouts
+
