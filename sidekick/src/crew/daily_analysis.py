@@ -38,6 +38,59 @@ class DailyAnalysisInput:
     prompt_overrides: dict[str, str] = field(default_factory=dict)
 
 
+_PHILOSOPHY_SUB_KEYS = ("name", "intensity_targets", "coach_guidance", "analyst_guidance")
+
+
+def _load_philosophy(athlete_id: int, overrides: dict[str, str]) -> dict[str, str] | None:
+    """Merge global philosophy.* with athlete-specific philosophy.<id>.* overrides."""
+    result: dict[str, str] = {}
+    for k in _PHILOSOPHY_SUB_KEYS:
+        val = overrides.get(f"philosophy.{athlete_id}.{k}") or overrides.get(f"philosophy.{k}")
+        if val is not None:
+            result[k] = val
+    return result if result.get("name") else None
+
+
+def _compute_intensity_distribution(analysis: dict[str, Any]) -> dict[str, Any]:
+    """Compute low/moderate/high % from zone list positions (philosophy-neutral).
+
+    Zone position mapping (0-based):
+      0-1 → low (Zone 1 Recovery + Zone 2 Endurance)
+        2 → moderate (Zone 3 Tempo)
+       3+ → high (Zone 4 Threshold and above)
+    """
+    zones_data = analysis.get("zones", {})
+
+    def _extract(zone_list: list[dict[str, Any]]) -> dict[str, Any] | None:
+        if not zone_list:
+            return None
+        total_seconds = sum(z.get("seconds", 0) for z in zone_list)
+        if not total_seconds:
+            return None
+        low = sum(z.get("seconds", 0) for z in zone_list[:2])
+        moderate = zone_list[2].get("seconds", 0) if len(zone_list) > 2 else 0
+        high = sum(z.get("seconds", 0) for z in zone_list[3:])
+        return {
+            "low_pct": round(low / total_seconds * 100, 1),
+            "moderate_pct": round(moderate / total_seconds * 100, 1),
+            "high_pct": round(high / total_seconds * 100, 1),
+        }
+
+    power_zones = zones_data.get("power_zones", {}).get("zones") if zones_data else None
+    if power_zones:
+        dist = _extract(power_zones)
+        if dist:
+            return {**dist, "basis": "power"}
+
+    hr_zones = zones_data.get("hr_zones", {}).get("zones") if zones_data else None
+    if hr_zones:
+        dist = _extract(hr_zones)
+        if dist:
+            return {**dist, "basis": "hr"}
+
+    return {"low_pct": None, "moderate_pct": None, "high_pct": None, "basis": "unavailable"}
+
+
 def _athlete_settings_summary(athlete: Athlete) -> dict[str, Any]:
     s = athlete.settings
     result: dict[str, Any] = {}
@@ -108,12 +161,28 @@ def _build_timeline(
             for a in analyses
             if a.get("session", {}).get("category") or a.get("session", {}).get("sport")
         })
+
+        low_min = moderate_min = high_min = 0.0
+        for a in analyses:
+            dist = _compute_intensity_distribution(a)
+            if dist.get("basis") == "unavailable":
+                continue
+            duration_min = (a.get("session", {}).get("duration_sec") or 0) / 60
+            low_min += duration_min * (dist.get("low_pct") or 0) / 100
+            moderate_min += duration_min * (dist.get("moderate_pct") or 0) / 100
+            high_min += duration_min * (dist.get("high_pct") or 0) / 100
+
         return {
             "activity_count": len(analyses),
             "total_tss": round(sum(tss_values), 1) if tss_values else None,
             "avg_if": round(sum(if_values) / len(if_values), 3) if if_values else None,
             "total_minutes": round(total_minutes),
             "sports": sports,
+            "intensity_distribution_minutes": {
+                "low": round(low_min, 1),
+                "moderate": round(moderate_min, 1),
+                "high": round(high_min, 1),
+            },
         }
 
     start = date.fromisoformat(start_date)
@@ -344,9 +413,6 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         session_tags = w.get("session", {}).get("tags", [])
         all_tags = list(dict.fromkeys(session_tags + user_tags))
 
-        if not assessment and not all_tags:
-            return w
-
         enriched = dict(w)
         if all_tags:
             enriched["tags"] = all_tags
@@ -354,17 +420,26 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
             enriched["athlete_rpe"] = assessment.rpe
             if assessment.notes:
                 enriched["athlete_notes"] = assessment.notes
+        enriched["intensity_distribution"] = _compute_intensity_distribution(w)
         return enriched
 
-    workout_payload = json.dumps({
+    philosophy = _load_philosophy(input.athlete.athlete_id, input.prompt_overrides)
+
+    workout_payload_data: dict[str, Any] = {
         "athlete_settings": athlete_settings,
         "workouts": [_enrich_workout(w) for w in input.workout_analyses],
-    }, default=str)
+    }
+    if philosophy:
+        workout_payload_data["training_philosophy"] = philosophy
+    workout_payload = json.dumps(workout_payload_data, default=str)
 
-    plans_payload = json.dumps({
+    plans_payload_data: dict[str, Any] = {
         "athlete_settings": athlete_settings,
         "planned_activities": [p.model_dump(mode="json") for p in input.planned_activities],
-    }, default=str)
+    }
+    if philosophy:
+        plans_payload_data["training_philosophy"] = philosophy
+    plans_payload = json.dumps(plans_payload_data, default=str)
 
     restitution_start = (
         date.fromisoformat(input.date) - timedelta(days=_RESTITUTION_WINDOW_DAYS - 1)

@@ -2,6 +2,8 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, CheckCircle, Clipboard, ClipboardCheck, Upload } from "lucide-react"
 import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Label } from "../components/ui/label"
 import { Textarea } from "../components/ui/textarea"
 import {
   Accordion,
@@ -130,6 +132,65 @@ function ImportModal({ groupKey, onImport, onClose }: ImportModalProps) {
   )
 }
 
+const GLOBAL_PHILOSOPHY_KEYS = [
+  { key: "philosophy.name", label: "Philosophy name", placeholder: "e.g. Polarized (80/20)", multiline: false },
+  { key: "philosophy.intensity_targets", label: "Intensity targets", placeholder: "e.g. low ≥80%, moderate <5%, high ~20%", multiline: false },
+  { key: "philosophy.coach_guidance", label: "Coach guidance", placeholder: "What the daily coach should do with the intensity data…", multiline: true },
+  { key: "philosophy.analyst_guidance", label: "Analyst guidance", placeholder: "What the performance analyst should flag…", multiline: true },
+]
+
+function GlobalPhilosophySection({
+  prompts,
+  edits,
+  onChange,
+}: {
+  prompts: PromptConfig[] | undefined
+  edits: Record<string, string>
+  onChange: (key: string, value: string) => void
+}) {
+  const byKey = new Map((prompts ?? []).map((p) => [p.key, p.value]))
+
+  function currentValue(key: string): string {
+    return edits[key] ?? byKey.get(key) ?? ""
+  }
+
+  return (
+    <AccordionItem value="philosophy.global" className="border rounded-lg px-4">
+      <AccordionTrigger className="text-sm font-medium py-3">
+        Default Training Philosophy
+      </AccordionTrigger>
+      <AccordionContent className="space-y-4 pb-4">
+        <p className="text-xs text-muted-foreground">
+          Global default applied to all athletes. Per-athlete overrides are set in Athlete Settings.
+        </p>
+        {GLOBAL_PHILOSOPHY_KEYS.map(({ key, label, placeholder, multiline }) => (
+          <div key={key} className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {label}
+            </Label>
+            {multiline ? (
+              <Textarea
+                value={currentValue(key)}
+                placeholder={placeholder}
+                onChange={(e) => onChange(key, e.target.value)}
+                rows={4}
+                className="font-mono text-xs resize-y"
+              />
+            ) : (
+              <Input
+                value={currentValue(key)}
+                placeholder={placeholder}
+                onChange={(e) => onChange(key, e.target.value)}
+                className="font-mono text-xs"
+              />
+            )}
+          </div>
+        ))}
+      </AccordionContent>
+    </AccordionItem>
+  )
+}
+
 export function SetupPage() {
   const queryClient = useQueryClient()
   const { data: prompts, isLoading } = useQuery({
@@ -209,6 +270,7 @@ export function SetupPage() {
         </div>
 
         <Accordion type="multiple" className="space-y-2">
+          <GlobalPhilosophySection prompts={prompts} edits={edits} onChange={handleChange} />
           {Array.from(groups.entries()).map(([groupKey, items]) => (
             <AccordionItem key={groupKey} value={groupKey} className="border rounded-lg px-4">
               <AccordionTrigger className="text-sm font-medium py-3">
