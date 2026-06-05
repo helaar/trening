@@ -15,6 +15,10 @@ class PromptRepository:
             doc.pop("_id", None)
         return [PromptConfig(**doc) for doc in docs]
 
+    async def delete_many(self, keys: list[str]) -> None:
+        if keys:
+            await self.col.delete_many({"key": {"$in": keys}})
+
     async def upsert_many(self, items: list[dict]) -> list[PromptConfig]:
         now = datetime.now(timezone.utc)
         results = []

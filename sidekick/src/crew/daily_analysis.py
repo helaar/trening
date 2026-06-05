@@ -42,13 +42,11 @@ _PHILOSOPHY_SUB_KEYS = ("name", "intensity_targets", "coach_guidance", "analyst_
 
 
 def _load_philosophy(athlete_id: int, overrides: dict[str, str]) -> dict[str, str] | None:
-    """Load philosophy for athlete by slug selection, falling back to legacy flat keys."""
+    """Load philosophy for athlete by slug selection."""
     slug = overrides.get(f"philosophy.{athlete_id}.selected")
-    if slug:
-        result = {k: overrides.get(f"philosophy.{slug}.{k}", "") for k in _PHILOSOPHY_SUB_KEYS}
-    else:
-        # fallback: legacy flat philosophy.* keys
-        result = {k: overrides.get(f"philosophy.{k}", "") for k in _PHILOSOPHY_SUB_KEYS}
+    if not slug:
+        return None
+    result = {k: overrides.get(f"philosophy.{slug}.{k}", "") for k in _PHILOSOPHY_SUB_KEYS}
     return result if result.get("name") else None
 
 
