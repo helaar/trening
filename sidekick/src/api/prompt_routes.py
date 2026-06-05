@@ -58,6 +58,12 @@ async def list_prompts(repo: PromptRepository = Depends(get_prompt_repo)) -> lis
             result.append(overrides[key])
         else:
             result.append(PromptConfig(key=key, value=value))
+
+    # Include DB-only entries that have no YAML default (e.g. philosophy.*)
+    for key, config in overrides.items():
+        if key not in defaults:
+            result.append(config)
+
     return result
 
 
