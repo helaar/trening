@@ -461,12 +461,12 @@ function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
   const availablePhilosophies = globalName ? [globalName] : []
 
   useEffect(() => {
-    setSelected(athleteOverride ?? globalName)
+    setSelected(athleteOverride || globalName)
   }, [athleteOverride, globalName])
 
   const mutation = useMutation({
     mutationFn: () =>
-      savePrompts([{ key: `philosophy.${athleteId}.name`, value: selected === globalName ? "" : selected }]),
+      savePrompts([{ key: `philosophy.${athleteId}.name`, value: selected }]),
     onSuccess: (updated) => {
       queryClient.setQueryData<typeof prompts>(["admin-prompts"], (prev) => {
         if (!prev) return updated
