@@ -80,7 +80,7 @@ class TrainingPeaksICalClient:
         # webcal:// is just http(s):// for calendar apps; always fetch over https
         fetch_url = re.sub(r"^webcal://", "https://", ical_url, flags=re.IGNORECASE)
 
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             response = await client.get(fetch_url)
             response.raise_for_status()
 
