@@ -208,7 +208,9 @@ export function SetupPage() {
       queryClient.setQueryData<PromptConfig[]>(["admin-prompts"], (prev) => {
         if (!prev) return updated
         const byKey = new Map(updated.map((p) => [p.key, p]))
-        return prev.map((p) => byKey.get(p.key) ?? p)
+        const merged = prev.map((p) => byKey.get(p.key) ?? p)
+        const added = updated.filter((p) => !prev.some((e) => e.key === p.key))
+        return [...merged, ...added]
       })
       setEdits({})
       setSaved(true)
