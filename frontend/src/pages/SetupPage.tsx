@@ -63,10 +63,8 @@ function groupPrompts(prompts: PromptConfig[], prefix: "agents" | "tasks"): Map<
 
 function groupLabel(groupKey: string): string {
   const parts = groupKey.split(".")
-  if (parts.length < 2) return groupKey
-  const section = parts[0] === "agents" ? "Agent" : "Task"
-  const name = parts[1].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-  return `${section}: ${name}`
+  const name = (parts[1] ?? parts[0]).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  return name
 }
 
 function philosophyLabel(slug: string): string {
@@ -200,7 +198,7 @@ function TreeBranch({ label, items, selected, branch, onSelect, extra }: TreeBra
         {label}
       </button>
       {open && (
-        <div className="ml-2">
+        <div className="ml-3 pl-3 border-l border-border">
           {items.map(({ key, label: itemLabel }) => {
             const isSelected = selected?.branch === branch && selected.key === key
             return (
@@ -208,7 +206,7 @@ function TreeBranch({ label, items, selected, branch, onSelect, extra }: TreeBra
                 key={key}
                 type="button"
                 onClick={() => onSelect({ branch, key })}
-                className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors truncate ${
+                className={`w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors truncate ${
                   isSelected
                     ? "bg-accent text-accent-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
