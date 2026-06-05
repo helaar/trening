@@ -23,20 +23,21 @@ interface Props {
   athleteId: number
   date: string
   existing?: PlannedActivity
+  prefill?: Partial<PlannedActivityRequest>
   onSaved: (plan: PlannedActivity) => void
   onDeleted: () => void
 }
 
-export function PlanForm({ athleteId, date, existing, onSaved, onDeleted }: Props) {
+export function PlanForm({ athleteId, date, existing, prefill, onSaved, onDeleted }: Props) {
   const queryClient = useQueryClient()
   const isEditing = !!existing
 
-  const [sport, setSport] = useState<Sport>(existing?.sport ?? "cycling")
-  const [name, setName] = useState(existing?.name ?? "")
-  const [description, setDescription] = useState(existing?.description ?? "")
+  const [sport, setSport] = useState<Sport>(existing?.sport ?? prefill?.sport ?? "cycling")
+  const [name, setName] = useState(existing?.name ?? prefill?.name ?? "")
+  const [description, setDescription] = useState(existing?.description ?? prefill?.description ?? "")
   const [purpose, setPurpose] = useState(existing?.purpose ?? "")
   const [durationMin, setDurationMin] = useState(
-    existing?.estimated_duration_min?.toString() ?? ""
+    existing?.estimated_duration_min?.toString() ?? prefill?.estimated_duration_min?.toString() ?? ""
   )
   const [tss, setTss] = useState(existing?.estimated_tss?.toString() ?? "")
   const [labels, setLabels] = useState<string[]>(existing?.labels ?? [])

@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -76,8 +77,11 @@ class TrainingPeaksICalClient:
         start_date: date,
         end_date: date,
     ) -> list[TPPlannedWorkout]:
+        # webcal:// is just http(s):// for calendar apps; always fetch over https
+        fetch_url = re.sub(r"^webcal://", "https://", ical_url, flags=re.IGNORECASE)
+
         async with httpx.AsyncClient(timeout=15) as client:
-            response = await client.get(ical_url)
+            response = await client.get(fetch_url)
             response.raise_for_status()
 
         cal = Calendar.from_ical(response.content)

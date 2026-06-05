@@ -68,3 +68,22 @@ export function deletePlan(athleteId: number, planId: string): Promise<void> {
     method: "DELETE",
   })
 }
+
+export interface TPPlannedWorkout {
+  uid: string
+  date: string
+  sport_type: Sport
+  name: string
+  description: string | null
+  duration_min: number | null
+}
+
+export function fetchTPPlans(
+  athleteId: number,
+  start: string,
+  end: string
+): Promise<TPPlannedWorkout[]> {
+  return apiFetch<TPPlannedWorkout[]>(
+    `/api/v1/athlete/${athleteId}/plans/trainingpeaks?start=${start}&end=${end}`
+  )
+}
