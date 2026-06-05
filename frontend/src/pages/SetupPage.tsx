@@ -24,6 +24,7 @@ import { fetchPrompts, savePrompts, type PromptConfig } from "../api/prompts"
 function groupPrompts(prompts: PromptConfig[]): Map<string, PromptConfig[]> {
   const groups = new Map<string, PromptConfig[]>()
   for (const p of prompts) {
+    if (!p.key.startsWith("agents.") && !p.key.startsWith("tasks.")) continue
     const parts = p.key.split(".")
     const groupKey = parts.length >= 2 ? `${parts[0]}.${parts[1]}` : parts[0]
     const list = groups.get(groupKey) ?? []
