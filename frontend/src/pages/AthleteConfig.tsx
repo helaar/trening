@@ -19,6 +19,7 @@ import {
   type AthleteSettings,
 } from "../api/athleteSettings"
 import { fetchCurrentAthlete } from "../api/auth"
+import { fetchPrompts, savePrompts } from "../api/prompts"
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -438,6 +439,82 @@ function TrainingPeaksSectionContent({ initial, athleteId }: TrainingPeaksSectio
   )
 }
 
+// ── training philosophy section ───────────────────────────────────────────────
+
+interface PhilosophySectionProps {
+  athleteId: number
+}
+
+function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
+  const queryClient = useQueryClient()
+  const [selected, setSelected] = useState<string>("")
+  const [saved, setSaved] = useState(false)
+
+  const { data: prompts } = useQuery({
+    queryKey: ["admin-prompts"],
+    queryFn: fetchPrompts,
+  })
+
+  const byKey = new Map((prompts ?? []).map((p) => [p.key, p.value]))
+  const globalName = byKey.get("philosophy.name") ?? ""
+  const athleteOverride = byKey.get(`philosophy.${athleteId}.name`)
+  const availablePhilosophies = globalName ? [globalName] : []
+
+  useEffect(() => {
+    setSelected(athleteOverride || globalName)
+  }, [athleteOverride, globalName])
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      savePrompts([{ key: `philosophy.${athleteId}.name`, value: selected }]),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<typeof prompts>(["admin-prompts"], (prev) => {
+        if (!prev) return updated
+        const byUpdated = new Map(updated.map((p) => [p.key, p]))
+        const merged = prev.map((p) => byUpdated.get(p.key) ?? p)
+        const added = updated.filter((p) => !prev.some((e) => e.key === p.key))
+        return [...merged, ...added]
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    },
+  })
+
+  if (!globalName) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No philosophy configured yet. Set a default in Setup first.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        {availablePhilosophies.map((name) => (
+          <label key={name} className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="radio"
+              name="philosophy"
+              value={name}
+              checked={selected === name}
+              onChange={() => setSelected(name)}
+              className="h-4 w-4 accent-primary"
+            />
+            <span className="text-sm">{name}</span>
+          </label>
+        ))}
+      </div>
+      <SaveRow
+        saved={saved}
+        isPending={mutation.isPending}
+        isError={mutation.isError}
+        onSave={() => mutation.mutate()}
+      />
+    </div>
+  )
+}
+
 // ── page ──────────────────────────────────────────────────────────────────────
 
 export function AthleteConfig() {
@@ -550,6 +627,13 @@ export function AthleteConfig() {
               initial={settings?.trainingpeaks_ical_url ?? null}
               athleteId={athlete!.athlete_id}
             />
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="philosophy">
+          <AccordionTrigger>Training Philosophy</AccordionTrigger>
+          <AccordionContent>
+            <PhilosophySectionContent athleteId={athlete!.athlete_id} />
           </AccordionContent>
         </AccordionItem>
       </Accordion>
