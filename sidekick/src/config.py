@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # LLM settings for CrewAI
     anthropic_api_key: str = ""
     openai_api_key: str = ""
-    llm_model: str = "claude-haiku-4-5-20251001"
+    llm_model: str = "anthropic/claude-haiku-4-5-20251001"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -16,6 +16,7 @@ from database.memory_repository import MemoryRepository
 from database.task_repository import TaskRepository
 from models.crew_outputs import MemoryConsolidationOutput
 from models.memory import Memory, MemoryScope
+from crew.daily_analysis import _normalize_llm
 from services.handlers.base import TaskHandler
 
 logger = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ class MemoryConsolidationHandler(TaskHandler):
         agents_cfg = _load_yaml("agents.yaml")
         tasks_cfg = _load_yaml("tasks.yaml")
 
-        llm = agents_cfg["memory_consolidator"].get("llm_model") or settings.llm_model
+        llm = _normalize_llm(agents_cfg["memory_consolidator"].get("llm_model") or settings.llm_model)
         data_tool = _ConsolidationDataTool(payload=payload)
         agent = Agent(
             role=agents_cfg["memory_consolidator"]["role"],
