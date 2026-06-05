@@ -4,7 +4,6 @@ import { Loader2, CheckCircle, Plus, Trash2 } from "lucide-react"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
-import { Textarea } from "../components/ui/textarea"
 import {
   Accordion,
   AccordionItem,
@@ -442,32 +441,13 @@ function TrainingPeaksSectionContent({ initial, athleteId }: TrainingPeaksSectio
 
 // ── training philosophy section ───────────────────────────────────────────────
 
-const PHILOSOPHY_SUB_KEYS = ["name", "intensity_targets", "coach_guidance", "analyst_guidance"] as const
-type PhilosophySubKey = typeof PHILOSOPHY_SUB_KEYS[number]
-
-const PHILOSOPHY_LABELS: Record<PhilosophySubKey, string> = {
-  name: "Philosophy name",
-  intensity_targets: "Intensity targets",
-  coach_guidance: "Coach guidance",
-  analyst_guidance: "Analyst guidance",
-}
-
-const PHILOSOPHY_PLACEHOLDERS: Record<PhilosophySubKey, string> = {
-  name: "e.g. Polarized (80/20)",
-  intensity_targets: "e.g. low ≥80%, moderate <5%, high ~20%",
-  coach_guidance: "What the coach should do with the intensity data…",
-  analyst_guidance: "What the analyst should flag…",
-}
-
 interface PhilosophySectionProps {
   athleteId: number
 }
 
 function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
   const queryClient = useQueryClient()
-  const [values, setValues] = useState<Record<PhilosophySubKey, string>>({
-    name: "", intensity_targets: "", coach_guidance: "", analyst_guidance: "",
-  })
+  const [selected, setSelected] = useState<string>("")
   const [saved, setSaved] = useState(false)
 
   const { data: prompts } = useQuery({
@@ -475,64 +455,56 @@ function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
     queryFn: fetchPrompts,
   })
 
+  const byKey = new Map((prompts ?? []).map((p) => [p.key, p.value]))
+  const globalName = byKey.get("philosophy.name") ?? ""
+  const athleteOverride = byKey.get(`philosophy.${athleteId}.name`)
+  const availablePhilosophies = globalName ? [globalName] : []
+
   useEffect(() => {
-    if (!prompts) return
-    const byKey = new Map(prompts.map((p) => [p.key, p.value]))
-    setValues({
-      name: byKey.get(`philosophy.${athleteId}.name`) ?? byKey.get("philosophy.name") ?? "",
-      intensity_targets: byKey.get(`philosophy.${athleteId}.intensity_targets`) ?? byKey.get("philosophy.intensity_targets") ?? "",
-      coach_guidance: byKey.get(`philosophy.${athleteId}.coach_guidance`) ?? byKey.get("philosophy.coach_guidance") ?? "",
-      analyst_guidance: byKey.get(`philosophy.${athleteId}.analyst_guidance`) ?? byKey.get("philosophy.analyst_guidance") ?? "",
-    })
-  }, [prompts, athleteId])
+    setSelected(athleteOverride ?? globalName)
+  }, [athleteOverride, globalName])
 
   const mutation = useMutation({
     mutationFn: () =>
-      savePrompts(
-        PHILOSOPHY_SUB_KEYS.map((k) => ({
-          key: `philosophy.${athleteId}.${k}`,
-          value: values[k],
-        }))
-      ),
+      savePrompts([{ key: `philosophy.${athleteId}.name`, value: selected === globalName ? "" : selected }]),
     onSuccess: (updated) => {
       queryClient.setQueryData<typeof prompts>(["admin-prompts"], (prev) => {
         if (!prev) return updated
-        const byKey = new Map(updated.map((p) => [p.key, p]))
-        return prev.map((p) => byKey.get(p.key) ?? p).concat(
-          updated.filter((p) => !prev.some((e) => e.key === p.key))
-        )
+        const byUpdated = new Map(updated.map((p) => [p.key, p]))
+        const merged = prev.map((p) => byUpdated.get(p.key) ?? p)
+        const added = updated.filter((p) => !prev.some((e) => e.key === p.key))
+        return [...merged, ...added]
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     },
   })
 
+  if (!globalName) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No philosophy configured yet. Set a default in Setup first.
+      </p>
+    )
+  }
+
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Athlete-specific overrides. Leave blank to inherit the global default from Setup.
-      </p>
-      {PHILOSOPHY_SUB_KEYS.map((k) => (
-        <div key={k} className="space-y-1.5">
-          <Label htmlFor={`phil-${k}`}>{PHILOSOPHY_LABELS[k]}</Label>
-          {k === "name" || k === "intensity_targets" ? (
-            <Input
-              id={`phil-${k}`}
-              placeholder={PHILOSOPHY_PLACEHOLDERS[k]}
-              value={values[k]}
-              onChange={(e) => setValues((prev) => ({ ...prev, [k]: e.target.value }))}
+      <div className="space-y-2">
+        {availablePhilosophies.map((name) => (
+          <label key={name} className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="radio"
+              name="philosophy"
+              value={name}
+              checked={selected === name}
+              onChange={() => setSelected(name)}
+              className="h-4 w-4 accent-primary"
             />
-          ) : (
-            <Textarea
-              id={`phil-${k}`}
-              placeholder={PHILOSOPHY_PLACEHOLDERS[k]}
-              value={values[k]}
-              rows={4}
-              onChange={(e) => setValues((prev) => ({ ...prev, [k]: e.target.value }))}
-            />
-          )}
-        </div>
-      ))}
+            <span className="text-sm">{name}</span>
+          </label>
+        ))}
+      </div>
       <SaveRow
         saved={saved}
         isPending={mutation.isPending}
