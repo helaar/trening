@@ -76,13 +76,13 @@ def _compute_intensity_distribution(analysis: dict[str, Any]) -> dict[str, Any]:
             "high_pct": round(high / total_seconds * 100, 1),
         }
 
-    power_zones = zones_data.get("power_zones", {}).get("zones") if zones_data else None
+    power_zones = (zones_data.get("power_zones") or {}).get("zones") if zones_data else None
     if power_zones:
         dist = _extract(power_zones)
         if dist:
             return {**dist, "basis": "power"}
 
-    hr_zones = zones_data.get("hr_zones", {}).get("zones") if zones_data else None
+    hr_zones = (zones_data.get("hr_zones") or {}).get("zones") if zones_data else None
     if hr_zones:
         dist = _extract(hr_zones)
         if dist:
