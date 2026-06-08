@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router"
-import { CalendarDays, Settings, TrendingUp, User } from "lucide-react"
+import { CalendarDays, Search, Settings, TrendingUp, User } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { fetchCurrentAthlete } from "../../api/auth"
 import { cn } from "../../lib/utils"
@@ -18,6 +18,7 @@ export function Sidebar() {
 
   const profileActive = location.pathname.startsWith("/settings")
   const setupActive = location.pathname.startsWith("/setup")
+  const inspectActive = location.pathname.startsWith("/admin/inspect")
 
   return (
     <aside className="hidden sm:flex h-full w-52 shrink-0 flex-col border-r bg-background">
@@ -58,6 +59,17 @@ export function Sidebar() {
         >
           <Settings className="h-4 w-4 shrink-0" />
           Setup
+        </Link>
+        <Link
+          to="/admin/inspect"
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+            "hover:bg-accent hover:text-accent-foreground",
+            inspectActive && "bg-accent text-accent-foreground"
+          )}
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          Inspect
         </Link>
         <Link
           to="/settings"

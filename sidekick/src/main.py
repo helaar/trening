@@ -8,7 +8,9 @@ from fastapi.middleware.gzip import GZipMiddleware
 from api.routes import router
 from api.auth_routes import router as auth_router
 from config import settings
+from crew.prompt_logging import register_prompt_log_listener
 from database.mongodb import db_manager
+from database.prompt_log_repository import PromptLogRepository
 
 # Configure logging
 logging.basicConfig(
@@ -39,6 +41,8 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan - startup and shutdown events."""
     # Startup
     await db_manager.connect()
+    await PromptLogRepository(db_manager.db).ensure_indexes()
+    register_prompt_log_listener()
     yield
     # Shutdown
     await db_manager.disconnect()

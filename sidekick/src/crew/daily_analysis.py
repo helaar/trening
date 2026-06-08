@@ -13,6 +13,7 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel
 
 from config import settings
+from crew.prompt_logging import capture_prompt_log, drain_prompt_log
 from models.athlete import Athlete
 from models.crew_outputs import CoachingOutput, MemoryExtractionOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
 from models.memory import Memory
@@ -574,7 +575,9 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
 
     logger.info("Starting daily analysis crew for %s on %s", athlete_name, input.date)
-    result = crew.kickoff()
+    with capture_prompt_log(input.athlete.athlete_id, "daily_analysis", crew) as prompt_log_run_id:
+        result = crew.kickoff()
+    prompt_log_entries = drain_prompt_log(prompt_log_run_id)
 
     workout_output: WorkoutAnalysisOutput | None = None
     restitution_output: RestitutionAnalysisOutput | None = None
@@ -603,4 +606,5 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         "restitution_analysis": restitution_output,
         "coaching_feedback": coaching_output,
         "memory_extraction": memory_extraction_output,
+        "prompt_log_entries": prompt_log_entries,
     }

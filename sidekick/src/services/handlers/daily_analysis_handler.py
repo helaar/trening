@@ -10,6 +10,7 @@ from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
 from database.memory_repository import MemoryRepository
 from database.plan_repository import PlanRepository
+from database.prompt_log_repository import PromptLogRepository
 from database.prompt_repository import PromptRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
@@ -35,6 +36,7 @@ class DailyAnalysisHandler(TaskHandler):
         daily_entry_repo: DailyEntryRepository,
         memory_repo: MemoryRepository,
         prompt_repo: PromptRepository | None = None,
+        prompt_log_repo: PromptLogRepository | None = None,
     ):
         self.task_repo = task_repo
         self.athlete_repo = athlete_repo
@@ -44,6 +46,7 @@ class DailyAnalysisHandler(TaskHandler):
         self.daily_entry_repo = daily_entry_repo
         self.memory_repo = memory_repo
         self.prompt_repo = prompt_repo
+        self.prompt_log_repo = prompt_log_repo
 
     async def execute(
         self,
@@ -118,6 +121,12 @@ class DailyAnalysisHandler(TaskHandler):
 
         crew_result = await asyncio.to_thread(run_daily_analysis, analysis_input)
         await self.task_repo.update_task_progress(task_id, 0.9)
+
+        if self.prompt_log_repo:
+            try:
+                await self.prompt_log_repo.insert_many(crew_result.get("prompt_log_entries", []))
+            except Exception:
+                logger.exception("Failed to persist prompt log entries for task %s", task_id)
 
         stored = DailyAnalysisResult(
             athlete_id=athlete_id,

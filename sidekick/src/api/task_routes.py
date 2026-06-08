@@ -11,6 +11,7 @@ from database.daily_entry_repository import DailyEntryRepository
 from database.memory_repository import MemoryRepository
 from database.mongodb import get_db
 from database.plan_repository import PlanRepository
+from database.prompt_log_repository import PromptLogRepository
 from database.prompt_repository import PromptRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
@@ -62,6 +63,11 @@ def get_prompt_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> Prom
     return PromptRepository(db)
 
 
+def get_prompt_log_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> PromptLogRepository:
+    """Dependency to get prompt log repository."""
+    return PromptLogRepository(db)
+
+
 def get_task_processor(
     task_repo: Annotated[TaskRepository, Depends(get_task_repository)],
     athlete_repo: Annotated[AthleteRepository, Depends(get_athlete_repository)],
@@ -71,9 +77,10 @@ def get_task_processor(
     daily_entry_repo: Annotated[DailyEntryRepository, Depends(get_daily_entry_repository)],
     memory_repo: Annotated[MemoryRepository, Depends(get_memory_repository)],
     prompt_repo: Annotated[PromptRepository, Depends(get_prompt_repository)],
+    prompt_log_repo: Annotated[PromptLogRepository, Depends(get_prompt_log_repository)],
 ) -> TaskProcessor:
     """Dependency to get task processor."""
-    return TaskProcessor(task_repo, athlete_repo, workout_repo, plan_repo, daily_analysis_repo, daily_entry_repo, memory_repo, prompt_repo)
+    return TaskProcessor(task_repo, athlete_repo, workout_repo, plan_repo, daily_analysis_repo, daily_entry_repo, memory_repo, prompt_repo, prompt_log_repo)
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
