@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import re
 from dataclasses import dataclass
@@ -98,7 +99,8 @@ def _parse_duration_min(component: Event) -> int | None:
 
 
 def _stable_workout_id(event_date: date, name: str, duration_min: int | None) -> str:
-    return f"{event_date.isoformat()}|{name.strip().lower()}|{duration_min or 0}"
+    fingerprint = f"{event_date.isoformat()}|{name.strip().lower()}|{duration_min or 0}"
+    return hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
 
 
 class TrainingPeaksICalClient:
