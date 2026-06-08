@@ -6,22 +6,31 @@ truth for what an agent actually saw, as opposed to a theoretical
 reconstruction of agent/task/data composition (which would drift from CrewAI's
 internal prompt assembly across versions).
 
-Captured calls are buffered per-run (via a contextvar, so concurrent runs and
-async-executed tasks don't cross-contaminate) and persisted by the caller after
+Calls are correlated to a run by `task_id`/`agent_id` (the `Task`/`Agent` UUIDs,
+which the event carries as plain strings — CrewAI nulls out the actual
+`from_task`/`from_agent` objects on construction), not by contextvars:
+CrewAI executes `async_execution=True` tasks on bare `threading.Thread`s, which
+do not inherit the caller's context, so a contextvar set before `kickoff()`
+would be invisible to those threads. UUIDs survive the thread hop.
+
+Captured calls are buffered per-run and persisted by the caller after
 `crew.kickoff()` returns, since event handlers run on CrewAI's own thread pool
 and cannot perform async Mongo writes directly.
 """
 
 import logging
+import threading
 import uuid
 from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import TYPE_CHECKING, Any, Iterator
 
 from crewai.events import BaseEventListener, LLMCallCompletedEvent
 
 from models.prompt_log import PromptLogEntry
+
+if TYPE_CHECKING:
+    from crewai import Crew
 
 logger = logging.getLogger(__name__)
 
@@ -34,43 +43,59 @@ class _RunBuffer:
     entries: list[PromptLogEntry] = field(default_factory=list)
 
 
-_current_run: ContextVar["_RunBuffer | None"] = ContextVar("_current_run", default=None)
+_lock = threading.Lock()
+_registry: dict[str, _RunBuffer] = {}
+_buffers_by_run: dict[str, _RunBuffer] = {}
 
 
 @contextmanager
-def capture_prompt_log(athlete_id: int, crew_name: str) -> Iterator[str]:
-    """Buffer LLM calls made during the wrapped block under a fresh run_id.
+def capture_prompt_log(athlete_id: int, crew_name: str, crew: "Crew") -> Iterator[str]:
+    """Buffer LLM calls made by `crew` during the wrapped block under a fresh run_id.
 
     Usage:
-        with capture_prompt_log(athlete_id, "daily_analysis") as run_id:
+        with capture_prompt_log(athlete_id, "daily_analysis", crew) as run_id:
             crew.kickoff()
         await prompt_log_repo.insert_many(drain_prompt_log(run_id))
     """
     run_id = str(uuid.uuid4())
     buffer = _RunBuffer(run_id=run_id, athlete_id=athlete_id, crew_name=crew_name)
-    token = _current_run.set(buffer)
+    keys: list[str] = []
+    for task in crew.tasks:
+        keys.append(str(task.id))
+        agent = getattr(task, "agent", None)
+        if agent is not None:
+            keys.append(str(agent.id))
+    with _lock:
+        _buffers_by_run[run_id] = buffer
+        for key in keys:
+            _registry[key] = buffer
     try:
         yield run_id
     finally:
-        _current_run.reset(token)
+        with _lock:
+            for key in keys:
+                _registry.pop(key, None)
 
 
 def drain_prompt_log(run_id: str) -> list[PromptLogEntry]:
     """Pop and return the entries captured for `run_id` (call after kickoff() returns)."""
-    buffer = _current_run.get()
-    if buffer is None or buffer.run_id != run_id:
+    with _lock:
+        buffer = _buffers_by_run.pop(run_id, None)
+    if buffer is None:
         return []
-    entries, buffer.entries = buffer.entries, []
-    return entries
+    return buffer.entries
 
 
 class _PromptLogListener(BaseEventListener):
-    """Process-global listener; buffers calls into whichever run is active on the emitting thread."""
+    """Process-global listener; correlates calls to a run via from_task/from_agent identity."""
 
     def setup_listeners(self, bus) -> None:
         @bus.on(LLMCallCompletedEvent)
         def _on_completed(source: Any, event: LLMCallCompletedEvent) -> None:
-            buffer = _current_run.get()
+            task_id = getattr(event, "task_id", None)
+            agent_id = getattr(event, "agent_id", None)
+            with _lock:
+                buffer = _registry.get(task_id) or _registry.get(agent_id)
             if buffer is None:
                 return
             try:
@@ -82,9 +107,8 @@ class _PromptLogListener(BaseEventListener):
                         run_id=buffer.run_id,
                         athlete_id=buffer.athlete_id,
                         crew_name=buffer.crew_name,
-                        agent_role=getattr(event.from_agent, "role", None),
-                        task_name=getattr(event.from_task, "name", None)
-                        or getattr(event.from_task, "description", None),
+                        agent_role=getattr(event, "agent_role", None),
+                        task_name=getattr(event, "task_name", None),
                         model=event.model,
                         call_type=getattr(event.call_type, "value", event.call_type),
                         messages=messages or [],

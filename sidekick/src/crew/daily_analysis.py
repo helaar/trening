@@ -575,7 +575,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
 
     logger.info("Starting daily analysis crew for %s on %s", athlete_name, input.date)
-    with capture_prompt_log(input.athlete.athlete_id, "daily_analysis") as prompt_log_run_id:
+    with capture_prompt_log(input.athlete.athlete_id, "daily_analysis", crew) as prompt_log_run_id:
         result = crew.kickoff()
     prompt_log_entries = drain_prompt_log(prompt_log_run_id)
 

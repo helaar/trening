@@ -89,7 +89,7 @@ def run_long_term_analysis(input: LongTermAnalysisInput) -> dict[str, Any]:
         input.start_date,
         input.end_date,
     )
-    with capture_prompt_log(input.athlete.athlete_id, "long_term_analysis") as prompt_log_run_id:
+    with capture_prompt_log(input.athlete.athlete_id, "long_term_analysis", crew) as prompt_log_run_id:
         result = crew.kickoff()
     prompt_log_entries = drain_prompt_log(prompt_log_run_id)
 
