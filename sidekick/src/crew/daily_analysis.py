@@ -35,6 +35,7 @@ class DailyAnalysisInput:
     daily_entries: list[DailyEntry] = field(default_factory=list)
     recent_workout_analyses: list[dict[str, Any]] = field(default_factory=list)
     active_memories: list[Memory] = field(default_factory=list)
+    upcoming_races: list[PlannedActivity] = field(default_factory=list)
     prompt_overrides: dict[str, str] = field(default_factory=dict)
 
 
@@ -225,6 +226,28 @@ class _PlansDataTool(BaseTool):
     description: str = (
         "Retrieve today's planned activities and athlete settings. "
         "Returns JSON with 'planned_activities' and 'athlete_settings' keys."
+    )
+    _payload: str = ""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, payload: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        object.__setattr__(self, "_payload", payload)
+
+    def _run(self, **kwargs: Any) -> str:
+        return self._payload
+
+
+class _RacesDataTool(BaseTool):
+    name: str = "get_upcoming_races"
+    description: str = (
+        "Retrieve the athlete's season goal race and other upcoming races from "
+        "today onward. Returns JSON with 'season_goal' (the race tagged "
+        "'seasongoal', or null if none is planned) and 'upcoming_races' (a "
+        "list of races tagged 'race', sorted by date, each with 'date', "
+        "'name', 'sport', and 'days_until')."
     )
     _payload: str = ""
 
@@ -440,6 +463,30 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         plans_payload_data["training_philosophy"] = philosophy
     plans_payload = json.dumps(plans_payload_data, default=str)
 
+    def _race_entry(activity: PlannedActivity) -> dict[str, Any]:
+        race_date = date.fromisoformat(activity.date)
+        today = date.fromisoformat(input.date)
+        days_until = (race_date - today).days
+        return {
+            "date": activity.date,
+            "name": activity.name,
+            "sport": activity.sport,
+            "days_until": days_until,
+        }
+
+    season_goal = next(
+        (a for a in input.upcoming_races if "seasongoal" in a.labels), None
+    )
+    races_payload = json.dumps(
+        {
+            "season_goal": _race_entry(season_goal) if season_goal else None,
+            "upcoming_races": [
+                _race_entry(a) for a in input.upcoming_races if "race" in a.labels
+            ],
+        },
+        default=str,
+    )
+
     restitution_start = (
         date.fromisoformat(input.date) - timedelta(days=_RESTITUTION_WINDOW_DAYS - 1)
     ).isoformat()
@@ -458,13 +505,16 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
 
     workout_tool = _WorkoutDataTool(payload=workout_payload)
     plans_tool = _PlansDataTool(payload=plans_payload)
+    races_tool = _RacesDataTool(payload=races_payload)
     restitution_tool = _RestitutionDataTool(payload=restitution_payload)
 
     llm = settings.llm_model
 
     analyst = _make_agent(agents_cfg["workout_performance_analyst"], tools=[workout_tool], default_llm=llm)
     restitution_analyst = _make_agent(agents_cfg["restitution_analyst"], tools=[restitution_tool], default_llm=llm)
-    coach = _make_agent(agents_cfg["daily_coach"], tools=[plans_tool], default_llm=llm)
+    coach = _make_agent(
+        agents_cfg["daily_coach"], tools=[plans_tool, races_tool], default_llm=llm
+    )
 
     shared_inputs = {"date": input.date, "weekday": weekday, "athlete_name": athlete_name}
     restitution_inputs = {

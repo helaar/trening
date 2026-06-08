@@ -72,22 +72,35 @@ class DailyAnalysisHandler(TaskHandler):
             configs = await self.prompt_repo.get_all()
             prompt_overrides = {p.key: p.value for p in configs}
 
-        workout_analyses, planned_activities, daily_entries, recent_workout_analyses, active_memories = (
-            await asyncio.gather(
-                self.workout_repo.get_analyses_for_date(athlete_id, activity_date),
-                self.plan_repo.get_for_date(athlete_id, date_str),
-                self.daily_entry_repo.get_range(athlete_id, restitution_start, date_str),
-                self.workout_repo.get_analyses_for_range(
-                    athlete_id,
-                    datetime.fromisoformat(restitution_start),
-                    activity_date,
-                ),
-                self.memory_repo.get_active(athlete_id),
-            )
+        (
+            workout_analyses,
+            planned_activities,
+            daily_entries,
+            recent_workout_analyses,
+            active_memories,
+            upcoming_races,
+        ) = await asyncio.gather(
+            self.workout_repo.get_analyses_for_date(athlete_id, activity_date),
+            self.plan_repo.get_for_date(athlete_id, date_str),
+            self.daily_entry_repo.get_range(athlete_id, restitution_start, date_str),
+            self.workout_repo.get_analyses_for_range(
+                athlete_id,
+                datetime.fromisoformat(restitution_start),
+                activity_date,
+            ),
+            self.memory_repo.get_active(athlete_id),
+            self.plan_repo.get_races_from(athlete_id, date_str),
         )
         logger.info(
-            "Retrieved %d workout analyses, %d plans, %d daily entries, %d recent analyses, %d memories for %s",
-            len(workout_analyses), len(planned_activities), len(daily_entries), len(recent_workout_analyses), len(active_memories), date_str,
+            "Retrieved %d workout analyses, %d plans, %d daily entries, "
+            "%d recent analyses, %d memories, %d upcoming races for %s",
+            len(workout_analyses),
+            len(planned_activities),
+            len(daily_entries),
+            len(recent_workout_analyses),
+            len(active_memories),
+            len(upcoming_races),
+            date_str,
         )
         await self.task_repo.update_task_progress(task_id, 0.3)
 
@@ -99,6 +112,7 @@ class DailyAnalysisHandler(TaskHandler):
             daily_entries=daily_entries,
             recent_workout_analyses=recent_workout_analyses,
             active_memories=active_memories,
+            upcoming_races=upcoming_races,
             prompt_overrides=prompt_overrides,
         )
 

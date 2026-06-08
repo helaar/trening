@@ -25,7 +25,7 @@ import {
 } from "../../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../../api/dailyEntry"
-import { fetchPlansForDate, fetchTPPlans } from "../../api/plans"
+import { fetchPlansForDate, fetchPlansForRange, fetchTPPlans } from "../../api/plans"
 import type { PlannedActivity, PlannedActivityRequest, TPPlannedWorkout } from "../../api/plans"
 import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskStatus } from "../../api/tasks"
 import { PlanCard } from "../PlanCard"
@@ -34,6 +34,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 
 function todayDate(): string {
   return new Date().toISOString().split("T")[0]
+}
+
+function daysBetween(from: string, to: string): number {
+  const fromMs = new Date(from + "T00:00:00Z").getTime()
+  const toMs = new Date(to + "T00:00:00Z").getTime()
+  return Math.round((toMs - fromMs) / (1000 * 60 * 60 * 24))
+}
+
+function addYears(date: string, years: number): string {
+  const d = new Date(date + "T00:00:00Z")
+  d.setUTCFullYear(d.getUTCFullYear() + years)
+  return d.toISOString().split("T")[0]
+}
+
+function formatRaceDate(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+  })
 }
 
 function formatDate(iso: string): string {
@@ -119,6 +138,15 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     queryKey: ["plans", athleteId, selectedDate],
     queryFn: () => fetchPlansForDate(athleteId, selectedDate),
   })
+
+  const { data: upcomingPlans } = useQuery({
+    queryKey: ["races", athleteId, selectedDate],
+    queryFn: () => fetchPlansForRange(athleteId, selectedDate, addYears(selectedDate, 1)),
+  })
+
+  const goalRace = upcomingPlans?.find((p) => p.labels.includes("seasongoal"))
+  const nextRace = upcomingPlans?.find((p) => p.labels.includes("race"))
+  const showNextRaceSeparately = !!nextRace && nextRace.id !== goalRace?.id
 
   const { data: tpPlans } = useQuery<TPPlannedWorkout[]>({
     queryKey: ["tp-plans", athleteId, selectedDate],
@@ -300,6 +328,23 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
             </Button>
           </div>
         </div>
+
+        {(goalRace || nextRace) && (
+          <div className="flex flex-wrap gap-2 text-sm">
+            {goalRace && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-100 px-3 py-1 text-purple-700">
+                🎯 Goal race: <span className="font-medium">{goalRace.name}</span> in{" "}
+                {daysBetween(selectedDate, goalRace.date)} days ({formatRaceDate(goalRace.date)})
+              </span>
+            )}
+            {showNextRaceSeparately && nextRace && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-amber-700">
+                🏆 Next race: <span className="font-medium">{nextRace.name}</span> in{" "}
+                {daysBetween(selectedDate, nextRace.date)} days ({formatRaceDate(nextRace.date)})
+              </span>
+            )}
+          </div>
+        )}
 
         <RestitutionForm value={restitution} onChange={setRestitution} />
 
