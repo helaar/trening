@@ -25,7 +25,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Iterator
 
-from crewai.events import BaseEventListener, LLMCallCompletedEvent
+from crewai.events import (
+    BaseEventListener,
+    LLMCallCompletedEvent,
+    ToolUsageErrorEvent,
+    ToolUsageFinishedEvent,
+)
 
 from models.prompt_log import PromptLogEntry
 
@@ -86,16 +91,24 @@ def drain_prompt_log(run_id: str) -> list[PromptLogEntry]:
     return buffer.entries
 
 
+def _lookup_buffer(event: Any) -> "_RunBuffer | None":
+    task_id = getattr(event, "task_id", None)
+    agent_id = getattr(event, "agent_id", None)
+    with _lock:
+        return _registry.get(task_id) or _registry.get(agent_id)
+
+
+def _stringify(value: Any) -> str:
+    return value if isinstance(value, str) else str(value)
+
+
 class _PromptLogListener(BaseEventListener):
-    """Process-global listener; correlates calls to a run via from_task/from_agent identity."""
+    """Process-global listener; correlates calls to a run via task_id/agent_id."""
 
     def setup_listeners(self, bus) -> None:
         @bus.on(LLMCallCompletedEvent)
-        def _on_completed(source: Any, event: LLMCallCompletedEvent) -> None:
-            task_id = getattr(event, "task_id", None)
-            agent_id = getattr(event, "agent_id", None)
-            with _lock:
-                buffer = _registry.get(task_id) or _registry.get(agent_id)
+        def _on_llm_completed(source: Any, event: LLMCallCompletedEvent) -> None:
+            buffer = _lookup_buffer(event)
             if buffer is None:
                 return
             try:
@@ -107,18 +120,63 @@ class _PromptLogListener(BaseEventListener):
                         run_id=buffer.run_id,
                         athlete_id=buffer.athlete_id,
                         crew_name=buffer.crew_name,
+                        kind="llm_call",
                         agent_role=getattr(event, "agent_role", None),
                         task_name=getattr(event, "task_name", None),
                         model=event.model,
                         call_type=getattr(event.call_type, "value", event.call_type),
                         messages=messages or [],
-                        response=event.response
-                        if isinstance(event.response, str)
-                        else str(event.response),
+                        response=_stringify(event.response),
                     )
                 )
             except Exception:
-                logger.exception("Failed to buffer prompt log entry for run %s", buffer.run_id)
+                logger.exception("Failed to buffer LLM call entry for run %s", buffer.run_id)
+
+        @bus.on(ToolUsageFinishedEvent)
+        def _on_tool_finished(source: Any, event: ToolUsageFinishedEvent) -> None:
+            buffer = _lookup_buffer(event)
+            if buffer is None:
+                return
+            try:
+                buffer.entries.append(
+                    PromptLogEntry(
+                        run_id=buffer.run_id,
+                        athlete_id=buffer.athlete_id,
+                        crew_name=buffer.crew_name,
+                        kind="tool_call",
+                        agent_role=getattr(event, "agent_role", None),
+                        task_name=getattr(event, "task_name", None),
+                        tool_name=event.tool_name,
+                        tool_args=event.tool_args,
+                        tool_output=_stringify(event.output),
+                    )
+                )
+            except Exception:
+                logger.exception("Failed to buffer tool usage entry for run %s", buffer.run_id)
+
+        @bus.on(ToolUsageErrorEvent)
+        def _on_tool_error(source: Any, event: ToolUsageErrorEvent) -> None:
+            buffer = _lookup_buffer(event)
+            if buffer is None:
+                return
+            try:
+                buffer.entries.append(
+                    PromptLogEntry(
+                        run_id=buffer.run_id,
+                        athlete_id=buffer.athlete_id,
+                        crew_name=buffer.crew_name,
+                        kind="tool_call",
+                        agent_role=getattr(event, "agent_role", None),
+                        task_name=getattr(event, "task_name", None),
+                        tool_name=event.tool_name,
+                        tool_args=event.tool_args,
+                        tool_error=_stringify(event.error),
+                    )
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to buffer tool usage error entry for run %s", buffer.run_id
+                )
 
 
 _listener: _PromptLogListener | None = None
