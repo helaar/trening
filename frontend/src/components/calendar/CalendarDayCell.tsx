@@ -109,20 +109,37 @@ export function CalendarDayCell({
         <>
           {/* Activity labels */}
           <div className="mt-1 space-y-0.5">
-            {day.plans.map((plan, i) => (
-              <div key={`plan-label-${i}`} className="flex items-center gap-1">
-                <span
-                  className={cn(
-                    "h-1.5 w-1.5 shrink-0 rounded-full opacity-60",
-                    SPORT_COLORS_MUTED[plan.sport] ?? "bg-gray-300"
+            {day.plans.map((plan, i) => {
+              const isSeasonGoal = plan.labels?.includes("seasongoal")
+              const isRace = plan.labels?.includes("race")
+              return (
+                <div key={`plan-label-${i}`} className="flex items-center gap-1">
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 shrink-0 rounded-full opacity-60",
+                      SPORT_COLORS_MUTED[plan.sport] ?? "bg-gray-300"
+                    )}
+                  />
+                  {isSeasonGoal && (
+                    <span title="Season goal race" aria-label="Season goal race">🎯</span>
                   )}
-                />
-                <span className="truncate text-xs text-muted-foreground">
-                  {plan.name}
-                  {plan.estimated_duration_min ? ` · ${plan.estimated_duration_min}m` : ""}
-                </span>
-              </div>
-              ))}
+                  {isRace && !isSeasonGoal && (
+                    <span title="Race" aria-label="Race">🏆</span>
+                  )}
+                  <span
+                    className={cn(
+                      "truncate text-xs",
+                      isSeasonGoal || isRace
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {plan.name}
+                    {plan.estimated_duration_min ? ` · ${plan.estimated_duration_min}m` : ""}
+                  </span>
+                </div>
+              )
+              })}
               {day.workouts.map((w, i) => (
                 <div key={`workout-label-${i}`} className="flex items-center gap-1">
                   <span

@@ -23,6 +23,16 @@ class PlanRepository:
         ).sort("date", 1)
         return [self._to_model(doc) async for doc in cursor]
 
+    async def get_races_from(self, athlete_id: int, start: str) -> list[PlannedActivity]:
+        cursor = self.collection.find(
+            {
+                "athlete_id": athlete_id,
+                "date": {"$gte": start},
+                "labels": {"$in": ["race", "seasongoal"]},
+            }
+        ).sort("date", 1)
+        return [self._to_model(doc) async for doc in cursor]
+
     async def create(self, athlete_id: int, request: PlannedActivityRequest) -> PlannedActivity:
         now = datetime.now(timezone.utc)
         activity = PlannedActivity(
