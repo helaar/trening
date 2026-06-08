@@ -44,7 +44,8 @@ class PromptLogRepository:
             {"$limit": limit},
             {"$project": {"_id": 0}},
         ]
-        return await self.col.aggregate(pipeline).to_list(length=None)
+        cursor = await self.col.aggregate(pipeline)
+        return await cursor.to_list(length=None)
 
     async def get_run(self, run_id: str) -> list[PromptLogEntry]:
         """Return all calls for a run, in chronological order."""
