@@ -55,6 +55,12 @@ function formatRaceDate(iso: string): string {
   })
 }
 
+function formatCountdown(days: number): string {
+  if (days === 0) return "Today"
+  if (days === 1) return "Tomorrow"
+  return `in ${days} days`
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     weekday: "long",
@@ -139,9 +145,11 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     queryFn: () => fetchPlansForDate(athleteId, selectedDate),
   })
 
+  const todayStr = todayDate()
+
   const { data: upcomingPlans } = useQuery({
-    queryKey: ["races", athleteId, selectedDate],
-    queryFn: () => fetchPlansForRange(athleteId, selectedDate, addYears(selectedDate, 1)),
+    queryKey: ["races", athleteId, todayStr],
+    queryFn: () => fetchPlansForRange(athleteId, todayStr, addYears(todayStr, 1)),
   })
 
   const goalRace = upcomingPlans?.find((p) => p.labels.includes("seasongoal"))
@@ -333,14 +341,14 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
           <div className="flex flex-wrap gap-2 text-sm">
             {goalRace && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-100 px-3 py-1 text-purple-700">
-                🎯 Goal race: <span className="font-medium">{goalRace.name}</span> in{" "}
-                {daysBetween(selectedDate, goalRace.date)} days ({formatRaceDate(goalRace.date)})
+                🎯 Goal race: <span className="font-medium">{goalRace.name}</span>{" "}
+                {formatCountdown(daysBetween(todayStr, goalRace.date))} ({formatRaceDate(goalRace.date)})
               </span>
             )}
             {showNextRaceSeparately && nextRace && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-amber-700">
-                🏆 Next race: <span className="font-medium">{nextRace.name}</span> in{" "}
-                {daysBetween(selectedDate, nextRace.date)} days ({formatRaceDate(nextRace.date)})
+                🏆 Next race: <span className="font-medium">{nextRace.name}</span>{" "}
+                {formatCountdown(daysBetween(todayStr, nextRace.date))} ({formatRaceDate(nextRace.date)})
               </span>
             )}
           </div>

@@ -244,10 +244,11 @@ class _RacesDataTool(BaseTool):
     name: str = "get_upcoming_races"
     description: str = (
         "Retrieve the athlete's season goal race and other upcoming races from "
-        "today onward. Returns JSON with 'season_goal' (the race tagged "
-        "'seasongoal', or null if none is planned) and 'upcoming_races' (a "
-        "list of races tagged 'race', sorted by date, each with 'date', "
-        "'name', 'sport', and 'days_until')."
+        "the day being analyzed onward. Returns JSON with 'season_goal' (the "
+        "race tagged 'seasongoal', or null if none is planned) and "
+        "'upcoming_races' (a list of races tagged 'race', sorted by date, each "
+        "with 'date', 'name', 'sport', and 'days_until' — the number of days "
+        "from the day being analyzed to the race)."
     )
     _payload: str = ""
 
@@ -464,9 +465,11 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     plans_payload = json.dumps(plans_payload_data, default=str)
 
     def _race_entry(activity: PlannedActivity) -> dict[str, Any]:
+        # days_until is relative to the calendar day being analyzed (input.date),
+        # not the date the analysis happens to run on.
         race_date = date.fromisoformat(activity.date)
-        today = date.fromisoformat(input.date)
-        days_until = (race_date - today).days
+        calendar_day = date.fromisoformat(input.date)
+        days_until = (race_date - calendar_day).days
         return {
             "date": activity.date,
             "name": activity.name,
