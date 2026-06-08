@@ -105,7 +105,7 @@ function RunDetail({ runId }: { runId: string }) {
   }
 
   return (
-    <Accordion type="multiple" className="space-y-2">
+    <Accordion type="multiple" className="space-y-2 p-3">
       {data.map((entry, i) => (
         <PromptCallDetail key={i} entry={entry} index={i} />
       ))}
@@ -167,8 +167,8 @@ export function InspectPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-        <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr] lg:items-start">
+        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-12rem)] pr-1">
           {isLoading && (
             <div className="flex items-center gap-2 text-muted-foreground p-3">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -191,7 +191,7 @@ export function InspectPage() {
           ))}
         </div>
 
-        <div className="rounded-lg border min-h-[200px]">
+        <div className="rounded-lg border min-h-[200px] max-h-[calc(100vh-12rem)] overflow-y-auto">
           {selectedRunId ? (
             <RunDetail runId={selectedRunId} />
           ) : (
