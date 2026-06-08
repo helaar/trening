@@ -9,6 +9,7 @@ import { CalendarPage } from "./pages/CalendarPage"
 import { InsightsPage } from "./pages/InsightsPage"
 import { AthleteConfig } from "./pages/AthleteConfig"
 import { SetupPage } from "./pages/SetupPage"
+import { InspectPage } from "./pages/InspectPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,7 +61,13 @@ const setupRoute = createRoute({
   component: SetupPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, insightsRoute, settingsRoute, setupRoute])
+const inspectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin/inspect",
+  component: InspectPage,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, insightsRoute, settingsRoute, setupRoute, inspectRoute])
 
 export const router = createRouter({ routeTree })
 

@@ -9,6 +9,7 @@ from typing import Any
 from crewai import Crew
 
 from config import settings
+from crew.prompt_logging import capture_prompt_log, drain_prompt_log
 from models.athlete import Athlete
 from models.daily_entry import DailyEntry
 
@@ -88,9 +89,14 @@ def run_long_term_analysis(input: LongTermAnalysisInput) -> dict[str, Any]:
         input.start_date,
         input.end_date,
     )
-    result = crew.kickoff()
+    with capture_prompt_log(input.athlete.athlete_id, "long_term_analysis") as prompt_log_run_id:
+        result = crew.kickoff()
+    prompt_log_entries = drain_prompt_log(prompt_log_run_id)
 
     restitution_analysis = (
         result.tasks_output[0].raw if result.tasks_output else str(result.raw)
     )
-    return {"restitution_analysis": restitution_analysis}
+    return {
+        "restitution_analysis": restitution_analysis,
+        "prompt_log_entries": prompt_log_entries,
+    }
