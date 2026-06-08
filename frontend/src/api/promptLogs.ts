@@ -19,12 +19,17 @@ export interface PromptLogEntry {
   run_id: string
   athlete_id: number
   crew_name: string
+  kind: "llm_call" | "tool_call"
   agent_role: string | null
   task_name: string | null
   model: string | null
   call_type: string | null
   messages: PromptLogMessage[]
   response: string | null
+  tool_name: string | null
+  tool_args: Record<string, unknown> | string | null
+  tool_output: string | null
+  tool_error: string | null
   created_at: string
 }
 

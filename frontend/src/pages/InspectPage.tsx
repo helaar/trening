@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Loader2 } from "lucide-react"
+import { Loader2, Wrench, Brain } from "lucide-react"
 import {
   Accordion,
   AccordionItem,
@@ -17,6 +17,11 @@ import {
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString()
+}
+
+function formatToolArgs(args: PromptLogEntry["tool_args"]): string {
+  if (args == null) return ""
+  return typeof args === "string" ? args : JSON.stringify(args, null, 2)
 }
 
 function RoleBadge({ role }: { role: string }) {
@@ -38,48 +43,147 @@ function RoleBadge({ role }: { role: string }) {
   )
 }
 
-function PromptCallDetail({ entry, index }: { entry: PromptLogEntry; index: number }) {
+// ── grouping: consecutive entries by (agent_role, task_name) form a "step" in the call hierarchy ──
+
+interface EntryGroup {
+  agentRole: string | null
+  taskName: string | null
+  entries: { entry: PromptLogEntry; step: number }[]
+}
+
+function groupEntries(entries: PromptLogEntry[]): EntryGroup[] {
+  const groups: EntryGroup[] = []
+  entries.forEach((entry, i) => {
+    const last = groups[groups.length - 1]
+    if (last && last.agentRole === entry.agent_role && last.taskName === entry.task_name) {
+      last.entries.push({ entry, step: i + 1 })
+    } else {
+      groups.push({ agentRole: entry.agent_role, taskName: entry.task_name, entries: [{ entry, step: i + 1 }] })
+    }
+  })
+  return groups
+}
+
+function LlmCallContent({ entry }: { entry: PromptLogEntry }) {
   return (
-    <AccordionItem value={`call-${index}`}>
+    <div className="space-y-2">
+      {entry.messages.map((msg, i) => (
+        <div key={i} className="rounded-md border bg-background p-3">
+          <div className="mb-1.5 flex items-center justify-between">
+            <RoleBadge role={msg.role} />
+          </div>
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">
+            {typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content, null, 2)}
+          </pre>
+        </div>
+      ))}
+      {entry.response && (
+        <div className="rounded-md border-2 border-emerald-200 bg-emerald-50 p-3">
+          <div className="mb-1.5">
+            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-emerald-200 text-emerald-900">
+              response
+            </span>
+          </div>
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">
+            {entry.response}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ToolCallContent({ entry }: { entry: PromptLogEntry }) {
+  const args = formatToolArgs(entry.tool_args)
+  return (
+    <div className="space-y-2">
+      {args && (
+        <div className="rounded-md border bg-background p-3">
+          <div className="mb-1.5">
+            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-amber-100 text-amber-800">
+              args
+            </span>
+          </div>
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">{args}</pre>
+        </div>
+      )}
+      {entry.tool_output && (
+        <div className="rounded-md border-2 border-amber-200 bg-amber-50 p-3">
+          <div className="mb-1.5">
+            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-amber-200 text-amber-900">
+              output
+            </span>
+          </div>
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">
+            {entry.tool_output}
+          </pre>
+        </div>
+      )}
+      {entry.tool_error && (
+        <div className="rounded-md border-2 border-destructive/30 bg-destructive/5 p-3">
+          <div className="mb-1.5">
+            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-destructive/20 text-destructive">
+              error
+            </span>
+          </div>
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-destructive">
+            {entry.tool_error}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PromptCallDetail({ entry, step }: { entry: PromptLogEntry; step: number }) {
+  const isTool = entry.kind === "tool_call"
+  return (
+    <AccordionItem value={`step-${step}`}>
       <AccordionTrigger>
         <div className="flex flex-wrap items-center gap-2 text-left">
-          <span className="font-mono text-sm text-muted-foreground">#{index + 1}</span>
-          <span className="font-medium">{entry.agent_role ?? "Unknown agent"}</span>
-          {entry.task_name && (
-            <span className="text-sm text-muted-foreground">— {entry.task_name}</span>
+          <span className="font-mono text-sm text-muted-foreground">#{step}</span>
+          {isTool ? (
+            <Wrench className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+          ) : (
+            <Brain className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+          )}
+          {isTool ? (
+            <span className="font-medium font-mono text-sm">{entry.tool_name ?? "tool"}</span>
+          ) : (
+            <span className="font-medium">LLM call</span>
           )}
           {entry.model && (
             <span className="text-xs rounded bg-muted px-2 py-0.5 font-mono">{entry.model}</span>
           )}
+          {entry.call_type && entry.call_type !== "llm_call" && (
+            <span className="text-xs rounded bg-muted px-2 py-0.5">{entry.call_type}</span>
+          )}
         </div>
       </AccordionTrigger>
-      <AccordionContent className="px-6 pb-4 space-y-3">
-        <div className="space-y-2">
-          {entry.messages.map((msg, i) => (
-            <div key={i} className="rounded-md border bg-background p-3">
-              <div className="mb-1.5 flex items-center justify-between">
-                <RoleBadge role={msg.role} />
-              </div>
-              <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">
-                {typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content, null, 2)}
-              </pre>
-            </div>
-          ))}
-        </div>
-        {entry.response && (
-          <div className="rounded-md border-2 border-emerald-200 bg-emerald-50 p-3">
-            <div className="mb-1.5">
-              <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-emerald-200 text-emerald-900">
-                response
-              </span>
-            </div>
-            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">
-              {entry.response}
-            </pre>
-          </div>
-        )}
+      <AccordionContent className="px-6 pb-4">
+        {isTool ? <ToolCallContent entry={entry} /> : <LlmCallContent entry={entry} />}
       </AccordionContent>
     </AccordionItem>
+  )
+}
+
+function GroupSection({ group }: { group: EntryGroup }) {
+  const first = group.entries[0].step
+  const last = group.entries[group.entries.length - 1].step
+  const stepRange = first === last ? `#${first}` : `#${first}–${last}`
+  return (
+    <div className="rounded-lg border">
+      <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-4 py-2.5">
+        <span className="font-semibold">{group.agentRole ?? "Unknown agent"}</span>
+        {group.taskName && <span className="text-sm text-muted-foreground">— {group.taskName}</span>}
+        <span className="ml-auto font-mono text-xs text-muted-foreground">{stepRange}</span>
+      </div>
+      <Accordion type="multiple" className="space-y-1.5 p-2">
+        {group.entries.map(({ entry, step }) => (
+          <PromptCallDetail key={step} entry={entry} step={step} />
+        ))}
+      </Accordion>
+    </div>
   )
 }
 
@@ -104,12 +208,19 @@ function RunDetail({ runId }: { runId: string }) {
     return <p className="p-6 text-muted-foreground">No calls captured for this run.</p>
   }
 
+  const groups = groupEntries(data)
+
   return (
-    <Accordion type="multiple" className="space-y-2 p-3">
-      {data.map((entry, i) => (
-        <PromptCallDetail key={i} entry={entry} index={i} />
+    <div className="space-y-3 p-3">
+      <p className="text-xs text-muted-foreground">
+        {data.length} calls across {groups.length} agent/task steps, in chronological order —
+        each section is one agent working on one task; expand a step to see its messages, response,
+        or tool input/output.
+      </p>
+      {groups.map((group, i) => (
+        <GroupSection key={i} group={group} />
       ))}
-    </Accordion>
+    </div>
   )
 }
 
@@ -161,8 +272,9 @@ export function InspectPage() {
       <div className="mb-4">
         <h1 className="text-2xl font-bold">Inspect</h1>
         <p className="text-sm text-muted-foreground">
-          Browse the literal prompts and responses sent to the LLM during recent crew runs —
-          a debugging view for agents, tasks, and training philosophy composition.
+          Trace the literal call hierarchy of recent crew runs — which agent ran which task,
+          when it called the LLM vs. a tool, and exactly what was sent and returned.
+          A debugging view for agents, tasks, and training philosophy composition.
           Admin-only once user permissions land.
         </p>
       </div>
