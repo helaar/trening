@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import re
 from dataclasses import dataclass
@@ -97,6 +98,11 @@ def _parse_duration_min(component: Event) -> int | None:
     return total_seconds // 60 if total_seconds > 0 else None
 
 
+def _stable_workout_id(event_date: date, name: str, duration_min: int | None) -> str:
+    fingerprint = f"{event_date.isoformat()}|{name.strip().lower()}|{duration_min or 0}"
+    return hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+
+
 class TrainingPeaksICalClient:
     """Read-only client that fetches planned workouts from a TrainingPeaks iCal URL."""
 
@@ -131,7 +137,6 @@ class TrainingPeaksICalClient:
             if not (start_date <= event_date <= end_date):
                 continue
 
-            uid = str(component.get("UID", ""))
             raw_summary = str(component.get("SUMMARY", "Planned workout"))
             description_raw = component.get("DESCRIPTION")
             description = str(description_raw).strip() if description_raw else None
@@ -141,7 +146,14 @@ class TrainingPeaksICalClient:
             sport_type = _parse_sport_type_from_categories(component) or sport_type
 
             # Duration: prefer iCal DURATION field, fall back to "Planned Time:" in description
-            duration_min = _parse_duration_min(component) or _parse_duration_from_description(description)
+            duration_min = _parse_duration_min(component) or _parse_duration_from_description(
+                description
+            )
+
+            # TrainingPeaks regenerates the iCal UID on every export, so it can't be used
+            # to recognize a workout we already imported. Derive a stable id from the
+            # workout's date, name and duration instead.
+            uid = _stable_workout_id(event_date, name, duration_min)
 
             workouts.append(
                 TPPlannedWorkout(
@@ -161,4 +173,3 @@ class TrainingPeaksICalClient:
             end_date,
         )
         return workouts
-
