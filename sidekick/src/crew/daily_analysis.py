@@ -17,7 +17,7 @@ from crew.prompt_logging import capture_prompt_log, drain_prompt_log
 from models.athlete import Athlete
 from utils.datetime_utils import convert_datetimes_in_obj
 from models.crew_outputs import CoachingOutput, MemoryExtractionOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
-from models.memory import Memory
+from models.memory import Memory, MemoryCategory, MemoryScope
 from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
 
@@ -266,6 +266,11 @@ class _RacesDataTool(BaseTool):
         return self._payload
 
 
+class _MemoryFilterInput(BaseModel):
+    category: MemoryCategory | None = None
+    scope: MemoryScope | None = None
+
+
 class _MemoryContextTool(BaseTool):
     name: str = "get_athlete_memories"
     description: str = (
@@ -273,8 +278,11 @@ class _MemoryContextTool(BaseTool):
         "patterns, habits, risks, and goals built up over previous sessions. "
         "Returns JSON with an 'active_memories' list, each entry containing scope, "
         "category, content, and confidence. Use this to personalise "
-        "your coaching and avoid repeating observations the athlete already knows."
+        "your coaching and avoid repeating observations the athlete already knows. "
+        "Optionally filter by category (recovery, habit, performance, risk, goal) "
+        "or scope (recent, long_term) to focus on a specific theme."
     )
+    args_schema: type[BaseModel] = _MemoryFilterInput
     _payload: str = ""
 
     class Config:
@@ -284,8 +292,14 @@ class _MemoryContextTool(BaseTool):
         super().__init__(**kwargs)
         object.__setattr__(self, "_payload", payload)
 
-    def _run(self, **kwargs: Any) -> str:
-        return self._payload
+    def _run(self, category: MemoryCategory | None = None, scope: MemoryScope | None = None) -> str:
+        data = json.loads(self._payload)
+        memories = data.get("active_memories", [])
+        if category is not None:
+            memories = [m for m in memories if m.get("category") == category]
+        if scope is not None:
+            memories = [m for m in memories if m.get("scope") == scope]
+        return json.dumps({"active_memories": memories})
 
 
 class _RestitutionDataTool(BaseTool):
