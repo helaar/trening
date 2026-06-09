@@ -30,6 +30,18 @@ Non-functional priorities: correctness > security > maintainability > performanc
 - Ruff formatter: line-length=88, LF line endings
 - Keep imports sorted; remove unused imports
 
+### Datetime Policy
+
+- All `datetime` fields in Pydantic models must use `pydantic.AwareDatetime` as the field type
+- Default factory for datetime fields: `default_factory=lambda: datetime.now(timezone.utc)`
+- Never use `datetime.utcnow()` — deprecated in Python 3.12+, returns a naive datetime
+- Never strip timezone info for MongoDB queries (no `.replace(tzinfo=None)`)
+- Datetimes read back from MongoDB are naive UTC; normalise with a `field_validator(..., mode='before')` that attaches `timezone.utc` where needed
+- Datetimes embedded in **LLM prompts** must be converted to the athlete's local timezone using `convert_datetimes_in_obj()` / `to_athlete_tz()` from `utils.datetime_utils` — the LLM must reason about local time, not UTC
+- Athlete timezone is stored as an IANA string (`timezone` field on `AthleteSettings`); default `"UTC"`
+- Dates presented to the user are converted to local timezone in the frontend (browser `Intl` API)
+- Date-only calendar keys use `str` in `YYYY-MM-DD` format — timezone-neutral by convention
+
 ### Testing
 
 - Do not write tests unless explicitly asked to

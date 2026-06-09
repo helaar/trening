@@ -11,11 +11,13 @@ import yaml
 from crewai import Agent, Crew, Task
 from crewai.tools import BaseTool
 
+from database.athlete_repository import AthleteRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.memory_repository import MemoryRepository
 from database.task_repository import TaskRepository
 from models.crew_outputs import MemoryConsolidationOutput
 from models.memory import Memory, MemoryScope
+from utils.datetime_utils import to_athlete_tz
 from models.task import TaskStatus, TaskType
 from crew.daily_analysis import _normalize_llm
 from services.handlers.base import TaskHandler
@@ -58,10 +60,12 @@ class MemoryConsolidationHandler(TaskHandler):
     def __init__(
         self,
         task_repo: TaskRepository,
+        athlete_repo: AthleteRepository,
         memory_repo: MemoryRepository,
         daily_analysis_repo: DailyAnalysisRepository,
     ):
         self.task_repo = task_repo
+        self.athlete_repo = athlete_repo
         self.memory_repo = memory_repo
         self.daily_analysis_repo = daily_analysis_repo
 
@@ -80,10 +84,9 @@ class MemoryConsolidationHandler(TaskHandler):
                 None,
             )
             if last_run and last_run.completed_at:
-                completed_at = last_run.completed_at.replace(tzinfo=timezone.utc) if last_run.completed_at.tzinfo is None else last_run.completed_at
-                elapsed = datetime.now(timezone.utc) - completed_at
+                elapsed = datetime.now(timezone.utc) - last_run.completed_at
                 if elapsed < min_age:
-                    next_eligible = completed_at + min_age
+                    next_eligible = last_run.completed_at + min_age
                     logger.info(
                         "Skipping consolidation for athlete %s: last run was %s ago (min age %s)",
                         athlete_id, elapsed, min_age,
@@ -99,10 +102,12 @@ class MemoryConsolidationHandler(TaskHandler):
         end_date = date.today().isoformat()
         start_date = (date.today() - timedelta(days=window_days - 1)).isoformat()
 
-        active_memories, recent_analyses = await asyncio.gather(
+        athlete, active_memories, recent_analyses = await asyncio.gather(
+            self.athlete_repo.get_athlete(athlete_id),
             self.memory_repo.get_active(athlete_id),
             self._get_recent_analysis_summaries(athlete_id, start_date, end_date),
         )
+        tz_str = athlete.settings.timezone if athlete else "UTC"
         await self.task_repo.update_task_progress(task_id, 0.2)
 
         payload = json.dumps(
@@ -115,8 +120,8 @@ class MemoryConsolidationHandler(TaskHandler):
                         "content": m.content,
                         "confidence": m.confidence,
                         "evidence_dates": m.evidence_dates,
-                        "created_at": m.created_at.isoformat(),
-                        "updated_at": m.updated_at.isoformat(),
+                        "created_at": to_athlete_tz(m.created_at, tz_str).isoformat(),
+                        "updated_at": to_athlete_tz(m.updated_at, tz_str).isoformat(),
                     }
                     for m in active_memories
                 ],
