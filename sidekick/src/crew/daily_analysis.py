@@ -272,7 +272,7 @@ class _MemoryContextTool(BaseTool):
         "Retrieve the active memory bank for this athlete — durable observations about "
         "patterns, habits, risks, and goals built up over previous sessions. "
         "Returns JSON with an 'active_memories' list, each entry containing scope, "
-        "category, content, confidence, and evidence_dates. Use this to personalise "
+        "category, content, and confidence. Use this to personalise "
         "your coaching and avoid repeating observations the athlete already knows."
     )
     _payload: str = ""
@@ -328,17 +328,19 @@ class _MemoryDataTool(BaseTool):
         return self._payload
 
 
+_MAX_MEMORIES = 25
+
+
 def _format_memories(memories: list[Memory]) -> list[dict[str, Any]]:
+    ranked = sorted(memories, key=lambda m: (m.confidence, m.updated_at), reverse=True)[:_MAX_MEMORIES]
     return [
         {
-            "memory_id": m.memory_id,
             "scope": m.scope,
             "category": m.category,
             "content": m.content,
             "confidence": m.confidence,
-            "evidence_dates": m.evidence_dates,
         }
-        for m in memories
+        for m in ranked
     ]
 
 
