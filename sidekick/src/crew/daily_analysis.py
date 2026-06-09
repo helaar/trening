@@ -299,6 +299,8 @@ class _MemoryContextTool(BaseTool):
             memories = [m for m in memories if m.get("category") == category]
         if scope is not None:
             memories = [m for m in memories if m.get("scope") == scope]
+        if category is None and scope is None:
+            memories = memories[:_MAX_MEMORIES]
         return json.dumps({"active_memories": memories})
 
 
@@ -346,7 +348,7 @@ _MAX_MEMORIES = 25
 
 
 def _format_memories(memories: list[Memory]) -> list[dict[str, Any]]:
-    ranked = sorted(memories, key=lambda m: (m.confidence, m.updated_at), reverse=True)[:_MAX_MEMORIES]
+    ranked = sorted(memories, key=lambda m: (m.confidence, m.updated_at), reverse=True)
     return [
         {
             "scope": m.scope,
