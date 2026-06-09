@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
+from utils.datetime_utils import ensure_utc
 
 
 class ZoneDefinition(BaseModel):
@@ -59,6 +60,7 @@ class AthleteSettings(BaseModel):
     erg_detection: ERGDetectionSettings = Field(default_factory=ERGDetectionSettings, description="ERG mode detection settings")
     autolap: str | None = Field(default="PT10M", description="Autolap interval as ISO8601 duration string (e.g., 'PT10M' for 10 minutes). Set to None to disable.")
     trainingpeaks_ical_url: str | None = Field(default=None, description="TrainingPeaks calendar sync URL (.ics) for planned workout preview")
+    timezone: str = Field(default="UTC", description="Athlete's local timezone as IANA string (e.g. 'Europe/Oslo')")
     
     @property
     def autolap_timedelta(self) -> timedelta:
@@ -99,8 +101,13 @@ class Athlete(BaseModel):
     lastname: str | None = None
     profile_picture: str | None = None
     settings: AthleteSettings = Field(default_factory=AthleteSettings, description="Athlete training settings")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)
 
 
 class StravaTokens(BaseModel):
@@ -111,5 +118,10 @@ class StravaTokens(BaseModel):
     refresh_token: str
     expires_at: int  # Unix timestamp
     token_type: str = "Bearer"
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)

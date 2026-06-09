@@ -1,7 +1,9 @@
 import re
 from datetime import datetime, timezone
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
+
+from utils.datetime_utils import ensure_utc
 
 _VALID_LLM_RE = re.compile(
     r"^(anthropic/|openai/|azure/|bedrock/|vertex_ai/)?"
@@ -12,7 +14,12 @@ _VALID_LLM_RE = re.compile(
 class PromptConfig(BaseModel):
     key: str
     value: str
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("updated_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)
 
 
 class PromptConfigUpdate(BaseModel):

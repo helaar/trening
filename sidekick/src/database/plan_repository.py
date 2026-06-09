@@ -41,7 +41,7 @@ class PlanRepository:
             updated_at=now,
             **request.model_dump(),
         )
-        await self.collection.insert_one(activity.model_dump(mode="json"))
+        await self.collection.insert_one(activity.model_dump())
         return activity
 
     async def update(
@@ -60,7 +60,7 @@ class PlanRepository:
         )
         await self.collection.update_one(
             {"id": plan_id, "athlete_id": athlete_id},
-            {"$set": updated.model_dump(mode="json")},
+            {"$set": updated.model_dump()},
         )
         return updated
 

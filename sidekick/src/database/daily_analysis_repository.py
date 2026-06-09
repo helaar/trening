@@ -58,6 +58,6 @@ class DailyAnalysisRepository:
     async def upsert(self, result: DailyAnalysisResult) -> None:
         await self.collection.update_one(
             {"athlete_id": result.athlete_id, "date": result.date},
-            {"$set": result.model_dump(mode="json")},
+            {"$set": result.model_dump()},
             upsert=True,
         )

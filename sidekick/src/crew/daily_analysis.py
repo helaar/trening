@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from config import settings
 from crew.prompt_logging import capture_prompt_log, drain_prompt_log
 from models.athlete import Athlete
+from utils.datetime_utils import convert_datetimes_in_obj
 from models.crew_outputs import CoachingOutput, MemoryExtractionOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
 from models.memory import Memory
 from models.daily_entry import DailyEntry
@@ -111,6 +112,7 @@ def _athlete_settings_summary(athlete: Athlete) -> dict[str, Any]:
             "ftp_watts": s.running.ftp,
             "zones": [{"name": z.name, "min": z.min, "max": z.max} for z in s.running.power_zones],
         }
+    result["timezone"] = s.timezone
     return result
 
 
@@ -471,13 +473,14 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
 
     philosophy = _load_philosophy(input.athlete.athlete_id, input.prompt_overrides)
 
+    athlete_tz = input.athlete.settings.timezone
     workout_payload_data: dict[str, Any] = {
         "athlete_settings": athlete_settings,
         "workouts": [_enrich_workout(w) for w in input.workout_analyses],
     }
     if philosophy:
         workout_payload_data["training_philosophy"] = philosophy
-    workout_payload = json.dumps(workout_payload_data, default=str)
+    workout_payload = json.dumps(convert_datetimes_in_obj(workout_payload_data, athlete_tz), default=str)
 
     plans_payload_data: dict[str, Any] = {
         "athlete_settings": athlete_settings,

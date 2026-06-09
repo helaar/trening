@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from pymongo.asynchronous.database import AsyncDatabase
@@ -38,7 +38,7 @@ class WorkoutRepository:
             {
                 "$set": {
                     **activity_dict,
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.now(timezone.utc)
                 }
             },
             upsert=True
@@ -287,7 +287,7 @@ class WorkoutRepository:
             {
                 "$set": {
                     **analysis_dict,
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.now(timezone.utc)
                 }
             },
             upsert=True
