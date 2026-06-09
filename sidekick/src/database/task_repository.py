@@ -18,7 +18,7 @@ class TaskRepository:
     
     async def create_task(self, task: Task) -> Task:
         """Create a new task in the database."""
-        task_dict = task.model_dump(mode="json")
+        task_dict = task.model_dump()
         await self.collection.insert_one(task_dict)
         logger.info(f"Created task {task.task_id} for athlete {task.athlete_id}")
         return task

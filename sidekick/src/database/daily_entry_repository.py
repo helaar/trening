@@ -48,7 +48,7 @@ class DailyEntryRepository:
 
         await self.collection.update_one(
             {"athlete_id": athlete_id, "date": request.date},
-            {"$set": entry.model_dump(mode="json")},
+            {"$set": entry.model_dump()},
             upsert=True,
         )
         return entry

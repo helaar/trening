@@ -17,7 +17,7 @@ class PromptLogRepository:
     async def insert_many(self, entries: list[PromptLogEntry]) -> None:
         if not entries:
             return
-        await self.col.insert_many([e.model_dump(mode="json") for e in entries])
+        await self.col.insert_many([e.model_dump() for e in entries])
 
     async def list_runs(self, athlete_id: int | None = None, limit: int = 50) -> list[dict]:
         """Return one summary per run_id, newest first."""
