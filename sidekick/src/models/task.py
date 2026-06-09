@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
+from utils.datetime_utils import ensure_utc
 
 
 class TaskStatus(str, Enum):
@@ -30,9 +31,14 @@ class Task(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict, description="Task input parameters")
     result: dict[str, Any] | None = Field(default=None, description="Task result data")
     error: str | None = Field(default=None, description="Error message if failed")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    started_at: datetime | None = Field(default=None, description="When task started running")
-    completed_at: datetime | None = Field(default=None, description="When task completed/failed")
+    created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: AwareDatetime | None = Field(default=None, description="When task started running")
+    completed_at: AwareDatetime | None = Field(default=None, description="When task completed/failed")
+
+    @field_validator("created_at", "started_at", "completed_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)
     
     @property
     def duration_seconds(self) -> float | None:
@@ -55,7 +61,12 @@ class TaskResponse(BaseModel):
     progress: float
     result: dict[str, Any] | None = None
     error: str | None = None
-    created_at: datetime
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
+    created_at: AwareDatetime
+    started_at: AwareDatetime | None = None
+    completed_at: AwareDatetime | None = None
+
+    @field_validator("created_at", "started_at", "completed_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)
     duration_seconds: float | None = None

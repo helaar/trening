@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
+
+from utils.datetime_utils import ensure_utc
 
 
 class PromptLogEntry(BaseModel):
@@ -32,4 +34,9 @@ class PromptLogEntry(BaseModel):
     tool_output: str | None = None
     tool_error: str | None = None
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)

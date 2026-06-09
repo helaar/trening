@@ -36,7 +36,7 @@ Non-functional priorities: correctness > security > maintainability > performanc
 - Default factory for datetime fields: `default_factory=lambda: datetime.now(timezone.utc)`
 - Never use `datetime.utcnow()` — deprecated in Python 3.12+, returns a naive datetime
 - Never strip timezone info for MongoDB queries (no `.replace(tzinfo=None)`)
-- Datetimes read back from MongoDB are naive UTC; normalise with a `field_validator(..., mode='before')` that attaches `timezone.utc` where needed
+- Datetimes read back from MongoDB are naive UTC; normalise with a `field_validator(..., mode='before')` using `ensure_utc` from `utils.datetime_utils`
 - Datetimes embedded in **LLM prompts** must be converted to the athlete's local timezone using `convert_datetimes_in_obj()` / `to_athlete_tz()` from `utils.datetime_utils` — the LLM must reason about local time, not UTC
 - Athlete timezone is stored as an IANA string (`timezone` field on `AthleteSettings`); default `"UTC"`
 - Dates presented to the user are converted to local timezone in the frontend (browser `Intl` API)

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
+from utils.datetime_utils import ensure_utc
 
 
 class ZoneDefinition(BaseModel):
@@ -100,8 +101,13 @@ class Athlete(BaseModel):
     lastname: str | None = None
     profile_picture: str | None = None
     settings: AthleteSettings = Field(default_factory=AthleteSettings, description="Athlete training settings")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)
 
 
 class StravaTokens(BaseModel):
@@ -112,5 +118,10 @@ class StravaTokens(BaseModel):
     refresh_token: str
     expires_at: int  # Unix timestamp
     token_type: str = "Bearer"
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)

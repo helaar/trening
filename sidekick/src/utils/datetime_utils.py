@@ -3,6 +3,13 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 
+def ensure_utc(v: Any) -> Any:
+    """Attach UTC to a naive datetime; leave aware datetimes unchanged. For use as a field_validator."""
+    if isinstance(v, datetime) and v.tzinfo is None:
+        return v.replace(tzinfo=timezone.utc)
+    return v
+
+
 def to_athlete_tz(dt: datetime, tz_str: str) -> datetime:
     """Convert an aware UTC datetime to the athlete's local timezone."""
     return dt.astimezone(ZoneInfo(tz_str))

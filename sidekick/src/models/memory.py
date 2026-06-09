@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
+
+from utils.datetime_utils import ensure_utc
 
 _RECENT_TTL_DAYS = 30
 _LONG_TERM_TTL_DAYS = 365
@@ -30,10 +32,15 @@ class Memory(BaseModel):
     content: str = Field(description="1-3 sentence natural language observation")
     confidence: float = Field(ge=0.0, le=1.0)
     evidence_dates: list[str] = Field(default_factory=list, description="YYYY-MM-DD dates supporting this memory")
-    created_at: datetime
-    updated_at: datetime
-    expires_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    expires_at: AwareDatetime
     active: bool = True
+
+    @field_validator("created_at", "updated_at", "expires_at", mode="before")
+    @classmethod
+    def _utc(cls, v):
+        return ensure_utc(v)
 
     @model_validator(mode="before")
     @classmethod
