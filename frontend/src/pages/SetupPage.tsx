@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Loader2,
@@ -23,6 +23,7 @@ import {
   DialogClose,
 } from "../components/ui/dialog"
 import { fetchPrompts, savePrompts, type PromptConfig } from "../api/prompts"
+import { createMemoryConsolidationTask, getTaskStatus } from "../api/tasks"
 
 // ── data helpers ──────────────────────────────────────────────────────────────
 
@@ -340,6 +341,52 @@ export function SetupPage() {
   const [selected, setSelected] = useState<TreeNode | null>(null)
   const [showAddPhilosophy, setShowAddPhilosophy] = useState(false)
 
+  const [consolidationTaskId, setConsolidationTaskId] = useState<string | null>(null)
+  const [consolidationStatus, setConsolidationStatus] = useState<"idle" | "success" | "skipped" | "failed">("idle")
+  const [consolidationSummary, setConsolidationSummary] = useState<string>("")
+
+  const { data: consolidationTask } = useQuery({
+    queryKey: ["task", consolidationTaskId],
+    queryFn: () => getTaskStatus(consolidationTaskId!),
+    enabled: !!consolidationTaskId,
+    refetchInterval: (query) => {
+      const s = query.state.data?.status
+      return s === "completed" || s === "failed" ? false : 3000
+    },
+  })
+
+  useEffect(() => {
+    if (!consolidationTask) return
+    if (consolidationTask.status === "completed") {
+      const r = consolidationTask.result ?? {}
+      if (r.skipped) {
+        setConsolidationStatus("skipped")
+        setConsolidationSummary("Skipped — last run was too recent")
+      } else {
+        setConsolidationStatus("success")
+        setConsolidationSummary(
+          `Updated ${r.updates ?? 0}, promoted ${r.promotions ?? 0}, deactivated ${r.deactivations ?? 0}, new long-term ${r.new_long_term ?? 0}`
+        )
+      }
+      setTimeout(() => { setConsolidationStatus("idle"); setConsolidationTaskId(null) }, 5000)
+    } else if (consolidationTask.status === "failed") {
+      setConsolidationStatus("failed")
+      setConsolidationSummary(consolidationTask.error ?? "Unknown error")
+      setTimeout(() => { setConsolidationStatus("idle"); setConsolidationTaskId(null) }, 5000)
+    }
+  }, [consolidationTask?.status])
+
+  const consolidationRunning =
+    !!consolidationTaskId &&
+    consolidationTask?.status !== "completed" &&
+    consolidationTask?.status !== "failed"
+
+  async function triggerConsolidation() {
+    const task = await createMemoryConsolidationTask()
+    setConsolidationTaskId(task.task_id)
+    setConsolidationStatus("idle")
+  }
+
   const mutation = useMutation({
     mutationFn: savePrompts,
     onSuccess: (updated) => {
@@ -465,6 +512,21 @@ export function SetupPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {consolidationStatus === "success" && (
+            <span className="flex items-center gap-1.5 text-sm text-green-600">
+              <CheckCircle className="h-4 w-4" /> {consolidationSummary}
+            </span>
+          )}
+          {consolidationStatus === "skipped" && (
+            <span className="text-sm text-muted-foreground">{consolidationSummary}</span>
+          )}
+          {consolidationStatus === "failed" && (
+            <span className="text-sm text-destructive">{consolidationSummary}</span>
+          )}
+          <Button size="sm" variant="outline" onClick={triggerConsolidation} disabled={consolidationRunning}>
+            {consolidationRunning && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Run memory consolidation
+          </Button>
           {saved && (
             <span className="flex items-center gap-1.5 text-sm text-green-600">
               <CheckCircle className="h-4 w-4" /> Saved

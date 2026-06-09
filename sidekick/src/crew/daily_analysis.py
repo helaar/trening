@@ -264,6 +264,28 @@ class _RacesDataTool(BaseTool):
         return self._payload
 
 
+class _MemoryContextTool(BaseTool):
+    name: str = "get_athlete_memories"
+    description: str = (
+        "Retrieve the active memory bank for this athlete — durable observations about "
+        "patterns, habits, risks, and goals built up over previous sessions. "
+        "Returns JSON with an 'active_memories' list, each entry containing scope, "
+        "category, content, confidence, and evidence_dates. Use this to personalise "
+        "your coaching and avoid repeating observations the athlete already knows."
+    )
+    _payload: str = ""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, payload: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        object.__setattr__(self, "_payload", payload)
+
+    def _run(self, **kwargs: Any) -> str:
+        return self._payload
+
+
 class _RestitutionDataTool(BaseTool):
     name: str = "get_restitution_data"
     description: str = (
@@ -511,13 +533,14 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     plans_tool = _PlansDataTool(payload=plans_payload)
     races_tool = _RacesDataTool(payload=races_payload)
     restitution_tool = _RestitutionDataTool(payload=restitution_payload)
+    memory_context_tool = _MemoryContextTool(payload=memory_payload)
 
     llm = settings.llm_model
 
     analyst = _make_agent(agents_cfg["workout_performance_analyst"], tools=[workout_tool], default_llm=llm)
     restitution_analyst = _make_agent(agents_cfg["restitution_analyst"], tools=[restitution_tool], default_llm=llm)
     coach = _make_agent(
-        agents_cfg["daily_coach"], tools=[plans_tool, races_tool], default_llm=llm
+        agents_cfg["daily_coach"], tools=[plans_tool, races_tool, memory_context_tool], default_llm=llm
     )
 
     shared_inputs = {"date": input.date, "weekday": weekday, "athlete_name": athlete_name}

@@ -76,6 +76,13 @@ export interface StoredAnalysis {
   analyzed_at: string
 }
 
+export async function createMemoryConsolidationTask(): Promise<TaskResponse> {
+  return apiFetch<TaskResponse>("/api/v1/tasks", {
+    method: "POST",
+    body: JSON.stringify({ task_type: "memory_consolidation", parameters: {} }),
+  })
+}
+
 export async function createDailyAnalysisTask(
   _athleteId: number,
   date: string,
