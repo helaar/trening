@@ -23,7 +23,7 @@ class MemoryRepository:
     async def upsert(self, memory: Memory) -> None:
         await self.collection.update_one(
             {"memory_id": memory.memory_id},
-            {"$set": memory.model_dump(mode="json")},
+            {"$set": memory.model_dump(mode="python")},
             upsert=True,
         )
 
