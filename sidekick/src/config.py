@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     llm_model: str = "anthropic/claude-haiku-4-5-20251001"
 
+    # Memory consolidation — ISO 8601 duration; set PT0S to disable the guard
+    consolidation_min_age: str = "P1W"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -16,8 +16,10 @@ from database.memory_repository import MemoryRepository
 from database.task_repository import TaskRepository
 from models.crew_outputs import MemoryConsolidationOutput
 from models.memory import Memory, MemoryScope
+from models.task import TaskStatus, TaskType
 from crew.daily_analysis import _normalize_llm
 from services.handlers.base import TaskHandler
+from utils.duration import parse_iso8601_duration
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,30 @@ class MemoryConsolidationHandler(TaskHandler):
         from config import settings
 
         logger.info("Starting memory consolidation for task %s, athlete %s", task_id, athlete_id)
+
+        min_age = parse_iso8601_duration(settings.consolidation_min_age)
+        if min_age.total_seconds() > 0:
+            recent_tasks = await self.task_repo.get_tasks_by_athlete(
+                athlete_id, limit=20, status=TaskStatus.COMPLETED
+            )
+            last_run = next(
+                (t for t in recent_tasks if t.task_type == TaskType.MEMORY_CONSOLIDATION and t.task_id != task_id),
+                None,
+            )
+            if last_run and last_run.completed_at:
+                elapsed = datetime.now(timezone.utc) - last_run.completed_at
+                if elapsed < min_age:
+                    next_eligible = last_run.completed_at + min_age
+                    logger.info(
+                        "Skipping consolidation for athlete %s: last run was %s ago (min age %s)",
+                        athlete_id, elapsed, min_age,
+                    )
+                    return {
+                        "analysis_type": "memory_consolidation",
+                        "skipped": True,
+                        "reason": "min_age_not_elapsed",
+                        "next_eligible_at": next_eligible.isoformat(),
+                    }
 
         window_days = parameters.get("window_days", _CONSOLIDATION_WINDOW_DAYS)
         end_date = date.today().isoformat()
