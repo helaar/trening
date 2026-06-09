@@ -80,9 +80,10 @@ class MemoryConsolidationHandler(TaskHandler):
                 None,
             )
             if last_run and last_run.completed_at:
-                elapsed = datetime.now(timezone.utc) - last_run.completed_at
+                completed_at = last_run.completed_at.replace(tzinfo=timezone.utc) if last_run.completed_at.tzinfo is None else last_run.completed_at
+                elapsed = datetime.now(timezone.utc) - completed_at
                 if elapsed < min_age:
-                    next_eligible = last_run.completed_at + min_age
+                    next_eligible = completed_at + min_age
                     logger.info(
                         "Skipping consolidation for athlete %s: last run was %s ago (min age %s)",
                         athlete_id, elapsed, min_age,
