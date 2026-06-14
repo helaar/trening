@@ -15,7 +15,7 @@ from database.prompt_log_repository import PromptLogRepository
 from database.prompt_repository import PromptRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
-from models.task import TaskCreateRequest, TaskResponse, TaskStatus
+from models.task import TaskCreateRequest, TaskResponse, TaskStatus, TaskType
 from services.task_processor import TaskProcessor, create_task
 
 logger = logging.getLogger(__name__)
@@ -168,19 +168,31 @@ async def list_tasks(
     athlete_id: Annotated[int, Depends(get_current_athlete_id)],
     task_repo: Annotated[TaskRepository, Depends(get_task_repository)],
     limit: int = 50,
-    status_filter: TaskStatus | None = None
+    status_filter: TaskStatus | None = None,
+    date: str | None = None,
+    task_type: TaskType | None = None,
 ):
     """
-    List all tasks for the authenticated athlete.
-    
+    List tasks for the authenticated athlete.
+
     Optionally filter by status and limit the number of results.
+    If `date` is provided, returns at most one task: the most recently
+    created task of `task_type` (default DAILY_LLM_ANALYSIS) for that date.
     """
-    tasks = await task_repo.get_tasks_by_athlete(
-        athlete_id=athlete_id,
-        limit=limit,
-        status=status_filter
-    )
-    
+    if date is not None:
+        task = await task_repo.get_task_by_date_and_type(
+            athlete_id=athlete_id,
+            task_type=task_type or TaskType.DAILY_LLM_ANALYSIS,
+            date=date,
+        )
+        tasks = [task] if task else []
+    else:
+        tasks = await task_repo.get_tasks_by_athlete(
+            athlete_id=athlete_id,
+            limit=limit,
+            status=status_filter
+        )
+
     return [
         TaskResponse(
             task_id=task.task_id,

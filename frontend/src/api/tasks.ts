@@ -100,6 +100,16 @@ export async function getTaskStatus(taskId: string): Promise<TaskResponse> {
   return apiFetch<TaskResponse>(`/api/v1/tasks/${taskId}`)
 }
 
+export async function getTaskForDate(
+  _athleteId: number,
+  date: string,
+): Promise<TaskResponse | null> {
+  const tasks = await apiFetch<TaskResponse[]>(
+    `/api/v1/tasks?date=${date}&task_type=daily_llm_analysis`,
+  )
+  return tasks[0] ?? null
+}
+
 export async function fetchStoredAnalysis(
   athleteId: number,
   date: string,
