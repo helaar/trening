@@ -4,7 +4,7 @@ from typing import Any
 
 from pymongo.asynchronous.database import AsyncDatabase
 
-from models.task import Task, TaskStatus
+from models.task import Task, TaskStatus, TaskType
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +49,24 @@ class TaskRepository:
             tasks.append(Task(**task_dict))
         return tasks
     
+    async def get_task_by_date_and_type(
+        self,
+        athlete_id: int,
+        task_type: TaskType,
+        date: str,
+    ) -> Task | None:
+        """Get the most recently created task for a given athlete, type and date."""
+        query = {
+            "athlete_id": athlete_id,
+            "task_type": task_type.value,
+            "parameters.date": date,
+        }
+        task_dict = await self.collection.find_one(query, sort=[("created_at", -1)])
+        if task_dict:
+            task_dict.pop("_id", None)
+            return Task(**task_dict)
+        return None
+
     async def update_task_status(
         self, 
         task_id: str, 

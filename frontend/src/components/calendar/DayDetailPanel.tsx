@@ -27,7 +27,7 @@ import { fetchDailyEntry, saveDailyEntry } from "../../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../../api/dailyEntry"
 import { fetchPlansForDate, fetchPlansForRange, fetchTPPlans } from "../../api/plans"
 import type { PlannedActivity, PlannedActivityRequest, TPPlannedWorkout } from "../../api/plans"
-import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskStatus } from "../../api/tasks"
+import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskForDate, getTaskStatus } from "../../api/tasks"
 import { PlanCard } from "../PlanCard"
 import { PlanForm } from "../PlanForm"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
@@ -108,7 +108,18 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     setPlanFormOpen(false)
     setEditingPlan(null)
     setTpPrefill(undefined)
-  }, [selectedDate])
+
+    // Reconnect to an analysis task started for this date before navigating away
+    let cancelled = false
+    getTaskForDate(athleteId, selectedDate).then((task) => {
+      if (!cancelled && task && (task.status === "pending" || task.status === "running")) {
+        setAnalysisTaskId(task.task_id)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [athleteId, selectedDate])
 
   function goToPrevDay() {
     const d = new Date(selectedDate)

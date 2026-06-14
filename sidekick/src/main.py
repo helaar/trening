@@ -11,6 +11,7 @@ from config import settings
 from crew.prompt_logging import register_prompt_log_listener
 from database.mongodb import db_manager
 from database.prompt_log_repository import PromptLogRepository
+from services.task_processor import TaskProcessor
 
 # Configure logging
 logging.basicConfig(
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
     register_prompt_log_listener()
     yield
     # Shutdown
+    await TaskProcessor.shutdown()
     await db_manager.disconnect()
 
 
