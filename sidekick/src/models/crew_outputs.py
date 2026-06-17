@@ -155,6 +155,13 @@ class MemoryDraft(BaseModel):
     )
     content: str = Field(description="1-3 sentence natural language observation about the athlete")
     confidence: float = Field(ge=0.0, le=1.0, description="How confident you are in this observation (0.0-1.0)")
+    importance: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="How much this should shape coaching (0.0-1.0), independent of confidence. "
+        "Risks, active goals, and strong recurring habits are high; incidental observations are low.",
+    )
     evidence_dates: list[str] = Field(
         default_factory=list,
         description="YYYY-MM-DD dates from the context that support this observation",
@@ -167,6 +174,12 @@ class MemoryUpdate(BaseModel):
     memory_id: str = Field(description="ID of the memory to update")
     content: str = Field(description="Updated 1-3 sentence observation")
     confidence: float = Field(ge=0.0, le=1.0, description="Updated confidence score")
+    importance: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Updated standing significance to coaching (0.0-1.0), independent of confidence",
+    )
     evidence_dates: list[str] = Field(default_factory=list, description="Updated supporting dates")
 
 

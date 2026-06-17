@@ -119,6 +119,7 @@ class MemoryConsolidationHandler(TaskHandler):
                         "category": m.category,
                         "content": m.content,
                         "confidence": m.confidence,
+                        "importance": m.importance,
                         "evidence_dates": m.evidence_dates,
                         "created_at": to_athlete_tz(m.created_at, tz_str).isoformat(),
                         "updated_at": to_athlete_tz(m.updated_at, tz_str).isoformat(),
@@ -213,6 +214,7 @@ class MemoryConsolidationHandler(TaskHandler):
             updated = existing.model_copy(update={
                 "content": update.content,
                 "confidence": update.confidence,
+                "importance": update.importance,
                 "evidence_dates": update.evidence_dates,
                 "updated_at": now,
             }).refresh_expiry()
@@ -239,6 +241,7 @@ class MemoryConsolidationHandler(TaskHandler):
                 category=draft.category,
                 content=draft.content,
                 confidence=draft.confidence,
+                importance=draft.importance,
                 evidence_dates=draft.evidence_dates,
                 created_at=now,
                 updated_at=now,
