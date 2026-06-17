@@ -31,6 +31,12 @@ class Memory(BaseModel):
     category: MemoryCategory
     content: str = Field(description="1-3 sentence natural language observation")
     confidence: float = Field(ge=0.0, le=1.0)
+    importance: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Standing significance to coaching, independent of evidence strength",
+    )
     evidence_dates: list[str] = Field(default_factory=list, description="YYYY-MM-DD dates supporting this memory")
     created_at: AwareDatetime
     updated_at: AwareDatetime

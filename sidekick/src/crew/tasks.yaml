@@ -92,9 +92,14 @@ memory_extraction_task:
     Your job:
     1. Identify observations in today's coaching output that represent durable patterns (not one-off events)
     2. For each observation, check whether an existing memory already covers it:
-       - If yes: decide whether to update the content and/or confidence, or leave it unchanged
-       - If no: create a new memory with appropriate scope (recent or long_term) and category
+       - If yes: decide whether to update the content, confidence and/or importance, or leave it unchanged
+       - If no: create a new memory with appropriate scope (recent or long_term), category, and importance
     3. Deactivate any existing memories that today's data clearly contradicts
+
+    For each new or updated memory set importance (0.0-1.0) — how much it should shape future
+    coaching, independent of confidence. Risks, active goals, and strong recurring habits are
+    high; incidental observations are low. When a pattern is changing (improving or worsening),
+    say so in the content so the coach can reinforce progress or flag regression.
 
     Scope guidance:
     - recent: behaviour observed over days to a few weeks; may still be forming
@@ -126,11 +131,15 @@ memory_consolidation_task:
 
     Your tasks:
     1. For each memory: evaluate whether the pattern still holds, has changed, or has reversed
-       - Update content if the pattern evolved
+       - Update content if the pattern evolved; capture progress or regression in the wording
        - Deactivate if clearly reversed or no longer observed
-    2. Review recent-scope memories for promotion:
+    2. Compact the bank: where several memories describe the same pattern, keep the strongest,
+       update its content/evidence_dates to cover the others, and deactivate the redundant ones
+    3. Maintain importance on each memory you update: raise it for patterns repeatedly confirmed
+       as central to coaching, lower it for fading ones. Importance is independent of confidence.
+    4. Review recent-scope memories for promotion:
        - Promote to long_term only if confirmed across multiple weeks with high confidence
-    3. Identify any new long-term patterns across the window not yet captured in memory
+    5. Identify any new long-term patterns across the window not yet captured in memory
 
     Be conservative with promotions. A pattern needs consistent evidence over several weeks
     before earning long_term scope.

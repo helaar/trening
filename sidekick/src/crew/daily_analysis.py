@@ -17,7 +17,7 @@ from crew.prompt_logging import capture_prompt_log, drain_prompt_log
 from models.athlete import Athlete
 from utils.datetime_utils import convert_datetimes_in_obj
 from models.crew_outputs import CoachingOutput, MemoryExtractionOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
-from models.memory import Memory, MemoryCategory, MemoryScope
+from models.memory import _LONG_TERM_TTL_DAYS, _RECENT_TTL_DAYS, Memory, MemoryCategory, MemoryScope
 from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
 
@@ -266,23 +266,17 @@ class _RacesDataTool(BaseTool):
         return self._payload
 
 
-class _MemoryFilterInput(BaseModel):
-    category: MemoryCategory | None = None
-    scope: MemoryScope | None = None
-
-
 class _MemoryContextTool(BaseTool):
     name: str = "get_athlete_memories"
     description: str = (
-        "Retrieve the active memory bank for this athlete — durable observations about "
-        "patterns, habits, risks, and goals built up over previous sessions. "
+        "Retrieve the memories most relevant to this athlete today — durable observations "
+        "about patterns, habits, risks, and goals built up over previous sessions. "
         "Returns JSON with an 'active_memories' list, each entry containing scope, "
-        "category, content, and confidence. Use this to personalise "
-        "your coaching and avoid repeating observations the athlete already knows. "
-        "Optionally filter by category (recovery, habit, performance, risk, goal) "
-        "or scope (recent, long_term) to focus on a specific theme."
+        "category, content, and confidence. The list is already prioritised for today's "
+        "situation (most important and situationally relevant first); use it as context to "
+        "personalise your coaching and avoid repeating what the athlete already knows. "
+        "There are no filter arguments — the full prioritised set is returned."
     )
-    args_schema: type[BaseModel] = _MemoryFilterInput
     _payload: str = ""
 
     class Config:
@@ -292,14 +286,8 @@ class _MemoryContextTool(BaseTool):
         super().__init__(**kwargs)
         object.__setattr__(self, "_payload", payload)
 
-    def _run(self, category: MemoryCategory | None = None, scope: MemoryScope | None = None) -> str:
-        data = json.loads(self._payload)
-        memories = data.get("active_memories", [])
-        if category is not None:
-            memories = [m for m in memories if m.get("category") == category]
-        if scope is not None:
-            memories = [m for m in memories if m.get("scope") == scope]
-        return json.dumps({"active_memories": memories[:_MAX_MEMORIES]})
+    def _run(self, **kwargs: Any) -> str:
+        return self._payload
 
 
 class _RestitutionDataTool(BaseTool):
@@ -342,17 +330,166 @@ class _MemoryDataTool(BaseTool):
         return self._payload
 
 
-_MAX_MEMORIES = 25
+_MAX_MEMORIES = 14
+_CORE_MEMORIES = 6
+_TAPER_WINDOW_DAYS = 10
+_HARD_TSS_THRESHOLD = 80
+
+# Category gets a full context match (1.0) in each of these situations.
+_CONTEXT_BOOSTS: dict[str, set[MemoryCategory]] = {
+    "readiness:low": {MemoryCategory.RECOVERY, MemoryCategory.RISK},
+    "demand:hard": {MemoryCategory.PERFORMANCE, MemoryCategory.RISK},
+    "demand:easy": {MemoryCategory.HABIT, MemoryCategory.RECOVERY},
+    "demand:rest": {MemoryCategory.HABIT, MemoryCategory.RECOVERY},
+    "phase:taper": {MemoryCategory.GOAL, MemoryCategory.PERFORMANCE},
+}
 
 
-def _format_memories(memories: list[Memory]) -> list[dict[str, Any]]:
-    ranked = sorted(memories, key=lambda m: (m.confidence, m.updated_at), reverse=True)
+@dataclass(frozen=True)
+class DayContext:
+    """Deterministic snapshot of today's situation used to score memory relevance."""
+
+    readiness: str = "normal"  # low | normal | high
+    demand: str = "easy"  # rest | easy | hard
+    phase: str = "normal"  # taper | normal
+
+    def boosted_categories(self) -> set[MemoryCategory]:
+        boosted: set[MemoryCategory] = set()
+        boosted |= _CONTEXT_BOOSTS.get(f"readiness:{self.readiness}", set())
+        boosted |= _CONTEXT_BOOSTS.get(f"demand:{self.demand}", set())
+        boosted |= _CONTEXT_BOOSTS.get(f"phase:{self.phase}", set())
+        return boosted
+
+
+def _build_day_context(
+    timeline: list[dict[str, Any]],
+    planned_activities: list[PlannedActivity],
+    upcoming_races: list[PlannedActivity],
+    analysis_date: str,
+) -> DayContext:
+    """Derive today's situation from data already computed for the crew.
+
+    Buckets are intentionally coarse so the result is stable: the same inputs always
+    produce the same context, and small fluctuations do not flip the surfaced memories.
+    """
+    today = next((d for d in timeline if d.get("date") == analysis_date), None)
+    restitution = (today or {}).get("restitution") or {}
+    readiness_val = restitution.get("readiness")
+    if readiness_val is None:
+        readiness = "normal"
+    elif readiness_val < 40:
+        readiness = "low"
+    elif readiness_val > 70:
+        readiness = "high"
+    else:
+        readiness = "normal"
+
+    planned_today = [p for p in planned_activities if p.date == analysis_date]
+    if not planned_today:
+        demand = "rest"
+    else:
+        max_tss = max((p.estimated_tss or 0) for p in planned_today)
+        labels = {label.lower() for p in planned_today for label in p.labels}
+        hard_labels = {"interval", "intervals", "hard", "key", "race"}
+        if max_tss >= _HARD_TSS_THRESHOLD or labels & hard_labels:
+            demand = "hard"
+        else:
+            demand = "easy"
+
+    target_day = date.fromisoformat(analysis_date)
+    phase = "normal"
+    for race in upcoming_races:
+        if "race" not in race.labels and "seasongoal" not in race.labels:
+            continue
+        days_until = (date.fromisoformat(race.date) - target_day).days
+        if 0 <= days_until <= _TAPER_WINDOW_DAYS:
+            phase = "taper"
+            break
+
+    return DayContext(readiness=readiness, demand=demand, phase=phase)
+
+
+def _context_match(memory: Memory, ctx: DayContext) -> float:
+    if memory.category in ctx.boosted_categories():
+        return 1.0
+    if memory.category == MemoryCategory.GOAL or (
+        memory.category == MemoryCategory.HABIT and memory.scope == MemoryScope.LONG_TERM
+    ):
+        return 0.5  # durable baseline floor — never fully dropped
+    return 0.3
+
+
+def _recency(memory: Memory, today: date) -> float:
+    ttl = _LONG_TERM_TTL_DAYS if memory.scope == MemoryScope.LONG_TERM else _RECENT_TTL_DAYS
+    age_days = max(0, (today - memory.updated_at.date()).days)
+    return max(0.0, 1.0 - age_days / ttl)
+
+
+def _score_memory(memory: Memory, ctx: DayContext, today: date) -> float:
+    return (
+        0.30 * memory.confidence
+        + 0.30 * memory.importance
+        + 0.15 * _recency(memory, today)
+        + 0.25 * _context_match(memory, ctx)
+    )
+
+
+def _is_core_candidate(memory: Memory) -> bool:
+    return memory.category in (MemoryCategory.GOAL, MemoryCategory.RISK) or (
+        memory.category == MemoryCategory.HABIT and memory.scope == MemoryScope.LONG_TERM
+    )
+
+
+def _select_relevant_memories(
+    memories: list[Memory], ctx: DayContext, analysis_date: str
+) -> list[dict[str, Any]]:
+    """Hybrid, leaning-wide selection.
+
+    A stable durable core (goals, long-term habits, active risks) is always present so the
+    coach can track habits and progress over time; today's situation then fills the
+    remaining slots and orders the whole set. Deterministic for fixed inputs.
+    """
+    today = date.fromisoformat(analysis_date)
+    scored = {id(m): _score_memory(m, ctx, today) for m in memories}
+
+    core_pool = sorted(
+        (m for m in memories if _is_core_candidate(m)),
+        key=lambda m: (m.importance * m.confidence, m.updated_at),
+        reverse=True,
+    )
+    core = core_pool[:_CORE_MEMORIES]
+    core_ids = {id(m) for m in core}
+
+    remaining = sorted(
+        (m for m in memories if id(m) not in core_ids),
+        key=lambda m: (scored[id(m)], m.updated_at),
+        reverse=True,
+    )
+    selected = (core + remaining)[:_MAX_MEMORIES]
+    selected.sort(key=lambda m: (scored[id(m)], m.updated_at), reverse=True)
+
     return [
         {
             "scope": m.scope,
             "category": m.category,
             "content": m.content,
             "confidence": m.confidence,
+        }
+        for m in selected
+    ]
+
+
+def _format_memories_full(memories: list[Memory]) -> list[dict[str, Any]]:
+    """Full active set with ids and importance — for the memory extractor, not the coach."""
+    ranked = sorted(memories, key=lambda m: (m.confidence, m.updated_at), reverse=True)
+    return [
+        {
+            "memory_id": m.memory_id,
+            "scope": m.scope,
+            "category": m.category,
+            "content": m.content,
+            "confidence": m.confidence,
+            "importance": m.importance,
         }
         for m in ranked
     ]
@@ -543,8 +680,19 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
     restitution_payload = json.dumps(timeline, default=str)
 
-    memory_payload = json.dumps(
-        {"active_memories": _format_memories(input.active_memories)},
+    day_context = _build_day_context(
+        timeline, input.planned_activities, input.upcoming_races, input.date
+    )
+    coach_memory_payload = json.dumps(
+        {
+            "active_memories": _select_relevant_memories(
+                input.active_memories, day_context, input.date
+            )
+        },
+        default=str,
+    )
+    extractor_memory_payload = json.dumps(
+        {"active_memories": _format_memories_full(input.active_memories)},
         default=str,
     )
 
@@ -552,7 +700,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     plans_tool = _PlansDataTool(payload=plans_payload)
     races_tool = _RacesDataTool(payload=races_payload)
     restitution_tool = _RestitutionDataTool(payload=restitution_payload)
-    memory_context_tool = _MemoryContextTool(payload=memory_payload)
+    memory_context_tool = _MemoryContextTool(payload=coach_memory_payload)
 
     llm = settings.llm_model
 
@@ -598,7 +746,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         output_pydantic=CoachingOutput,
     )
 
-    memory_tool = _MemoryDataTool(payload=memory_payload)
+    memory_tool = _MemoryDataTool(payload=extractor_memory_payload)
     memory_extractor = _make_agent(agents_cfg["memory_extractor"], tools=[memory_tool], default_llm=llm)
     memory_task = _make_task(
         {

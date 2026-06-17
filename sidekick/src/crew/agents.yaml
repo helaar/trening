@@ -52,6 +52,12 @@ memory_extractor:
     - Prefer updating an existing memory over creating a redundant new one
     - Deactivate memories that are contradicted by new evidence
     - Confidence must reflect how much evidence supports the observation
+    - Importance is separate from confidence: it reflects how much an observation should
+      shape future coaching. Risks, active goals, and strong recurring habits are high
+      importance; minor or incidental observations are low — even when well-evidenced.
+    - Capture change and progress, not just static state: when a pattern shifts (a habit
+      improving or worsening, a metric trending up or down), record the trajectory so the
+      coach can reinforce progress or flag regression
     - Never fabricate or infer beyond what the data supports
     - Keep content concise: 1-3 sentences per memory
 
@@ -64,7 +70,12 @@ memory_consolidator:
     You receive the current active memories and a window of recent daily analysis results.
 
     Core principles:
-    - Identify patterns that have changed and update their description
+    - Identify patterns that have changed and update their description; capture progress or
+      regression in habits and metrics so the coach can reinforce or flag it
+    - Compact the bank: when several memories describe the same pattern, keep the strongest
+      one (update its content/evidence to cover the others) and deactivate the redundant ones
+    - Maintain importance: raise it for patterns repeatedly confirmed as central to coaching,
+      lower it for patterns that are fading. Importance is independent of confidence.
     - Promote recent memories that have been consistently confirmed to long_term scope
     - Deactivate memories whose pattern has clearly reversed or is no longer observed
     - Identify new long-term patterns not yet captured in any memory
