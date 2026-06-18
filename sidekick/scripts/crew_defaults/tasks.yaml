@@ -1,88 +1,75 @@
-# Seed defaults for the `crew_definitions` collection (type: task).
-# Used only by scripts/seed_crew_definitions.py to bootstrap a fresh database.
-# The live task setup is stored in MongoDB and edited via the admin interface;
-# editing this file has no effect until the seed script is run against an empty DB.
-
-workout_analysis_task:
+daily_coaching_task:
   description: |
-    Analyze the workouts recorded on {date} ({weekday}) for athlete {athlete_name}.
+    You are coaching {athlete_name} on {date} ({weekday}).
 
-    Use the `get_workout_data` tool to retrieve workout analyses and athlete settings.
+    Use the `get_plans_data` tool to retrieve today's planned activities and athlete settings.
 
-    Before analysing any session, check if it is a commute or transport activity. Commutes
-    require only a one-sentence note (commute_note) — do NOT produce training quality analysis
-    for them. Set is_commute=true and leave coach_recommendations empty.
+    Use the `get_upcoming_races` tool to check the athlete's season goal race and other
+    upcoming races. Reference the goal race or next race only when it is genuinely relevant
+    to today's training (e.g. taper guidance approaching a race, framing today's session as
+    race preparation, or noting race week). Do not mention race countdowns in every message —
+    only when it adds value. When you do reference a race, use the provided days_until rather
+    than calculating dates yourself.
 
-    For ERG mode sessions (is_erg_mode=true): note that ERG was active, then focus exclusively
-    on cadence patterns and HR response. Do NOT comment on power stability, pacing evenness,
-    or power consistency — these are controlled by the trainer, not the athlete.
+    You have already received the technical performance analysis and recovery analysis as context.
+    The performance analysis reflects any athlete_rpe and athlete_notes provided for today's
+    sessions — use these to personalise your feedback where relevant.
+    Combine all sources to produce both coach-facing notes and an athlete-facing message.
 
-    Cadence units: cycling=RPM, running=SPM. Never compare cadence values across sports.
-    Running power (GPS/foot pod) is not the same as cycling power — do not cross-reference.
+    Coach-facing fields (todays_recap, key_takeaway, looking_ahead, coach_notes):
+    - Be factual and direct; these are internal notes
+    - coach_notes: flag anything the coach needs to monitor that the athlete should NOT see
+      (e.g. HRV trend concerns, overreach risk, load accumulation)
 
-    Ignore isolated abnormal values at the very start of an activity (warm-up artefacts).
+    Athlete-facing field (athlete_message):
+    - Casual and conversational — no headers, no bullet points
+    - Do NOT praise ERG power stability (it is automatic, not an achievement)
+    - Sleep commentary: compare to the athlete's own weekday or weekend pattern — not a fixed
+      external baseline ("8 hours is ideal")
+    - Avoid false continuity: do not say "again", "as usual", "like yesterday" unless the data
+      explicitly supports a recurring pattern
+    - If sessions were missed or cut short: be empathetic, not prescriptive
+    - Verify every claim against the context provided; do not invent observations
 
-    For all other sessions, for each workout provide:
-    1. Executive summary: coach-facing takeaway (2-3 sentences, max 50 words)
-    2. Quantitative summary: TSS, IF, power vs FTP, HR response, zone distribution
-    3. Qualitative assessment: execution quality, pacing, zone adherence
-    4. Progress indicators: how this session fits the athlete's training trajectory
-    5. Risk flags: genuine concerns only — not low-severity power blips or single-lap anomalies
-    6. Coach recommendations: specific and actionable (max 30 words each)
-    7. Data gaps: missing data that materially limits the analysis. Do NOT flag
-       missing speed or pace data for power-based cycling sessions — speed is not
-       needed when power, HR, and zone data are present. Only flag missing speed/pace
-       for GPS running or cycling sessions where pace is the primary training metric
-       and power data is absent.
-
-    If a workout includes `athlete_rpe` (Rate of Perceived Exertion, 1-10) or `athlete_notes`,
-    treat these as primary evidence. RPE gives the athlete's subjective effort signal; notes may
-    describe incidents, external conditions, or other context that affects how the session was
-    executed. Factor both into the qualitative assessment, risk flags, and recommendations.
-    A mismatch between objective load (IF, HR) and RPE is itself a meaningful finding.
-
-    Verify all metric comparisons numerically from the provided data.
-    List key sessions first, commutes last in the workouts array.
-    Set no_data=true (and leave workouts empty) if the tool returns no workout data.
-
+    If training_philosophy is present in the tool data, apply it when framing the athlete_message:
+    - Use coach_guidance to interpret the intensity_distribution from today's sessions
+    - Describe effort levels in plain language only — never mention zone numbers or zone names
+    - If compliance is good: affirm it without making easy sessions sound like underperformance
+    - If gray-zone drift is present: name it plainly and redirect, one sentence, no lecture
+    - If looking ahead: one sentence maximum on what the philosophy calls for next
   expected_output: |
-    A JSON object with the workout analysis. If no workouts: no_data=true, workouts=[].
-    daily_summary captures the key highlight and primary recommendation for the whole day.
-    Each workout in the workouts array includes all fields defined in the schema.
-
-restitution_analysis_task:
+    A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
+    coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
+    max 150 words).
+memory_consolidation_task:
   description: |
-    Analyze recovery and restitution trends for {athlete_name} from {start_date} to {end_date}
-    ({days} days).
+    Perform a full memory review for {athlete_name} covering the past {window_days} days.
 
-    Use the `get_restitution_data` tool to retrieve the daily recovery and training load timeline.
-    The timeline includes per-day sleep_quality scores (not just sleep hours) and TSS/IF aggregates
-    from all workouts that day — use both in your analysis.
+    Use the `get_consolidation_data` tool to retrieve:
+    - All active memories for the athlete
+    - Daily analysis results from the review window
 
-    For each metric, analyze:
-    1. **HRV**: baseline level, direction of trend, response after high-TSS days (apply the
-       1-day lag — HRV on day N reflects day N-1 training). Same lag applies to resting HR.
-    2. **Resting HR**: baseline, rising/falling trend, spikes after load
-    3. **Sleep**: both hours and quality over time, any progressive decline. Compare weekday
-       sleep to the athlete's own weekday pattern and weekend sleep to their weekend pattern —
-       do not apply a universal baseline (e.g. "8 hours is optimal").
-    4. **Readiness**: self-reported overall feeling relative to training days and recovery metrics
-    5. **Training load context**: TSS and IF patterns per day, how recovery metrics track them
+    Your tasks:
+    1. For each memory: evaluate whether the pattern still holds, has changed, or has reversed
+       - Update content if the pattern evolved; capture progress or regression in the wording
+       - Deactivate if clearly reversed or no longer observed
+    2. Compact the bank: where several memories describe the same pattern, keep the strongest,
+       update its content/evidence_dates to cover the others, and deactivate the redundant ones
+    3. Maintain importance on each memory you update: raise it for patterns repeatedly confirmed
+       as central to coaching, lower it for fading ones. Importance is independent of confidence.
+    4. Review recent-scope memories for promotion:
+       - Promote to long_term only if confirmed across multiple weeks with high confidence
+    5. Identify any new long-term patterns across the window not yet captured in memory
 
-    Distinguish acute fatigue (short spikes in resting HR or HRV dips that resolve within 1-2 days
-    after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,
-    rising resting HR trend, or persistent low readiness regardless of training load).
-
-    If fewer than 5 days have restitution data, state this prominently in data_quality_note.
-    Focus on multi-day patterns, not individual outliers.
-
+    Be conservative with promotions. A pattern needs consistent evidence over several weeks
+    before earning long_term scope.
   expected_output: |
-    A JSON object with the recovery analysis. recovery_baseline captures the athlete's typical
-    metrics computed from the window. trend_analysis and load_recovery_correlation should be
-    as detailed as the data supports — do not truncate important observations.
-    overall_recovery_quality must be one of: "good", "adequate", "concerning".
-    risk_flags contains only genuine multi-day patterns; empty list if none.
-
+    A JSON object with four fields:
+    - updates: list of memory updates (may be empty)
+    - promotions: list of memory_ids to promote to long_term scope (may be empty)
+    - deactivations: list of memory_ids to deactivate (may be empty)
+    - new_long_term: list of new long-term memory drafts (may be empty)
+    All four fields must be present even if empty.
 memory_extraction_task:
   description: |
     Review the coaching output for {athlete_name} on {date} and update the memory bank.
@@ -114,72 +101,83 @@ memory_extraction_task:
     - goal: short-term targets the athlete mentioned or demonstrated
 
     Only create memories for patterns with at least 2 data points. A single day is not a pattern.
-
   expected_output: |
     A JSON object with three fields:
     - new_memories: list of new memory drafts (may be empty)
     - updated_memories: list of updates to existing memory IDs (may be empty)
     - deactivated_memory_ids: list of memory IDs to deactivate (may be empty)
     All three fields must be present even if empty.
-
-memory_consolidation_task:
+restitution_analysis_task:
   description: |
-    Perform a full memory review for {athlete_name} covering the past {window_days} days.
+    Analyze recovery and restitution trends for {athlete_name} from {start_date} to {end_date}
+    ({days} days).
 
-    Use the `get_consolidation_data` tool to retrieve:
-    - All active memories for the athlete
-    - Daily analysis results from the review window
+    Use the `get_restitution_data` tool to retrieve the daily recovery and training load timeline.
+    The timeline includes per-day sleep_quality scores (not just sleep hours) and TSS/IF aggregates
+    from all workouts that day — use both in your analysis.
 
-    Your tasks:
-    1. For each memory: evaluate whether the pattern still holds, has changed, or has reversed
-       - Update content if the pattern evolved; capture progress or regression in the wording
-       - Deactivate if clearly reversed or no longer observed
-    2. Compact the bank: where several memories describe the same pattern, keep the strongest,
-       update its content/evidence_dates to cover the others, and deactivate the redundant ones
-    3. Maintain importance on each memory you update: raise it for patterns repeatedly confirmed
-       as central to coaching, lower it for fading ones. Importance is independent of confidence.
-    4. Review recent-scope memories for promotion:
-       - Promote to long_term only if confirmed across multiple weeks with high confidence
-    5. Identify any new long-term patterns across the window not yet captured in memory
+    For each metric, analyze:
+    1. **HRV**: baseline level, direction of trend, response after high-TSS days (apply the
+       1-day lag — HRV on day N reflects day N-1 training). Same lag applies to resting HR.
+    2. **Resting HR**: baseline, rising/falling trend, spikes after load
+    3. **Sleep**: both hours and quality over time, any progressive decline. Compare weekday
+       sleep to the athlete's own weekday pattern and weekend sleep to their weekend pattern —
+       do not apply a universal baseline (e.g. "8 hours is optimal").
+    4. **Readiness**: self-reported overall feeling relative to training days and recovery metrics
+    5. **Training load context**: TSS and IF patterns per day, how recovery metrics track them
 
-    Be conservative with promotions. A pattern needs consistent evidence over several weeks
-    before earning long_term scope.
+    Distinguish acute fatigue (short spikes in resting HR or HRV dips that resolve within 1-2 days
+    after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,
+    rising resting HR trend, or persistent low readiness regardless of training load).
 
+    If fewer than 5 days have restitution data, state this prominently in data_quality_note.
+    Focus on multi-day patterns, not individual outliers.
   expected_output: |
-    A JSON object with four fields:
-    - updates: list of memory updates (may be empty)
-    - promotions: list of memory_ids to promote to long_term scope (may be empty)
-    - deactivations: list of memory_ids to deactivate (may be empty)
-    - new_long_term: list of new long-term memory drafts (may be empty)
-    All four fields must be present even if empty.
-
-daily_coaching_task:
-  description: |
-    You are coaching {athlete_name} on {date} ({weekday}).
-
-    Use the `get_plans_data` tool to retrieve today's planned activities and athlete settings.
-
-    You have already received the technical performance analysis and recovery analysis as context.
-    The performance analysis reflects any athlete_rpe and athlete_notes provided for today's
-    sessions — use these to personalise your feedback where relevant.
-    Combine all three sources to produce both coach-facing notes and an athlete-facing message.
-
-    Coach-facing fields (todays_recap, key_takeaway, looking_ahead, coach_notes):
-    - Be factual and direct; these are internal notes
-    - coach_notes: flag anything the coach needs to monitor that the athlete should NOT see
-      (e.g. HRV trend concerns, overreach risk, load accumulation)
-
-    Athlete-facing field (athlete_message):
-    - Casual and conversational — no headers, no bullet points
-    - Do NOT praise ERG power stability (it is automatic, not an achievement)
-    - Sleep commentary: compare to the athlete's own weekday or weekend pattern — not a fixed
-      external baseline ("8 hours is ideal")
-    - Avoid false continuity: do not say "again", "as usual", "like yesterday" unless the data
-      explicitly supports a recurring pattern
-    - If sessions were missed or cut short: be empathetic, not prescriptive
-    - Verify every claim against the context provided; do not invent observations
-
+    A JSON object with the recovery analysis. recovery_baseline captures the athlete's typical
+    metrics computed from the window. trend_analysis and load_recovery_correlation should be
+    as detailed as the data supports — do not truncate important observations.
+    overall_recovery_quality must be one of: "good", "adequate", "concerning".
+    risk_flags contains only genuine multi-day patterns; empty list if none.
+workout_analysis_task:
+  description: "Analyze the workouts recorded on {date} ({weekday}) for athlete {athlete_name}.\n\
+    \nUse the `get_workout_data` tool to retrieve workout analyses and athlete settings.\n\
+    \nBefore analysing any session, check if it is a commute or transport activity.\
+    \ Commutes\nrequire only a one-sentence note (commute_note) — do NOT produce training\
+    \ quality analysis\nfor them. Set is_commute=true and leave coach_recommendations\
+    \ empty.\n\nFor ERG mode sessions (is_erg_mode=true): note that ERG was active,\
+    \ then focus exclusively\non cadence patterns and HR response. Do NOT comment\
+    \ on power stability, pacing evenness,\nor power consistency — these are controlled\
+    \ by the trainer, not the athlete.\n\nCadence units: cycling=RPM, running=SPM.\
+    \ Never compare cadence values across sports.\nRunning power (GPS/foot pod) is\
+    \ not the same as cycling power — do not cross-reference.\n\nIgnore isolated abnormal\
+    \ values at the very start of an activity (warm-up artefacts).\n\nFor all other\
+    \ sessions, for each workout provide:\n1. Executive summary: coach-facing takeaway\
+    \ (2-3 sentences, max 50 words)\n2. Quantitative summary: TSS, IF, power vs FTP,\
+    \ HR response, zone distribution\n3. Qualitative assessment: execution quality,\
+    \ pacing, zone adherence\n4. Progress indicators: how this session fits the athlete's\
+    \ training trajectory\n5. Risk flags: genuine concerns only — not low-severity\
+    \ power blips or single-lap anomalies\n6. Coach recommendations: specific and\
+    \ actionable (max 30 words each)\n7. Data gaps: missing data that materially limits\
+    \ the analysis. Do NOT flag\n   missing speed or pace data for power-based cycling\
+    \ sessions — speed is not\n   needed when power, HR, and zone data are present.\
+    \ Only flag missing speed/pace\n   for GPS running or cycling sessions where pace\
+    \ is the primary training metric\n   and power data is absent.\n\nIf a workout\
+    \ includes `athlete_rpe` (Rate of Perceived Exertion, 1-10) or `athlete_notes`,\n\
+    treat these as primary evidence. RPE gives the athlete's subjective effort signal;\
+    \ notes may\ndescribe incidents, external conditions, or other context that affects\
+    \ how the session was\nexecuted. Factor both into the qualitative assessment,\
+    \ risk flags, and recommendations.\nA mismatch between objective load (IF, HR)\
+    \ and RPE is itself a meaningful finding.\n\nVerify all metric comparisons numerically\
+    \ from the provided data.\nList key sessions first, commutes last in the workouts\
+    \ array.\nSet no_data=true (and leave workouts empty) if the tool returns no workout\
+    \ data.\n\nIf training_philosophy is present in the tool data, apply analyst_guidance\
+    \ when assessing each session:\n- Read intensity_distribution (low_pct, moderate_pct,\
+    \ high_pct) from the workout data\n- Classify the session and include the classification\
+    \ in the executive summary\n- Flag philosophy violations in risk_flags using intensity_distribution\
+    \ percentages as evidence\n- For ERG sessions and commutes: skip the philosophy\
+    \ classification\n- Add a sentence or two summarizing how this workout alligns\
+    \ to the philosophy to the quantitive summary. "
   expected_output: |
-    A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
-    coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
-    max 150 words).
+    A JSON object with the workout analysis. If no workouts: no_data=true, workouts=[].
+    daily_summary captures the key highlight and primary recommendation for the whole day.
+    Each workout in the workouts array includes all fields defined in the schema.
