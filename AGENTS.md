@@ -5,6 +5,9 @@
 Monorepo: Python backend services(sidekick) and script prototypes (analyzer, coaches).
 Non-functional priorities: correctness > security > maintainability > performance.
 
+`sidekick` is the production service. `analyzer` and `coaches` are prototypes — do
+not modify them unless explicitly asked to.
+
 ## Coding standards
 
 - Clarity over cleverness; no implicit behavior or "magic"

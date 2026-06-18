@@ -9,6 +9,7 @@ from api.routes import router
 from api.auth_routes import router as auth_router
 from config import settings
 from crew.prompt_logging import register_prompt_log_listener
+from database.crew_definition_repository import CrewDefinitionRepository
 from database.mongodb import db_manager
 from database.prompt_log_repository import PromptLogRepository
 from services.task_processor import TaskProcessor
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI):
     # Startup
     await db_manager.connect()
     await PromptLogRepository(db_manager.db).ensure_indexes()
+    await CrewDefinitionRepository(db_manager.db).ensure_indexes()
     register_prompt_log_listener()
     yield
     # Shutdown

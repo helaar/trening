@@ -22,85 +22,68 @@ import {
   DialogDescription,
   DialogClose,
 } from "../components/ui/dialog"
-import { fetchPrompts, savePrompts, type PromptConfig } from "../api/prompts"
+import {
+  fetchPrompts,
+  savePrompts,
+  type CrewDefinition,
+  type PhilosophyDoc,
+} from "../api/prompts"
 import { createMemoryConsolidationTask, getTaskStatus } from "../api/tasks"
 
-// ── data helpers ──────────────────────────────────────────────────────────────
+// ── document field model ───────────────────────────────────────────────────────
 
-const PHILOSOPHY_SUB_KEYS = ["name", "intensity_targets", "coach_guidance", "analyst_guidance"]
+type DefType = CrewDefinition["type"]
 
-function isNumeric(s: string): boolean {
-  return /^\d+$/.test(s)
+// Editable fields per document type, in display order.
+const FIELD_DEFS: Record<DefType, string[]> = {
+  agent: ["role", "goal", "backstory", "llm_model"],
+  task: ["description", "expected_output"],
+  philosophy: ["display_name", "intensity_targets", "coach_guidance", "analyst_guidance"],
 }
 
-function parsePhilosophyGroups(prompts: PromptConfig[]): Map<string, PromptConfig[]> {
-  const groups = new Map<string, PromptConfig[]>()
-  for (const p of prompts) {
-    if (!p.key.startsWith("philosophy.")) continue
-    const parts = p.key.split(".")
-    if (parts.length < 3) continue
-    const slug = parts[1]
-    // skip numeric segments (athlete selections) and leaf sub-keys used as group names
-    if (isNumeric(slug) || PHILOSOPHY_SUB_KEYS.includes(slug)) continue
-    const list = groups.get(slug) ?? []
-    list.push(p)
-    groups.set(slug, list)
-  }
-  return groups
+const FIELD_LABELS: Record<string, string> = {
+  llm_model: "LLM Model",
+  display_name: "Display Name",
+  expected_output: "Expected Output",
+  intensity_targets: "Intensity Targets",
+  coach_guidance: "Coach Guidance",
+  analyst_guidance: "Analyst Guidance",
 }
 
-function groupPrompts(prompts: PromptConfig[], prefix: "agents" | "tasks"): Map<string, PromptConfig[]> {
-  const groups = new Map<string, PromptConfig[]>()
-  for (const p of prompts) {
-    if (!p.key.startsWith(`${prefix}.`)) continue
-    const parts = p.key.split(".")
-    const groupKey = parts.length >= 2 ? `${parts[0]}.${parts[1]}` : parts[0]
-    const list = groups.get(groupKey) ?? []
-    list.push(p)
-    groups.set(groupKey, list)
-  }
-  return groups
+function humanize(s: string): string {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function groupLabel(groupKey: string): string {
-  const parts = groupKey.split(".")
-  const name = (parts[1] ?? parts[0]).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-  return name
+function fieldLabel(field: string): string {
+  return FIELD_LABELS[field] ?? humanize(field)
 }
 
-function philosophyLabel(slug: string): string {
-  return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-}
-
-function fieldLabel(key: string): string {
-  const parts = key.split(".")
-  return parts[parts.length - 1].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+function docLabel(doc: CrewDefinition): string {
+  if (doc.type === "philosophy") return doc.display_name?.trim() || humanize(doc.name)
+  return humanize(doc.name)
 }
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "")
 }
 
-// ── tree node types ──────────────────────────────────────────────────────────
+function editKey(type: DefType, name: string, field: string): string {
+  return `${type}/${name}/${field}`
+}
 
-type TreeNode =
-  | { branch: "philosophies"; key: string }
-  | { branch: "agents"; key: string }
-  | { branch: "tasks"; key: string }
+// ── tree node types ────────────────────────────────────────────────────────────
 
-// ── copy button ───────────────────────────────────────────────────────────────
+interface TreeNode {
+  type: DefType
+  name: string
+}
 
-function GroupCopyButton({
-  items,
-  currentValues,
-}: {
-  items: PromptConfig[]
-  currentValues: (p: PromptConfig) => string
-}) {
+// ── copy button ────────────────────────────────────────────────────────────────
+
+function DocCopyButton({ doc }: { doc: Record<string, string> }) {
   const [copied, setCopied] = useState(false)
   function handleCopy() {
-    const payload = items.map((p) => ({ key: p.key, value: currentValues(p) }))
-    navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+    navigator.clipboard.writeText(JSON.stringify(doc, null, 2))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -118,15 +101,16 @@ function GroupCopyButton({
   )
 }
 
-// ── import modal ──────────────────────────────────────────────────────────────
+// ── import modal ────────────────────────────────────────────────────────────────
 
 interface ImportModalProps {
   label: string
-  onImport: (updates: Record<string, string>) => void
+  fields: string[]
+  onImport: (values: Record<string, string>) => void
   onClose: () => void
 }
 
-function ImportModal({ label, onImport, onClose }: ImportModalProps) {
+function ImportModal({ label, fields, onImport, onClose }: ImportModalProps) {
   const [text, setText] = useState("")
   const [error, setError] = useState<string | null>(null)
 
@@ -135,18 +119,16 @@ function ImportModal({ label, onImport, onClose }: ImportModalProps) {
     if (!trimmed) { setError("Paste the JSON above."); return }
     try {
       const parsed = JSON.parse(trimmed)
-      if (!Array.isArray(parsed)) throw new Error()
-      const updates: Record<string, string> = {}
-      for (const item of parsed) {
-        if (typeof item.key === "string" && typeof item.value === "string") {
-          updates[item.key] = item.value
-        }
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error()
+      const values: Record<string, string> = {}
+      for (const field of fields) {
+        if (typeof parsed[field] === "string") values[field] = parsed[field]
       }
-      if (Object.keys(updates).length === 0) throw new Error()
-      onImport(updates)
+      if (Object.keys(values).length === 0) throw new Error()
+      onImport(values)
       onClose()
     } catch {
-      setError("Invalid JSON — expected [{key, value}, …].")
+      setError("Invalid JSON — expected an object with this document's fields.")
     }
   }
 
@@ -154,11 +136,11 @@ function ImportModal({ label, onImport, onClose }: ImportModalProps) {
     <DialogContent className="max-w-2xl">
       <DialogHeader>
         <DialogTitle>Import — {label}</DialogTitle>
-        <DialogDescription>Paste the JSON array back from the LLM.</DialogDescription>
+        <DialogDescription>Paste the JSON document back from the LLM.</DialogDescription>
       </DialogHeader>
       <Textarea
         autoFocus
-        placeholder={'[\n  { "key": "…", "value": "…" }\n]'}
+        placeholder={'{\n  "role": "…",\n  "goal": "…"\n}'}
         value={text}
         onChange={(e) => { setText(e.target.value); setError(null) }}
         rows={14}
@@ -175,18 +157,18 @@ function ImportModal({ label, onImport, onClose }: ImportModalProps) {
   )
 }
 
-// ── tree sidebar ──────────────────────────────────────────────────────────────
+// ── tree sidebar ────────────────────────────────────────────────────────────────
 
 interface TreeBranchProps {
   label: string
-  items: { key: string; label: string }[]
+  type: DefType
+  items: { name: string; label: string }[]
   selected: TreeNode | null
-  branch: TreeNode["branch"]
   onSelect: (node: TreeNode) => void
   extra?: React.ReactNode
 }
 
-function TreeBranch({ label, items, selected, branch, onSelect, extra }: TreeBranchProps) {
+function TreeBranch({ label, type, items, selected, onSelect, extra }: TreeBranchProps) {
   const [open, setOpen] = useState(true)
   return (
     <div>
@@ -200,13 +182,13 @@ function TreeBranch({ label, items, selected, branch, onSelect, extra }: TreeBra
       </button>
       {open && (
         <div className="ml-3 pl-3 border-l border-border">
-          {items.map(({ key, label: itemLabel }) => {
-            const isSelected = selected?.branch === branch && selected.key === key
+          {items.map(({ name, label: itemLabel }) => {
+            const isSelected = selected?.type === type && selected.name === name
             return (
               <button
-                key={key}
+                key={name}
                 type="button"
-                onClick={() => onSelect({ branch, key })}
+                onClick={() => onSelect({ type, name })}
                 className={`w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors truncate ${
                   isSelected
                     ? "bg-accent text-accent-foreground font-medium"
@@ -224,25 +206,27 @@ function TreeBranch({ label, items, selected, branch, onSelect, extra }: TreeBra
   )
 }
 
-// ── detail panel ──────────────────────────────────────────────────────────────
+// ── detail panel ────────────────────────────────────────────────────────────────
 
 interface DetailPanelProps {
-  items: PromptConfig[]
-  label: string
-  currentValue: (p: PromptConfig) => string
-  onChange: (key: string, value: string) => void
-  onImport: (updates: Record<string, string>) => void
+  doc: CrewDefinition
+  fields: string[]
+  value: (field: string) => string
+  onChange: (field: string, value: string) => void
+  onImport: (values: Record<string, string>) => void
 }
 
-function DetailPanel({ items, label, currentValue, onChange, onImport }: DetailPanelProps) {
+function DetailPanel({ doc, fields, value, onChange, onImport }: DetailPanelProps) {
   const [showImport, setShowImport] = useState(false)
+  const label = docLabel(doc)
+  const snapshot = Object.fromEntries(fields.map((f) => [f, value(f)]))
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b">
         <h2 className="text-sm font-semibold">{label}</h2>
         <div className="flex items-center gap-1">
-          <GroupCopyButton items={items} currentValues={currentValue} />
+          <DocCopyButton doc={snapshot} />
           <button
             type="button"
             onClick={() => setShowImport(true)}
@@ -254,15 +238,15 @@ function DetailPanel({ items, label, currentValue, onChange, onImport }: DetailP
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-        {items.map((p) => (
-          <div key={p.key} className="space-y-1.5">
+        {fields.map((field) => (
+          <div key={field} className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              {fieldLabel(p.key)}
+              {fieldLabel(field)}
             </Label>
             <Textarea
-              value={currentValue(p)}
-              onChange={(e) => onChange(p.key, e.target.value)}
-              rows={Math.min(Math.max(currentValue(p).split("\n").length + 1, 3), 12)}
+              value={value(field)}
+              onChange={(e) => onChange(field, e.target.value)}
+              rows={Math.min(Math.max(value(field).split("\n").length + 1, field === "llm_model" ? 1 : 3), 12)}
               className="font-mono text-xs resize-y"
             />
           </div>
@@ -272,6 +256,7 @@ function DetailPanel({ items, label, currentValue, onChange, onImport }: DetailP
         {showImport && (
           <ImportModal
             label={label}
+            fields={fields}
             onImport={onImport}
             onClose={() => setShowImport(false)}
           />
@@ -281,7 +266,7 @@ function DetailPanel({ items, label, currentValue, onChange, onImport }: DetailP
   )
 }
 
-// ── add philosophy dialog ────────────────────────────────────────────────────
+// ── add philosophy dialog ──────────────────────────────────────────────────────
 
 interface AddPhilosophyDialogProps {
   onAdd: (slug: string, name: string) => void
@@ -327,7 +312,18 @@ function AddPhilosophyDialog({ onAdd, onClose, existingSlugs }: AddPhilosophyDia
   )
 }
 
-// ── page ──────────────────────────────────────────────────────────────────────
+// ── page ────────────────────────────────────────────────────────────────────────
+
+function newPhilosophy(slug: string, name: string): PhilosophyDoc {
+  return {
+    type: "philosophy",
+    name: slug,
+    display_name: name,
+    intensity_targets: "",
+    coach_guidance: "",
+    analyst_guidance: "",
+  }
+}
 
 export function SetupPage() {
   const queryClient = useQueryClient()
@@ -337,6 +333,7 @@ export function SetupPage() {
   })
 
   const [edits, setEdits] = useState<Record<string, string>>({})
+  const [added, setAdded] = useState<PhilosophyDoc[]>([])
   const [saved, setSaved] = useState(false)
   const [selected, setSelected] = useState<TreeNode | null>(null)
   const [showAddPhilosophy, setShowAddPhilosophy] = useState(false)
@@ -390,52 +387,80 @@ export function SetupPage() {
   const mutation = useMutation({
     mutationFn: savePrompts,
     onSuccess: (updated) => {
-      queryClient.setQueryData<PromptConfig[]>(["admin-prompts"], (prev) => {
-        if (!prev) return updated
-        const byKey = new Map(updated.map((p) => [p.key, p]))
-        const merged = prev.map((p) => byKey.get(p.key) ?? p)
-        const added = updated.filter((p) => !prev.some((e) => e.key === p.key))
-        return [...merged, ...added]
+      queryClient.setQueryData<CrewDefinition[]>(["admin-prompts"], (prev) => {
+        const base = prev ?? []
+        const idx = new Map(base.map((d, i) => [`${d.type}/${d.name}`, i]))
+        const next = [...base]
+        for (const d of updated) {
+          const k = `${d.type}/${d.name}`
+          if (idx.has(k)) next[idx.get(k)!] = d
+          else next.push(d)
+        }
+        return next
       })
       setEdits({})
+      setAdded([])
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     },
   })
 
-  function currentValue(p: PromptConfig): string {
-    return edits[p.key] ?? p.value
+  const allDocs: CrewDefinition[] = [...(prompts ?? []), ...added]
+
+  function findDoc(node: TreeNode): CrewDefinition | undefined {
+    return allDocs.find((d) => d.type === node.type && d.name === node.name)
   }
 
-  function currentValueByKey(key: string): string {
-    const p = (prompts ?? []).find((x) => x.key === key)
-    return edits[key] ?? p?.value ?? ""
+  function fieldValue(doc: CrewDefinition, field: string): string {
+    const ek = editKey(doc.type, doc.name, field)
+    if (ek in edits) return edits[ek]
+    return (doc as unknown as Record<string, unknown>)[field] as string ?? ""
   }
 
-  function handleChange(key: string, value: string) {
-    setEdits((prev) => ({ ...prev, [key]: value }))
+  function handleChange(doc: CrewDefinition, field: string, value: string) {
+    setEdits((prev) => ({ ...prev, [editKey(doc.type, doc.name, field)]: value }))
   }
 
-  function handleImport(updates: Record<string, string>) {
-    setEdits((prev) => ({ ...prev, ...updates }))
-  }
-
-  function handleSave() {
-    const updates = Object.entries(edits).map(([key, value]) => ({ key, value }))
-    if (updates.length > 0) mutation.mutate(updates)
+  function handleImport(doc: CrewDefinition, values: Record<string, string>) {
+    setEdits((prev) => {
+      const next = { ...prev }
+      for (const [field, value] of Object.entries(values)) {
+        next[editKey(doc.type, doc.name, field)] = value
+      }
+      return next
+    })
   }
 
   function handleAddPhilosophy(slug: string, name: string) {
-    const newEdits: Record<string, string> = {}
-    for (const sub of PHILOSOPHY_SUB_KEYS) {
-      const key = `philosophy.${slug}.${sub}`
-      newEdits[key] = sub === "name" ? name : ""
-    }
-    setEdits((prev) => ({ ...prev, ...newEdits }))
-    setSelected({ branch: "philosophies", key: slug })
+    setAdded((prev) => [...prev, newPhilosophy(slug, name)])
+    setSelected({ type: "philosophy", name: slug })
   }
 
-  const hasChanges = Object.keys(edits).length > 0
+  function handleSave() {
+    const changed = new Set<string>()
+    for (const k of Object.keys(edits)) {
+      const [type, name] = k.split("/")
+      changed.add(`${type}/${name}`)
+    }
+    for (const d of added) changed.add(`${d.type}/${d.name}`)
+
+    const payload: CrewDefinition[] = []
+    for (const key of changed) {
+      const sep = key.indexOf("/")
+      const node: TreeNode = { type: key.slice(0, sep) as DefType, name: key.slice(sep + 1) }
+      const base = findDoc(node)
+      if (!base) continue
+      const merged: Record<string, unknown> = { ...base }
+      for (const field of FIELD_DEFS[node.type]) {
+        const ek = editKey(node.type, node.name, field)
+        if (ek in edits) merged[field] = edits[ek]
+      }
+      payload.push(merged as unknown as CrewDefinition)
+    }
+    if (payload.length > 0) mutation.mutate(payload)
+  }
+
+  const hasChanges = Object.keys(edits).length > 0 || added.length > 0
 
   if (isLoading) {
     return (
@@ -446,69 +471,27 @@ export function SetupPage() {
     )
   }
 
-  const philosophyGroups = parsePhilosophyGroups(prompts ?? [])
-  const agentGroups = groupPrompts(prompts ?? [], "agents")
-  const taskGroups = groupPrompts(prompts ?? [], "tasks")
+  const agentItems = allDocs
+    .filter((d) => d.type === "agent")
+    .map((d) => ({ name: d.name, label: docLabel(d) }))
+  const taskItems = allDocs
+    .filter((d) => d.type === "task")
+    .map((d) => ({ name: d.name, label: docLabel(d) }))
+  const philosophyItems = allDocs
+    .filter((d) => d.type === "philosophy")
+    .map((d) => ({ name: d.name, label: docLabel(d) }))
+  const existingPhilosophySlugs = new Set(philosophyItems.map((p) => p.name))
 
-  // include any newly added (edits-only) philosophy slugs
-  const editPhilosophySlugs = Object.keys(edits)
-    .filter((k) => k.startsWith("philosophy."))
-    .map((k) => k.split(".")[1])
-    .filter((s) => s && !isNumeric(s) && !PHILOSOPHY_SUB_KEYS.includes(s))
-  const allPhilosophySlugs = new Set([...philosophyGroups.keys(), ...editPhilosophySlugs])
-
-  // build items for the selected detail panel
-  let detailItems: PromptConfig[] = []
-  let detailLabel = ""
-
-  if (selected) {
-    if (selected.branch === "philosophies") {
-      const slug = selected.key
-      // merge persisted entries with any edit-only keys
-      const persistedItems = philosophyGroups.get(slug) ?? []
-      const persistedKeys = new Set(persistedItems.map((p) => p.key))
-      const editOnlyItems: PromptConfig[] = Object.keys(edits)
-        .filter((k) => k.startsWith(`philosophy.${slug}.`) && !persistedKeys.has(k))
-        .map((k) => ({ key: k, value: "", updated_at: "" }))
-      detailItems = [...persistedItems, ...editOnlyItems]
-      // ensure all sub-keys are present
-      const presentSubs = new Set(detailItems.map((p) => p.key.split(".")[2]))
-      for (const sub of PHILOSOPHY_SUB_KEYS) {
-        if (!presentSubs.has(sub)) {
-          detailItems.push({ key: `philosophy.${slug}.${sub}`, value: "", updated_at: "" })
-        }
-      }
-      detailLabel = philosophyLabel(slug)
-    } else if (selected.branch === "agents") {
-      detailItems = agentGroups.get(selected.key) ?? []
-      detailLabel = groupLabel(selected.key)
-    } else {
-      detailItems = taskGroups.get(selected.key) ?? []
-      detailLabel = groupLabel(selected.key)
-    }
-  }
-
-  const philosophyTreeItems = Array.from(allPhilosophySlugs).map((slug) => ({
-    key: slug,
-    label: philosophyLabel(slug),
-  }))
-  const agentTreeItems = Array.from(agentGroups.keys()).map((key) => ({
-    key,
-    label: groupLabel(key),
-  }))
-  const taskTreeItems = Array.from(taskGroups.keys()).map((key) => ({
-    key,
-    label: groupLabel(key),
-  }))
+  const selectedDoc = selected ? findDoc(selected) : undefined
 
   return (
     <div className="h-full flex flex-col">
       {/* header */}
       <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
         <div>
-          <h1 className="text-lg font-semibold">LLM Prompt Configuration</h1>
+          <h1 className="text-lg font-semibold">LLM Crew Configuration</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Overrides stored in the database. Clearing a field and saving restores the YAML default.
+            Agents, tasks, and training philosophies stored in the database — the single source of truth.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -545,8 +528,8 @@ export function SetupPage() {
         <div className="w-56 shrink-0 border-r overflow-y-auto py-3 space-y-1">
           <TreeBranch
             label="Philosophies"
-            branch="philosophies"
-            items={philosophyTreeItems}
+            type="philosophy"
+            items={philosophyItems}
             selected={selected}
             onSelect={setSelected}
             extra={
@@ -562,15 +545,15 @@ export function SetupPage() {
           />
           <TreeBranch
             label="Agents"
-            branch="agents"
-            items={agentTreeItems}
+            type="agent"
+            items={agentItems}
             selected={selected}
             onSelect={setSelected}
           />
           <TreeBranch
             label="Tasks"
-            branch="tasks"
-            items={taskTreeItems}
+            type="task"
+            items={taskItems}
             selected={selected}
             onSelect={setSelected}
           />
@@ -578,17 +561,17 @@ export function SetupPage() {
 
         {/* detail panel */}
         <div className="flex-1 min-w-0">
-          {selected && detailItems.length > 0 ? (
+          {selectedDoc ? (
             <DetailPanel
-              items={detailItems}
-              label={detailLabel}
-              currentValue={currentValue}
-              onChange={handleChange}
-              onImport={handleImport}
+              doc={selectedDoc}
+              fields={FIELD_DEFS[selectedDoc.type]}
+              value={(field) => fieldValue(selectedDoc, field)}
+              onChange={(field, value) => handleChange(selectedDoc, field, value)}
+              onImport={(values) => handleImport(selectedDoc, values)}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-              {selected ? "No fields found." : "Select an item from the tree to edit."}
+              {selected ? "Not found." : "Select an item from the tree to edit."}
             </div>
           )}
         </div>
@@ -599,7 +582,7 @@ export function SetupPage() {
           <AddPhilosophyDialog
             onAdd={handleAddPhilosophy}
             onClose={() => setShowAddPhilosophy(false)}
-            existingSlugs={allPhilosophySlugs}
+            existingSlugs={existingPhilosophySlugs}
           />
         )}
       </Dialog>

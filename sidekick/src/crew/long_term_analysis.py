@@ -11,12 +11,12 @@ from crewai import Crew
 from config import settings
 from crew.prompt_logging import capture_prompt_log, drain_prompt_log
 from models.athlete import Athlete
+from models.crew_definition import AgentDoc, TaskDoc
 from models.daily_entry import DailyEntry
 
 from .daily_analysis import (
     _RestitutionDataTool,
     _build_timeline,
-    _load_yaml,
     _make_agent,
     _make_task,
 )
@@ -31,6 +31,8 @@ class LongTermAnalysisInput:
     end_date: str                          # YYYY-MM-DD
     daily_entries: list[DailyEntry]        # from DailyEntryRepository.get_range()
     workout_analyses: list[dict[str, Any]] # from WorkoutRepository.get_analyses_for_range()
+    restitution_analyst: AgentDoc          # from CrewDefinitionRepository.get_agent()
+    restitution_task: TaskDoc              # from CrewDefinitionRepository.get_task()
 
 
 def run_long_term_analysis(input: LongTermAnalysisInput) -> dict[str, Any]:
@@ -39,9 +41,6 @@ def run_long_term_analysis(input: LongTermAnalysisInput) -> dict[str, Any]:
         os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
     if settings.openai_api_key:
         os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
-
-    agents_cfg = _load_yaml("agents.yaml")
-    tasks_cfg = _load_yaml("tasks.yaml")
 
     athlete_name = (
         f"{input.athlete.firstname or ''} {input.athlete.lastname or ''}".strip()
@@ -61,7 +60,7 @@ def run_long_term_analysis(input: LongTermAnalysisInput) -> dict[str, Any]:
 
     llm = settings.llm_model
     analyst = _make_agent(
-        agents_cfg["restitution_analyst"],
+        input.restitution_analyst,
         tools=[restitution_tool],
         default_llm=llm,
     )
@@ -72,11 +71,10 @@ def run_long_term_analysis(input: LongTermAnalysisInput) -> dict[str, Any]:
         "end_date": input.end_date,
         "days": days,
     }
-    task_cfg = tasks_cfg["restitution_analysis_task"]
     analysis_task = _make_task(
         {
-            "description": task_cfg["description"].format(**task_inputs),
-            "expected_output": task_cfg["expected_output"].format(**task_inputs),
+            "description": input.restitution_task.description.format(**task_inputs),
+            "expected_output": input.restitution_task.expected_output.format(**task_inputs),
         },
         agent=analyst,
     )

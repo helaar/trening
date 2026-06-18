@@ -1,6 +1,7 @@
-# IMPORTANT: This file is outdated and just kept for a backup. 
-# The current task setup is stored in the database and  managed via the admin interface. 
-# Ask the developer for the latest version from the database 
+# Seed defaults for the `crew_definitions` collection (type: task).
+# Used only by scripts/seed_crew_definitions.py to bootstrap a fresh database.
+# The live task setup is stored in MongoDB and edited via the admin interface;
+# editing this file has no effect until the seed script is run against an empty DB.
 
 workout_analysis_task:
   description: |
