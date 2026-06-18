@@ -1,22 +1,40 @@
 import { apiFetch } from "./client"
 
-export interface PromptConfig {
-  key: string
-  value: string
-  updated_at: string
+export interface CrewDefinitionBase {
+  name: string
+  updated_at?: string
 }
 
-export interface PromptConfigUpdate {
-  key: string
-  value: string
+export interface AgentDoc extends CrewDefinitionBase {
+  type: "agent"
+  role: string
+  goal: string
+  backstory: string
+  llm_model: string
 }
 
-export async function fetchPrompts(): Promise<PromptConfig[]> {
-  return apiFetch<PromptConfig[]>("/api/v1/admin/prompts")
+export interface TaskDoc extends CrewDefinitionBase {
+  type: "task"
+  description: string
+  expected_output: string
 }
 
-export async function savePrompts(updates: PromptConfigUpdate[]): Promise<PromptConfig[]> {
-  return apiFetch<PromptConfig[]>("/api/v1/admin/prompts", {
+export interface PhilosophyDoc extends CrewDefinitionBase {
+  type: "philosophy"
+  display_name: string
+  intensity_targets: string
+  coach_guidance: string
+  analyst_guidance: string
+}
+
+export type CrewDefinition = AgentDoc | TaskDoc | PhilosophyDoc
+
+export async function fetchPrompts(): Promise<CrewDefinition[]> {
+  return apiFetch<CrewDefinition[]>("/api/v1/admin/prompts")
+}
+
+export async function savePrompts(updates: CrewDefinition[]): Promise<CrewDefinition[]> {
+  return apiFetch<CrewDefinition[]>("/api/v1/admin/prompts", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),

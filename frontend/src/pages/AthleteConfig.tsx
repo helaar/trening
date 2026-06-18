@@ -19,7 +19,7 @@ import {
   type AthleteSettings,
 } from "../api/athleteSettings"
 import { fetchCurrentAthlete } from "../api/auth"
-import { fetchPrompts, savePrompts } from "../api/prompts"
+import { fetchPrompts } from "../api/prompts"
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -454,19 +454,16 @@ function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
     queryKey: ["admin-prompts"],
     queryFn: fetchPrompts,
   })
+  const { data: settings } = useQuery({
+    queryKey: ["athlete-settings", athleteId],
+    queryFn: () => fetchAthleteSettings(athleteId),
+  })
 
-  const byKey = new Map((prompts ?? []).map((p) => [p.key, p.value]))
+  const availablePhilosophies = (prompts ?? [])
+    .filter((d) => d.type === "philosophy")
+    .map((d) => ({ slug: d.name, name: d.display_name }))
 
-  // collect named philosophies: keys matching philosophy.{slug}.name where slug is non-numeric
-  const availablePhilosophies: { slug: string; name: string }[] = []
-  for (const [key, value] of byKey) {
-    const parts = key.split(".")
-    if (parts.length === 3 && parts[0] === "philosophy" && parts[2] === "name" && !/^\d+$/.test(parts[1])) {
-      availablePhilosophies.push({ slug: parts[1], name: value })
-    }
-  }
-
-  const athleteSelected = byKey.get(`philosophy.${athleteId}.selected`) ?? ""
+  const athleteSelected = settings?.training_philosophy ?? ""
 
   useEffect(() => {
     if (athleteSelected) {
@@ -478,15 +475,9 @@ function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
 
   const mutation = useMutation({
     mutationFn: () =>
-      savePrompts([{ key: `philosophy.${athleteId}.selected`, value: selected }]),
+      patchAthleteSettings(athleteId, { training_philosophy: selected }),
     onSuccess: (updated) => {
-      queryClient.setQueryData<typeof prompts>(["admin-prompts"], (prev) => {
-        if (!prev) return updated
-        const byUpdated = new Map(updated.map((p) => [p.key, p]))
-        const merged = prev.map((p) => byUpdated.get(p.key) ?? p)
-        const added = updated.filter((p) => !prev.some((e) => e.key === p.key))
-        return [...merged, ...added]
-      })
+      queryClient.setQueryData<AthleteSettings>(["athlete-settings", athleteId], updated)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     },

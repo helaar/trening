@@ -54,7 +54,7 @@ async def patch_settings(
         raise HTTPException(status_code=403, detail="You can only access your own data")
 
     # Build update dict from only the fields present in the request body
-    settable = {"cycling", "running", "heart_rate", "autolap", "trainingpeaks_ical_url"}
+    settable = {"cycling", "running", "heart_rate", "autolap", "trainingpeaks_ical_url", "training_philosophy"}
     fields: dict = {}
     for field in patch.model_fields_set & settable:
         value = getattr(patch, field)

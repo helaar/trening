@@ -6,12 +6,12 @@ from typing import Any
 
 from crew.daily_analysis import DailyAnalysisInput, run_daily_analysis
 from database.athlete_repository import AthleteRepository
+from database.crew_definition_repository import CrewDefinitionRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
 from database.memory_repository import MemoryRepository
 from database.plan_repository import PlanRepository
 from database.prompt_log_repository import PromptLogRepository
-from database.prompt_repository import PromptRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
 from models.daily_analysis import DailyAnalysisResult
@@ -35,7 +35,7 @@ class DailyAnalysisHandler(TaskHandler):
         daily_analysis_repo: DailyAnalysisRepository,
         daily_entry_repo: DailyEntryRepository,
         memory_repo: MemoryRepository,
-        prompt_repo: PromptRepository | None = None,
+        crew_def_repo: CrewDefinitionRepository,
         prompt_log_repo: PromptLogRepository | None = None,
     ):
         self.task_repo = task_repo
@@ -45,7 +45,7 @@ class DailyAnalysisHandler(TaskHandler):
         self.daily_analysis_repo = daily_analysis_repo
         self.daily_entry_repo = daily_entry_repo
         self.memory_repo = memory_repo
-        self.prompt_repo = prompt_repo
+        self.crew_def_repo = crew_def_repo
         self.prompt_log_repo = prompt_log_repo
 
     async def execute(
@@ -70,10 +70,11 @@ class DailyAnalysisHandler(TaskHandler):
             date.fromisoformat(date_str) - timedelta(days=_RESTITUTION_WINDOW_DAYS - 1)
         ).isoformat()
 
-        prompt_overrides: dict[str, str] = {}
-        if self.prompt_repo:
-            configs = await self.prompt_repo.get_all()
-            prompt_overrides = {p.key: p.value for p in configs}
+        agents = {a.name: a for a in await self.crew_def_repo.get_by_type("agent")}
+        tasks = {t.name: t for t in await self.crew_def_repo.get_by_type("task")}
+        philosophy = None
+        if athlete.settings.training_philosophy:
+            philosophy = await self.crew_def_repo.get_philosophy(athlete.settings.training_philosophy)
 
         (
             workout_analyses,
@@ -116,7 +117,9 @@ class DailyAnalysisHandler(TaskHandler):
             recent_workout_analyses=recent_workout_analyses,
             active_memories=active_memories,
             upcoming_races=upcoming_races,
-            prompt_overrides=prompt_overrides,
+            agents=agents,
+            tasks=tasks,
+            philosophy=philosophy,
         )
 
         crew_result = await asyncio.to_thread(run_daily_analysis, analysis_input)

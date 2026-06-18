@@ -4,28 +4,27 @@ import logging
 import os
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
-import yaml
-from crewai import Agent, Crew, Task
+from crewai import Crew, Task
 from crewai.tools import BaseTool
 
 from database.athlete_repository import AthleteRepository
+from database.crew_definition_repository import CrewDefinitionRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.memory_repository import MemoryRepository
 from database.task_repository import TaskRepository
+from models.crew_definition import AgentDoc, TaskDoc
 from models.crew_outputs import MemoryConsolidationOutput
 from models.memory import Memory, MemoryScope
 from utils.datetime_utils import to_athlete_tz
 from models.task import TaskStatus, TaskType
-from crew.daily_analysis import _normalize_llm
+from crew.daily_analysis import _make_agent, require_definition
 from services.handlers.base import TaskHandler
 from utils.duration import parse_iso8601_duration
 
 logger = logging.getLogger(__name__)
 
-_CREW_DIR = Path(__file__).parent.parent.parent / "crew"
 _CONSOLIDATION_WINDOW_DAYS = 30
 
 
@@ -48,12 +47,6 @@ class _ConsolidationDataTool(BaseTool):
         return self._payload
 
 
-def _load_yaml(filename: str) -> dict[str, Any]:
-    path = _CREW_DIR / filename
-    with path.open("r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
 class MemoryConsolidationHandler(TaskHandler):
     """Handler for periodic memory consolidation tasks."""
 
@@ -63,11 +56,13 @@ class MemoryConsolidationHandler(TaskHandler):
         athlete_repo: AthleteRepository,
         memory_repo: MemoryRepository,
         daily_analysis_repo: DailyAnalysisRepository,
+        crew_def_repo: CrewDefinitionRepository,
     ):
         self.task_repo = task_repo
         self.athlete_repo = athlete_repo
         self.memory_repo = memory_repo
         self.daily_analysis_repo = daily_analysis_repo
+        self.crew_def_repo = crew_def_repo
 
     async def execute(self, task_id: str, athlete_id: int, parameters: dict[str, Any]) -> dict[str, Any]:
         from config import settings
@@ -131,12 +126,19 @@ class MemoryConsolidationHandler(TaskHandler):
             default=str,
         )
 
+        agents = {a.name: a for a in await self.crew_def_repo.get_by_type("agent")}
+        tasks = {t.name: t for t in await self.crew_def_repo.get_by_type("task")}
+        agent_def = require_definition(agents, "memory_consolidator", "agent")
+        task_def = require_definition(tasks, "memory_consolidation_task", "task")
+
         result = await asyncio.to_thread(
             self._run_consolidation_crew,
             payload,
             athlete_id,
             window_days,
             settings,
+            agent_def,
+            task_def,
         )
         await self.task_repo.update_task_progress(task_id, 0.8)
 
@@ -162,31 +164,20 @@ class MemoryConsolidationHandler(TaskHandler):
         athlete_id: int,
         window_days: int,
         settings: Any,
+        agent_def: AgentDoc,
+        task_def: TaskDoc,
     ) -> MemoryConsolidationOutput | None:
         if settings.anthropic_api_key:
             os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
         if settings.openai_api_key:
             os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
 
-        agents_cfg = _load_yaml("agents.yaml")
-        tasks_cfg = _load_yaml("tasks.yaml")
-
-        llm = _normalize_llm(agents_cfg["memory_consolidator"].get("llm_model") or settings.llm_model)
         data_tool = _ConsolidationDataTool(payload=payload)
-        agent = Agent(
-            role=agents_cfg["memory_consolidator"]["role"],
-            goal=agents_cfg["memory_consolidator"]["goal"],
-            backstory=agents_cfg["memory_consolidator"]["backstory"].strip(),
-            verbose=True,
-            allow_delegation=False,
-            llm=llm,
-            tools=[data_tool],
-            memory=False,
-        )
+        agent = _make_agent(agent_def, tools=[data_tool], default_llm=settings.llm_model)
         task_inputs = {"athlete_name": f"athlete {athlete_id}", "window_days": window_days}
         task = Task(
-            description=tasks_cfg["memory_consolidation_task"]["description"].format(**task_inputs),
-            expected_output=tasks_cfg["memory_consolidation_task"]["expected_output"].format(**task_inputs),
+            description=task_def.description.format(**task_inputs),
+            expected_output=task_def.expected_output.format(**task_inputs),
             agent=agent,
             output_pydantic=MemoryConsolidationOutput,
         )

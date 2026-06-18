@@ -61,7 +61,8 @@ class AthleteSettings(BaseModel):
     autolap: str | None = Field(default="PT10M", description="Autolap interval as ISO8601 duration string (e.g., 'PT10M' for 10 minutes). Set to None to disable.")
     trainingpeaks_ical_url: str | None = Field(default=None, description="TrainingPeaks calendar sync URL (.ics) for planned workout preview")
     timezone: str = Field(default="UTC", description="Athlete's local timezone as IANA string (e.g. 'Europe/Oslo')")
-    
+    training_philosophy: str | None = Field(default=None, description="Selected training philosophy slug (references a philosophy in crew_definitions)")
+
     @property
     def autolap_timedelta(self) -> timedelta:
         """Convert autolap ISO8601 string to timedelta."""

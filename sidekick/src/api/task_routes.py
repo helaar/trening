@@ -6,13 +6,13 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from auth.dependencies import get_current_athlete_id
 from database.athlete_repository import AthleteRepository
+from database.crew_definition_repository import CrewDefinitionRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
 from database.memory_repository import MemoryRepository
 from database.mongodb import get_db
 from database.plan_repository import PlanRepository
 from database.prompt_log_repository import PromptLogRepository
-from database.prompt_repository import PromptRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
 from models.task import TaskCreateRequest, TaskResponse, TaskStatus, TaskType
@@ -58,9 +58,9 @@ def get_memory_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> Memo
     return MemoryRepository(db)
 
 
-def get_prompt_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> PromptRepository:
-    """Dependency to get prompt repository."""
-    return PromptRepository(db)
+def get_crew_definition_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> CrewDefinitionRepository:
+    """Dependency to get crew definition repository."""
+    return CrewDefinitionRepository(db)
 
 
 def get_prompt_log_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> PromptLogRepository:
@@ -76,11 +76,11 @@ def get_task_processor(
     daily_analysis_repo: Annotated[DailyAnalysisRepository, Depends(get_daily_analysis_repository)],
     daily_entry_repo: Annotated[DailyEntryRepository, Depends(get_daily_entry_repository)],
     memory_repo: Annotated[MemoryRepository, Depends(get_memory_repository)],
-    prompt_repo: Annotated[PromptRepository, Depends(get_prompt_repository)],
+    crew_def_repo: Annotated[CrewDefinitionRepository, Depends(get_crew_definition_repository)],
     prompt_log_repo: Annotated[PromptLogRepository, Depends(get_prompt_log_repository)],
 ) -> TaskProcessor:
     """Dependency to get task processor."""
-    return TaskProcessor(task_repo, athlete_repo, workout_repo, plan_repo, daily_analysis_repo, daily_entry_repo, memory_repo, prompt_repo, prompt_log_repo)
+    return TaskProcessor(task_repo, athlete_repo, workout_repo, plan_repo, daily_analysis_repo, daily_entry_repo, memory_repo, crew_def_repo, prompt_log_repo)
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)

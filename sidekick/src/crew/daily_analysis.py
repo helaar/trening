@@ -4,10 +4,8 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from pathlib import Path
 from typing import Any
 
-import yaml
 from crewai import Agent, Crew, Task
 from crewai.tools import BaseTool
 from pydantic import BaseModel
@@ -15,6 +13,7 @@ from pydantic import BaseModel
 from config import settings
 from crew.prompt_logging import capture_prompt_log, drain_prompt_log
 from models.athlete import Athlete
+from models.crew_definition import AgentDoc, PhilosophyDoc, TaskDoc
 from utils.datetime_utils import convert_datetimes_in_obj
 from models.crew_outputs import CoachingOutput, MemoryExtractionOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
 from models.memory import _LONG_TERM_TTL_DAYS, _RECENT_TTL_DAYS, Memory, MemoryCategory, MemoryScope
@@ -22,8 +21,6 @@ from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
 
 logger = logging.getLogger(__name__)
-
-_CREW_DIR = Path(__file__).parent
 
 _RESTITUTION_WINDOW_DAYS = 14
 
@@ -38,19 +35,32 @@ class DailyAnalysisInput:
     recent_workout_analyses: list[dict[str, Any]] = field(default_factory=list)
     active_memories: list[Memory] = field(default_factory=list)
     upcoming_races: list[PlannedActivity] = field(default_factory=list)
-    prompt_overrides: dict[str, str] = field(default_factory=dict)
+    agents: dict[str, AgentDoc] = field(default_factory=dict)
+    tasks: dict[str, TaskDoc] = field(default_factory=dict)
+    philosophy: PhilosophyDoc | None = None
 
 
-_PHILOSOPHY_SUB_KEYS = ("name", "intensity_targets", "coach_guidance", "analyst_guidance")
-
-
-def _load_philosophy(athlete_id: int, overrides: dict[str, str]) -> dict[str, str] | None:
-    """Load philosophy for athlete by slug selection."""
-    slug = overrides.get(f"philosophy.{athlete_id}.selected")
-    if not slug:
+def _philosophy_payload(philosophy: PhilosophyDoc | None) -> dict[str, str] | None:
+    """Render a philosophy document as the dict shape embedded in LLM prompts."""
+    if not philosophy or not philosophy.display_name:
         return None
-    result = {k: overrides.get(f"philosophy.{slug}.{k}", "") for k in _PHILOSOPHY_SUB_KEYS}
-    return result if result.get("name") else None
+    return {
+        "name": philosophy.display_name,
+        "intensity_targets": philosophy.intensity_targets,
+        "coach_guidance": philosophy.coach_guidance,
+        "analyst_guidance": philosophy.analyst_guidance,
+    }
+
+
+def require_definition(mapping: dict[str, Any], name: str, kind: str) -> Any:
+    """Fetch a seeded definition by name, failing fast with a helpful message."""
+    try:
+        return mapping[name]
+    except KeyError:
+        raise RuntimeError(
+            f"No {kind} '{name}' found in crew_definitions. "
+            "Run scripts/seed_crew_definitions.py to seed defaults."
+        ) from None
 
 
 def _compute_intensity_distribution(analysis: dict[str, Any]) -> dict[str, Any]:
@@ -495,39 +505,6 @@ def _format_memories_full(memories: list[Memory]) -> list[dict[str, Any]]:
     ]
 
 
-def _load_yaml(filename: str) -> dict[str, Any]:
-    path = _CREW_DIR / filename
-    with path.open("r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
-def _apply_prompt_overrides(cfg: dict[str, Any], prefix: str, overrides: dict[str, str]) -> dict[str, Any]:
-    """Return a copy of cfg with string values replaced by matching overrides.
-
-    Override keys use dot-notation relative to the YAML stem, e.g.
-    "agents.daily_coach.backstory" -> prefix="agents", key="daily_coach.backstory".
-    """
-    if not overrides:
-        return cfg
-    import copy
-    result = copy.deepcopy(cfg)
-    for full_key, value in overrides.items():
-        if not full_key.startswith(f"{prefix}."):
-            continue
-        relative = full_key[len(prefix) + 1:]
-        parts = relative.split(".")
-        target = result
-        for part in parts[:-1]:
-            if not isinstance(target, dict) or part not in target:
-                break
-            target = target[part]
-        else:
-            leaf = parts[-1]
-            if isinstance(target, dict) and leaf in target:
-                target[leaf] = value
-    return result
-
-
 _KNOWN_LLM_PREFIXES = ("anthropic/", "openai/", "azure/", "bedrock/", "vertex_ai/")
 
 
@@ -548,12 +525,12 @@ def _normalize_llm(model: str) -> str:
     return model
 
 
-def _make_agent(agent_def: dict[str, Any], tools: list, default_llm: str) -> Agent:
-    llm = _normalize_llm(agent_def.get("llm_model") or default_llm)
+def _make_agent(agent_def: AgentDoc, tools: list, default_llm: str) -> Agent:
+    llm = _normalize_llm(agent_def.llm_model or default_llm)
     return Agent(
-        role=agent_def["role"],
-        goal=agent_def["goal"],
-        backstory=agent_def["backstory"].strip(),
+        role=agent_def.role,
+        goal=agent_def.goal,
+        backstory=agent_def.backstory.strip(),
         verbose=True,
         allow_delegation=False,
         llm=llm,
@@ -590,9 +567,6 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     if settings.openai_api_key:
         os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
 
-    agents_cfg = _apply_prompt_overrides(_load_yaml("agents.yaml"), "agents", input.prompt_overrides)
-    tasks_cfg = _apply_prompt_overrides(_load_yaml("tasks.yaml"), "tasks", input.prompt_overrides)
-
     from datetime import datetime
     weekday = datetime.fromisoformat(input.date).strftime("%A")
     athlete_name = f"{input.athlete.firstname or ''} {input.athlete.lastname or ''}".strip() or "athlete"
@@ -624,7 +598,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         enriched["intensity_distribution"] = _compute_intensity_distribution(w)
         return enriched
 
-    philosophy = _load_philosophy(input.athlete.athlete_id, input.prompt_overrides)
+    philosophy = _philosophy_payload(input.philosophy)
 
     athlete_tz = input.athlete.settings.timezone
     workout_payload_data: dict[str, Any] = {
@@ -704,10 +678,17 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
 
     llm = settings.llm_model
 
-    analyst = _make_agent(agents_cfg["workout_performance_analyst"], tools=[workout_tool], default_llm=llm)
-    restitution_analyst = _make_agent(agents_cfg["restitution_analyst"], tools=[restitution_tool], default_llm=llm)
+    analyst = _make_agent(
+        require_definition(input.agents, "workout_performance_analyst", "agent"),
+        tools=[workout_tool], default_llm=llm,
+    )
+    restitution_analyst = _make_agent(
+        require_definition(input.agents, "restitution_analyst", "agent"),
+        tools=[restitution_tool], default_llm=llm,
+    )
     coach = _make_agent(
-        agents_cfg["daily_coach"], tools=[plans_tool, races_tool, memory_context_tool], default_llm=llm
+        require_definition(input.agents, "daily_coach", "agent"),
+        tools=[plans_tool, races_tool, memory_context_tool], default_llm=llm,
     )
 
     shared_inputs = {"date": input.date, "weekday": weekday, "athlete_name": athlete_name}
@@ -718,10 +699,15 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         "days": _RESTITUTION_WINDOW_DAYS,
     }
 
+    workout_task_def = require_definition(input.tasks, "workout_analysis_task", "task")
+    restitution_task_def = require_definition(input.tasks, "restitution_analysis_task", "task")
+    coaching_task_def = require_definition(input.tasks, "daily_coaching_task", "task")
+    extraction_task_def = require_definition(input.tasks, "memory_extraction_task", "task")
+
     analysis_task = _make_task(
         {
-            "description": tasks_cfg["workout_analysis_task"]["description"].format(**shared_inputs),
-            "expected_output": tasks_cfg["workout_analysis_task"]["expected_output"].format(**shared_inputs),
+            "description": workout_task_def.description.format(**shared_inputs),
+            "expected_output": workout_task_def.expected_output.format(**shared_inputs),
         },
         agent=analyst,
         async_execution=True,
@@ -729,8 +715,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
     restitution_task = _make_task(
         {
-            "description": tasks_cfg["restitution_analysis_task"]["description"].format(**restitution_inputs),
-            "expected_output": tasks_cfg["restitution_analysis_task"]["expected_output"].format(**restitution_inputs),
+            "description": restitution_task_def.description.format(**restitution_inputs),
+            "expected_output": restitution_task_def.expected_output.format(**restitution_inputs),
         },
         agent=restitution_analyst,
         async_execution=True,
@@ -738,8 +724,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
     coaching_task = _make_task(
         {
-            "description": tasks_cfg["daily_coaching_task"]["description"].format(**shared_inputs),
-            "expected_output": tasks_cfg["daily_coaching_task"]["expected_output"].format(**shared_inputs),
+            "description": coaching_task_def.description.format(**shared_inputs),
+            "expected_output": coaching_task_def.expected_output.format(**shared_inputs),
         },
         agent=coach,
         context=[analysis_task, restitution_task],
@@ -747,11 +733,14 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
 
     memory_tool = _MemoryDataTool(payload=extractor_memory_payload)
-    memory_extractor = _make_agent(agents_cfg["memory_extractor"], tools=[memory_tool], default_llm=llm)
+    memory_extractor = _make_agent(
+        require_definition(input.agents, "memory_extractor", "agent"),
+        tools=[memory_tool], default_llm=llm,
+    )
     memory_task = _make_task(
         {
-            "description": tasks_cfg["memory_extraction_task"]["description"].format(**shared_inputs),
-            "expected_output": tasks_cfg["memory_extraction_task"]["expected_output"].format(**shared_inputs),
+            "description": extraction_task_def.description.format(**shared_inputs),
+            "expected_output": extraction_task_def.expected_output.format(**shared_inputs),
         },
         agent=memory_extractor,
         context=[coaching_task],
