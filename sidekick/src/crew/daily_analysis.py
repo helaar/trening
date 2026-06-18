@@ -137,13 +137,19 @@ def _build_timeline(
     for entry in daily_entries:
         if entry.restitution:
             r = entry.restitution
-            restitution_by_date[entry.date] = {
+            day = {
                 "sleep_hours": r.sleep_hours,
                 "sleep_quality": r.sleep_quality,
                 "hrv": r.hrv,
                 "resting_hr": r.resting_hr,
                 "readiness": r.readiness,
             }
+            # Surface today's free-text comment as a one-off readiness signal;
+            # historical comments are intentionally omitted so they are not
+            # folded into multi-day baselines/trends.
+            if entry.date == end_date and r.comment:
+                day["comment"] = r.comment
+            restitution_by_date[entry.date] = day
 
     training_by_date: dict[str, list[dict[str, Any]]] = {}
     for analysis in workout_analyses:
@@ -306,7 +312,9 @@ class _RestitutionDataTool(BaseTool):
         "Retrieve the daily recovery and training load timeline for the analysis period. "
         "Returns a JSON array with one entry per calendar day, each containing 'date', "
         "'restitution' (HRV, resting HR, sleep, readiness — null if not recorded), and "
-        "'training' (TSS, IF, duration — null if no workouts that day). Call this first."
+        "'training' (TSS, IF, duration — null if no workouts that day). The most recent "
+        "day's 'restitution' may also include a 'comment' field — the athlete's free-text "
+        "note about today's readiness/recovery (present only for today). Call this first."
     )
     _payload: str = ""
 

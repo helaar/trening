@@ -130,6 +130,11 @@ restitution_analysis_task:
     after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,
     rising resting HR trend, or persistent low readiness regardless of training load).
 
+    If today's restitution entry (the most recent day, {end_date}) includes a `comment`, treat it
+    as the athlete's own self-reported context for today. Surface anything materially relevant to
+    today's readiness in trend_analysis or coach_recommendations, but do NOT fold it into the
+    multi-day baselines or trends — it is a one-off signal about today, not a pattern.
+
     If fewer than 5 days have restitution data, state this prominently in data_quality_note.
     Focus on multi-day patterns, not individual outliers.
   expected_output: |
