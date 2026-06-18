@@ -1,18 +1,22 @@
-"""Bootstrap the `crew_definitions` collection from the git-tracked YAML snapshot.
+"""Seed/sync the `crew_definitions` collection from the git-tracked YAML snapshot.
 
-Reads scripts/crew_defaults/{agents,tasks,philosophies}.yaml and inserts each as a
-typed document. Insert-if-absent: existing (type, name) docs are never overwritten,
-so re-running is safe and never clobbers admin-edited values — rebuild a lost DB by
-seeding into an empty database.
-
+Reads scripts/crew_defaults/{agents,tasks,philosophies}.yaml as typed documents.
 The snapshot is produced from the live DB by scripts/export_crew_definitions.py;
 MongoDB stays the source of truth. (philosophies.yaml only exists once that export
 has been run, so it is optional here.)
 
-Run once (or any time to fill in missing definitions):
+Default (insert-if-absent): existing (type, name) docs are never overwritten, so
+re-running is safe and never clobbers admin-edited values — rebuild a lost DB by
+seeding into an empty database:
   cd sidekick
   PYTHONPATH=src uv run python scripts/seed_crew_definitions.py
+
+Reverse sync (--overwrite): apply a snapshot edited in git back to the live DB,
+upserting changed docs. This REPLACES live content with the snapshot, so export
+first if the DB may hold newer admin edits:
+  PYTHONPATH=src uv run python scripts/seed_crew_definitions.py --overwrite
 """
+import argparse
 import asyncio
 import logging
 from pathlib import Path
@@ -78,24 +82,59 @@ def _build_definitions() -> list[CrewDefinition]:
     return defs
 
 
-async def seed() -> None:
+async def seed(overwrite: bool) -> None:
     await db_manager.connect()
     try:
         repo = CrewDefinitionRepository(db_manager.db)
         await repo.ensure_indexes()
 
-        inserted = skipped = 0
-        for doc in _build_definitions():
-            if await repo.insert_if_absent(doc):
-                inserted += 1
-                logger.info("  inserted %s '%s'", doc.type, doc.name)
-            else:
-                skipped += 1
-                logger.info("  skipped  %s '%s' (already present)", doc.type, doc.name)
+        if not overwrite:
+            inserted = skipped = 0
+            for doc in _build_definitions():
+                if await repo.insert_if_absent(doc):
+                    inserted += 1
+                    logger.info("  inserted %s '%s'", doc.type, doc.name)
+                else:
+                    skipped += 1
+                    logger.info("  skipped  %s '%s' (already present)", doc.type, doc.name)
+            logger.info("Seed complete: %d inserted, %d skipped.", inserted, skipped)
+            return
 
-        logger.info("Seed complete: %d inserted, %d skipped.", inserted, skipped)
+        existing = {(d.type, d.name): d for d in await repo.get_all()}
+        inserted = updated = unchanged = 0
+        for doc in _build_definitions():
+            current = existing.get((doc.type, doc.name))
+            if current is None:
+                await repo.upsert(doc)
+                inserted += 1
+                logger.info("  inserted  %s '%s'", doc.type, doc.name)
+            elif doc.model_dump(exclude={"updated_at"}) != current.model_dump(
+                exclude={"updated_at"}
+            ):
+                await repo.upsert(doc)
+                updated += 1
+                logger.info("  updated   %s '%s'", doc.type, doc.name)
+            else:
+                unchanged += 1
+                logger.info("  unchanged %s '%s'", doc.type, doc.name)
+        logger.info(
+            "Sync complete: %d inserted, %d updated, %d unchanged.",
+            inserted,
+            updated,
+            unchanged,
+        )
     finally:
         await db_manager.disconnect()
 
 
-asyncio.run(seed())
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Apply the git snapshot back to the DB, replacing changed docs.",
+    )
+    return parser.parse_args()
+
+
+asyncio.run(seed(_parse_args().overwrite))

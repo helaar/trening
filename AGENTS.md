@@ -19,6 +19,11 @@ currently runs only locally, so this content is only as safe as the last export.
   `scripts/crew_defaults/*.yaml` snapshot (the durable, diffable backup-of-record).
   To rebuild or restore a database, run `scripts/seed_crew_definitions.py` against an
   empty database — it is insert-if-absent and will not overwrite a populated DB.
+- **Reverse sync (snapshot → DB):** to apply a snapshot edited in git (e.g. by an agent)
+  back to the live DB, run `scripts/seed_crew_definitions.py --overwrite` — it upserts
+  changed docs and reports inserted/updated/unchanged. This replaces live content with
+  the snapshot, so **export first** if the DB may hold newer admin edits, to avoid
+  discarding them.
 - **Guardrail (do this first):** before proposing or making any change that touches
   crew definitions — model/schema changes, adding or removing agents/tasks, or editing
   prompt content — ask the user to run the export (sync the git snapshot) or confirm it
