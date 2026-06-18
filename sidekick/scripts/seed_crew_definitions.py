@@ -1,12 +1,13 @@
-"""Bootstrap the `crew_definitions` collection from the legacy YAML.
+"""Bootstrap the `crew_definitions` collection from the git-tracked YAML snapshot.
 
-Reads the agent/task definitions that historically lived in
-src/crew/agents.yaml and src/crew/tasks.yaml and inserts them as typed
-documents. Insert-if-absent: existing (type, name) docs are never overwritten,
-so re-running is safe and never clobbers admin-edited values.
+Reads scripts/crew_defaults/{agents,tasks,philosophies}.yaml and inserts each as a
+typed document. Insert-if-absent: existing (type, name) docs are never overwritten,
+so re-running is safe and never clobbers admin-edited values — rebuild a lost DB by
+seeding into an empty database.
 
-Philosophy documents are NOT seeded here — they are migrated from the legacy
-prompt_configs collection by scripts/migrate_philosophy_to_crew_definitions.py.
+The snapshot is produced from the live DB by scripts/export_crew_definitions.py;
+MongoDB stays the source of truth. (philosophies.yaml only exists once that export
+has been run, so it is optional here.)
 
 Run once (or any time to fill in missing definitions):
   cd sidekick
@@ -20,7 +21,7 @@ import yaml
 
 from database.crew_definition_repository import CrewDefinitionRepository
 from database.mongodb import db_manager
-from models.crew_definition import AgentDoc, CrewDefinition, TaskDoc
+from models.crew_definition import AgentDoc, CrewDefinition, PhilosophyDoc, TaskDoc
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -29,8 +30,13 @@ _DEFAULTS_DIR = Path(__file__).parent / "crew_defaults"
 
 
 def _load_yaml(filename: str) -> dict:
-    """Load a seed-default YAML snapshot from scripts/crew_defaults."""
+    """Load a seed-default YAML snapshot from scripts/crew_defaults.
+
+    Returns an empty dict if the file is absent (philosophies.yaml is optional).
+    """
     path = _DEFAULTS_DIR / filename
+    if not path.exists():
+        return {}
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
@@ -55,6 +61,17 @@ def _build_definitions() -> list[CrewDefinition]:
                 name=name,
                 description=cfg["description"],
                 expected_output=cfg["expected_output"],
+            )
+        )
+
+    for name, cfg in _load_yaml("philosophies.yaml").items():
+        defs.append(
+            PhilosophyDoc(
+                name=name,
+                display_name=cfg.get("display_name", ""),
+                intensity_targets=cfg.get("intensity_targets", ""),
+                coach_guidance=cfg.get("coach_guidance", ""),
+                analyst_guidance=cfg.get("analyst_guidance", ""),
             )
         )
 
