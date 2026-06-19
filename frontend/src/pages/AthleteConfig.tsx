@@ -628,7 +628,8 @@ export function AthleteConfig() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-3">
           {athlete?.profile_picture && (
@@ -726,6 +727,7 @@ export function AthleteConfig() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+      </div>
     </div>
   )
 }
