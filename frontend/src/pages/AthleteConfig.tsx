@@ -570,7 +570,7 @@ function MemoriesSectionContent({ athleteId }: MemoriesSectionProps) {
       <p className="text-xs text-muted-foreground">
         What the coach remembers about you, ordered by relevance — most important first.
       </p>
-      <ul className="space-y-2">
+      <ul className="max-h-80 space-y-2 overflow-y-auto pr-1">
         {data.map((memory, i) => (
           <li
             key={i}
