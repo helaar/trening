@@ -1,4 +1,5 @@
 """Daily LLM analysis crew for a single training day."""
+
 import json
 import logging
 import os
@@ -15,8 +16,14 @@ from crew.prompt_logging import capture_prompt_log, drain_prompt_log
 from models.athlete import Athlete
 from models.crew_definition import AgentDoc, PhilosophyDoc, TaskDoc
 from utils.datetime_utils import convert_datetimes_in_obj
-from models.crew_outputs import CoachingOutput, MemoryExtractionOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
-from models.memory import _LONG_TERM_TTL_DAYS, _RECENT_TTL_DAYS, Memory, MemoryCategory, MemoryScope
+from models.crew_outputs import (
+    CoachingOutput,
+    MemoryExtractionOutput,
+    RestitutionAnalysisOutput,
+    WorkoutAnalysisOutput,
+)
+from analysis.memory_relevance import DayContext, select_relevant_memories
+from models.memory import Memory
 from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
 
@@ -157,7 +164,9 @@ def _build_timeline(
         start_time = session.get("start_time")
         if not start_time:
             continue
-        day_str = start_time.date().isoformat() if hasattr(start_time, "date") else str(start_time)[:10]
+        day_str = (
+            start_time.date().isoformat() if hasattr(start_time, "date") else str(start_time)[:10]
+        )
         training_by_date.setdefault(day_str, []).append(analysis)
 
     def _aggregate_training(analyses: list[dict[str, Any]]) -> dict[str, Any]:
@@ -171,15 +180,14 @@ def _build_timeline(
             for a in analyses
             if a.get("metrics", {}).get("intensity_factor") is not None
         ]
-        total_minutes = sum(
-            (a.get("session", {}).get("duration_sec") or 0) / 60
-            for a in analyses
+        total_minutes = sum((a.get("session", {}).get("duration_sec") or 0) / 60 for a in analyses)
+        sports = list(
+            {
+                a.get("session", {}).get("category") or a.get("session", {}).get("sport")
+                for a in analyses
+                if a.get("session", {}).get("category") or a.get("session", {}).get("sport")
+            }
         )
-        sports = list({
-            a.get("session", {}).get("category") or a.get("session", {}).get("sport")
-            for a in analyses
-            if a.get("session", {}).get("category") or a.get("session", {}).get("sport")
-        })
 
         low_min = moderate_min = high_min = 0.0
         for a in analyses:
@@ -211,11 +219,13 @@ def _build_timeline(
     while current <= end:
         day_str = current.isoformat()
         training_analyses = training_by_date.get(day_str)
-        timeline.append({
-            "date": day_str,
-            "restitution": restitution_by_date.get(day_str),
-            "training": _aggregate_training(training_analyses) if training_analyses else None,
-        })
+        timeline.append(
+            {
+                "date": day_str,
+                "restitution": restitution_by_date.get(day_str),
+                "training": _aggregate_training(training_analyses) if training_analyses else None,
+            }
+        )
         current += timedelta(days=1)
 
     return timeline
@@ -348,35 +358,8 @@ class _MemoryDataTool(BaseTool):
         return self._payload
 
 
-_MAX_MEMORIES = 14
-_CORE_MEMORIES = 6
 _TAPER_WINDOW_DAYS = 10
 _HARD_TSS_THRESHOLD = 80
-
-# Category gets a full context match (1.0) in each of these situations.
-_CONTEXT_BOOSTS: dict[str, set[MemoryCategory]] = {
-    "readiness:low": {MemoryCategory.RECOVERY, MemoryCategory.RISK},
-    "demand:hard": {MemoryCategory.PERFORMANCE, MemoryCategory.RISK},
-    "demand:easy": {MemoryCategory.HABIT, MemoryCategory.RECOVERY},
-    "demand:rest": {MemoryCategory.HABIT, MemoryCategory.RECOVERY},
-    "phase:taper": {MemoryCategory.GOAL, MemoryCategory.PERFORMANCE},
-}
-
-
-@dataclass(frozen=True)
-class DayContext:
-    """Deterministic snapshot of today's situation used to score memory relevance."""
-
-    readiness: str = "normal"  # low | normal | high
-    demand: str = "easy"  # rest | easy | hard
-    phase: str = "normal"  # taper | normal
-
-    def boosted_categories(self) -> set[MemoryCategory]:
-        boosted: set[MemoryCategory] = set()
-        boosted |= _CONTEXT_BOOSTS.get(f"readiness:{self.readiness}", set())
-        boosted |= _CONTEXT_BOOSTS.get(f"demand:{self.demand}", set())
-        boosted |= _CONTEXT_BOOSTS.get(f"phase:{self.phase}", set())
-        return boosted
 
 
 def _build_day_context(
@@ -425,76 +408,6 @@ def _build_day_context(
             break
 
     return DayContext(readiness=readiness, demand=demand, phase=phase)
-
-
-def _context_match(memory: Memory, ctx: DayContext) -> float:
-    if memory.category in ctx.boosted_categories():
-        return 1.0
-    if memory.category == MemoryCategory.GOAL or (
-        memory.category == MemoryCategory.HABIT and memory.scope == MemoryScope.LONG_TERM
-    ):
-        return 0.5  # durable baseline floor — never fully dropped
-    return 0.3
-
-
-def _recency(memory: Memory, today: date) -> float:
-    ttl = _LONG_TERM_TTL_DAYS if memory.scope == MemoryScope.LONG_TERM else _RECENT_TTL_DAYS
-    age_days = max(0, (today - memory.updated_at.date()).days)
-    return max(0.0, 1.0 - age_days / ttl)
-
-
-def _score_memory(memory: Memory, ctx: DayContext, today: date) -> float:
-    return (
-        0.30 * memory.confidence
-        + 0.30 * memory.importance
-        + 0.15 * _recency(memory, today)
-        + 0.25 * _context_match(memory, ctx)
-    )
-
-
-def _is_core_candidate(memory: Memory) -> bool:
-    return memory.category in (MemoryCategory.GOAL, MemoryCategory.RISK) or (
-        memory.category == MemoryCategory.HABIT and memory.scope == MemoryScope.LONG_TERM
-    )
-
-
-def _select_relevant_memories(
-    memories: list[Memory], ctx: DayContext, analysis_date: str
-) -> list[dict[str, Any]]:
-    """Hybrid, leaning-wide selection.
-
-    A stable durable core (goals, long-term habits, active risks) is always present so the
-    coach can track habits and progress over time; today's situation then fills the
-    remaining slots and orders the whole set. Deterministic for fixed inputs.
-    """
-    today = date.fromisoformat(analysis_date)
-    scored = {id(m): _score_memory(m, ctx, today) for m in memories}
-
-    core_pool = sorted(
-        (m for m in memories if _is_core_candidate(m)),
-        key=lambda m: (m.importance * m.confidence, m.updated_at),
-        reverse=True,
-    )
-    core = core_pool[:_CORE_MEMORIES]
-    core_ids = {id(m) for m in core}
-
-    remaining = sorted(
-        (m for m in memories if id(m) not in core_ids),
-        key=lambda m: (scored[id(m)], m.updated_at),
-        reverse=True,
-    )
-    selected = (core + remaining)[:_MAX_MEMORIES]
-    selected.sort(key=lambda m: (scored[id(m)], m.updated_at), reverse=True)
-
-    return [
-        {
-            "scope": m.scope,
-            "category": m.category,
-            "content": m.content,
-            "confidence": m.confidence,
-        }
-        for m in selected
-    ]
 
 
 def _format_memories_full(memories: list[Memory]) -> list[dict[str, Any]]:
@@ -576,13 +489,17 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
 
     from datetime import datetime
+
     weekday = datetime.fromisoformat(input.date).strftime("%A")
-    athlete_name = f"{input.athlete.firstname or ''} {input.athlete.lastname or ''}".strip() or "athlete"
+    athlete_name = (
+        f"{input.athlete.firstname or ''} {input.athlete.lastname or ''}".strip() or "athlete"
+    )
 
     athlete_settings = _athlete_settings_summary(input.athlete)
 
     # Build a lookup of athlete assessments per activity_id from the day's daily entry
     from models.daily_entry import ActivityAssessment as _ActivityAssessment
+
     assessment_by_id: dict[int, _ActivityAssessment] = {}
     for entry in input.daily_entries:
         if entry.date == input.date:
@@ -615,7 +532,9 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         workout_payload_data["training_philosophy"] = philosophy
-    workout_payload = json.dumps(convert_datetimes_in_obj(workout_payload_data, athlete_tz), default=str)
+    workout_payload = json.dumps(
+        convert_datetimes_in_obj(workout_payload_data, athlete_tz), default=str
+    )
 
     plans_payload_data: dict[str, Any] = {
         "athlete_settings": athlete_settings,
@@ -638,15 +557,11 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
             "days_until": days_until,
         }
 
-    season_goal = next(
-        (a for a in input.upcoming_races if "seasongoal" in a.labels), None
-    )
+    season_goal = next((a for a in input.upcoming_races if "seasongoal" in a.labels), None)
     races_payload = json.dumps(
         {
             "season_goal": _race_entry(season_goal) if season_goal else None,
-            "upcoming_races": [
-                _race_entry(a) for a in input.upcoming_races if "race" in a.labels
-            ],
+            "upcoming_races": [_race_entry(a) for a in input.upcoming_races if "race" in a.labels],
         },
         default=str,
     )
@@ -667,7 +582,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
     coach_memory_payload = json.dumps(
         {
-            "active_memories": _select_relevant_memories(
+            "active_memories": select_relevant_memories(
                 input.active_memories, day_context, input.date
             )
         },
@@ -688,15 +603,18 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
 
     analyst = _make_agent(
         require_definition(input.agents, "workout_performance_analyst", "agent"),
-        tools=[workout_tool], default_llm=llm,
+        tools=[workout_tool],
+        default_llm=llm,
     )
     restitution_analyst = _make_agent(
         require_definition(input.agents, "restitution_analyst", "agent"),
-        tools=[restitution_tool], default_llm=llm,
+        tools=[restitution_tool],
+        default_llm=llm,
     )
     coach = _make_agent(
         require_definition(input.agents, "daily_coach", "agent"),
-        tools=[plans_tool, races_tool, memory_context_tool], default_llm=llm,
+        tools=[plans_tool, races_tool, memory_context_tool],
+        default_llm=llm,
     )
 
     shared_inputs = {"date": input.date, "weekday": weekday, "athlete_name": athlete_name}
@@ -743,7 +661,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     memory_tool = _MemoryDataTool(payload=extractor_memory_payload)
     memory_extractor = _make_agent(
         require_definition(input.agents, "memory_extractor", "agent"),
-        tools=[memory_tool], default_llm=llm,
+        tools=[memory_tool],
+        default_llm=llm,
     )
     memory_task = _make_task(
         {
@@ -774,13 +693,19 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     if result.tasks_output and len(result.tasks_output) >= 4:
         t0, t1, t2, t3 = result.tasks_output[:4]
         workout_output = t0.pydantic if isinstance(t0.pydantic, WorkoutAnalysisOutput) else None
-        restitution_output = t1.pydantic if isinstance(t1.pydantic, RestitutionAnalysisOutput) else None
+        restitution_output = (
+            t1.pydantic if isinstance(t1.pydantic, RestitutionAnalysisOutput) else None
+        )
         coaching_output = t2.pydantic if isinstance(t2.pydantic, CoachingOutput) else None
-        memory_extraction_output = t3.pydantic if isinstance(t3.pydantic, MemoryExtractionOutput) else None
+        memory_extraction_output = (
+            t3.pydantic if isinstance(t3.pydantic, MemoryExtractionOutput) else None
+        )
         if workout_output is None:
             logger.warning("workout_analysis_task pydantic output missing, raw=%r", t0.raw[:200])
         if restitution_output is None:
-            logger.warning("restitution_analysis_task pydantic output missing, raw=%r", t1.raw[:200])
+            logger.warning(
+                "restitution_analysis_task pydantic output missing, raw=%r", t1.raw[:200]
+            )
         if coaching_output is None:
             logger.warning("daily_coaching_task pydantic output missing, raw=%r", t2.raw[:200])
         if memory_extraction_output is None:
