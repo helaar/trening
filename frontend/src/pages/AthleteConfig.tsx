@@ -20,6 +20,7 @@ import {
 } from "../api/athleteSettings"
 import { fetchCurrentAthlete } from "../api/auth"
 import { fetchPrompts } from "../api/prompts"
+import { fetchAthleteMemories, type AthleteMemory } from "../api/memories"
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -518,6 +519,84 @@ function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
   )
 }
 
+// ── memories section ──────────────────────────────────────────────────────────
+
+const CATEGORY_STYLES: Record<AthleteMemory["category"], string> = {
+  recovery: "bg-sky-100 text-sky-800",
+  habit: "bg-violet-100 text-violet-800",
+  performance: "bg-amber-100 text-amber-800",
+  risk: "bg-red-100 text-red-800",
+  goal: "bg-emerald-100 text-emerald-800",
+}
+
+const SCOPE_LABELS: Record<AthleteMemory["scope"], string> = {
+  recent: "Recent",
+  long_term: "Long-term",
+}
+
+interface MemoriesSectionProps {
+  athleteId: number
+}
+
+function MemoriesSectionContent({ athleteId }: MemoriesSectionProps) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["athlete-memories", athleteId],
+    queryFn: () => fetchAthleteMemories(athleteId),
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading memories…
+      </div>
+    )
+  }
+
+  if (isError) {
+    return <p className="py-2 text-sm text-destructive">Could not load memories.</p>
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <p className="py-2 text-sm text-muted-foreground">
+        No memories yet. The coach builds these up from your daily analyses over time.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        What the coach remembers about you, ordered by relevance — most important first.
+      </p>
+      <ul className="space-y-2">
+        {data.map((memory, i) => (
+          <li
+            key={i}
+            className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
+          >
+            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CATEGORY_STYLES[memory.category]}`}
+              >
+                {memory.category}
+              </span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {SCOPE_LABELS[memory.scope]}
+              </span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                {Math.round(memory.confidence * 100)}% confidence
+              </span>
+            </div>
+            <p className="text-sm leading-snug">{memory.content}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 // ── page ──────────────────────────────────────────────────────────────────────
 
 export function AthleteConfig() {
@@ -637,6 +716,13 @@ export function AthleteConfig() {
           <AccordionTrigger>Training Philosophy</AccordionTrigger>
           <AccordionContent>
             <PhilosophySectionContent athleteId={athlete!.athlete_id} />
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="memories">
+          <AccordionTrigger>Coach Memories</AccordionTrigger>
+          <AccordionContent>
+            <MemoriesSectionContent athleteId={athlete!.athlete_id} />
           </AccordionContent>
         </AccordionItem>
       </Accordion>
