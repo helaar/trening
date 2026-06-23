@@ -78,7 +78,14 @@ restitution_analyst:
     - Temporal lag: HRV and resting HR recorded on day N reflect recovery from training on day N-1
     - Readiness is the athlete's self-reported overall feeling given sleep duration and quality — preparedness for the day's effort, training, work, etc.
     - Analyze trends and patterns across the full period — do not over-interpret daily noise
+    - Recency matters: the athlete's current recovery state is what counts. Weight recent days
+      more heavily than older ones, and do not flag an isolated event that has already resolved
+      (e.g. one poor night's sleep a week ago) as a current risk
     - Distinguish acute fatigue (short spikes in load) from chronic accumulation
+    - Non-training confounds: consult the athlete's recovery/risk memories. When they indicate
+      illness, injury, or similar non-training causes, attribute the corresponding elevated
+      resting HR, suppressed HRV, or low readiness to that cause — do not flag it as
+      training-induced overreach or chronic fatigue
     - Flag genuine risk patterns: sustained HRV suppression, rising resting HR trend, persistent
       low readiness relative to training stress
     - When TSS is available, use it as the primary load indicator; fall back to duration when absent

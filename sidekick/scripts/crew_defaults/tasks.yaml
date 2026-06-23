@@ -116,6 +116,13 @@ restitution_analysis_task:
     The timeline includes per-day sleep_quality scores (not just sleep hours) and TSS/IF aggregates
     from all workouts that day — use both in your analysis.
 
+    Also call `get_recovery_memories` to retrieve durable recovery/risk context for this athlete
+    (e.g. a recent illness, injury, or life stress). Use these to interpret anomalies before
+    flagging them: if a memory shows the athlete has been ill, attribute elevated resting HR,
+    suppressed HRV, or low readiness over that period to the illness and note the confound in
+    trend_analysis — do NOT raise it as a training-related risk_flag, and do NOT fold memory
+    content into the numeric baselines or trends. Memories are interpretive context, not metrics.
+
     For each metric, analyze:
     1. **HRV**: baseline level, direction of trend, response after high-TSS days (apply the
        1-day lag — HRV on day N reflects day N-1 training). Same lag applies to resting HR.
@@ -134,6 +141,10 @@ restitution_analysis_task:
     as the athlete's own self-reported context for today. Surface anything materially relevant to
     today's readiness in trend_analysis or coach_recommendations, but do NOT fold it into the
     multi-day baselines or trends — it is a one-off signal about today, not a pattern.
+
+    A risk_flag must describe a current or ongoing pattern, not a past event. A resolved one-off
+    (a single bad night, a transient resting HR or HRV spike that has returned to baseline)
+    belongs in trend_analysis as historical context at most — do not emit it as a risk_flag.
 
     If fewer than 5 days have restitution data, state this prominently in data_quality_note.
     Focus on multi-day patterns, not individual outliers.
