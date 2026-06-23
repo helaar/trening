@@ -22,7 +22,11 @@ from models.crew_outputs import (
     RestitutionAnalysisOutput,
     WorkoutAnalysisOutput,
 )
-from analysis.memory_relevance import DayContext, select_relevant_memories
+from analysis.memory_relevance import (
+    DayContext,
+    select_recovery_memories,
+    select_relevant_memories,
+)
 from models.memory import Memory
 from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
@@ -316,6 +320,29 @@ class _MemoryContextTool(BaseTool):
         return self._payload
 
 
+class _RecoveryMemoryTool(BaseTool):
+    name: str = "get_recovery_memories"
+    description: str = (
+        "Retrieve durable recovery and risk observations about this athlete — recent "
+        "illness, injury, life stress, and known recovery patterns built up over "
+        "previous sessions. Returns JSON with an 'active_memories' list, each entry "
+        "containing scope, category, content, and confidence. Use these to interpret "
+        "anomalies in the recovery metrics (e.g. illness explaining elevated resting "
+        "HR); they are context, not metrics to average into trends or baselines."
+    )
+    _payload: str = ""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, payload: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        object.__setattr__(self, "_payload", payload)
+
+    def _run(self, **kwargs: Any) -> str:
+        return self._payload
+
+
 class _RestitutionDataTool(BaseTool):
     name: str = "get_restitution_data"
     description: str = (
@@ -592,11 +619,16 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         {"active_memories": _format_memories_full(input.active_memories)},
         default=str,
     )
+    restitution_memory_payload = json.dumps(
+        {"active_memories": select_recovery_memories(input.active_memories, input.date)},
+        default=str,
+    )
 
     workout_tool = _WorkoutDataTool(payload=workout_payload)
     plans_tool = _PlansDataTool(payload=plans_payload)
     races_tool = _RacesDataTool(payload=races_payload)
     restitution_tool = _RestitutionDataTool(payload=restitution_payload)
+    recovery_memory_tool = _RecoveryMemoryTool(payload=restitution_memory_payload)
     memory_context_tool = _MemoryContextTool(payload=coach_memory_payload)
 
     llm = settings.llm_model
@@ -608,7 +640,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
     restitution_analyst = _make_agent(
         require_definition(input.agents, "restitution_analyst", "agent"),
-        tools=[restitution_tool],
+        tools=[restitution_tool, recovery_memory_tool],
         default_llm=llm,
     )
     coach = _make_agent(

@@ -19,6 +19,7 @@ from models.memory import _LONG_TERM_TTL_DAYS, _RECENT_TTL_DAYS, Memory, MemoryC
 
 _MAX_MEMORIES = 14
 _CORE_MEMORIES = 6
+_MAX_RECOVERY_MEMORIES = 8
 
 # Category gets a full context match (1.0) in each of these situations.
 _CONTEXT_BOOSTS: dict[str, set[MemoryCategory]] = {
@@ -113,4 +114,28 @@ def select_relevant_memories(
             "confidence": m.confidence,
         }
         for m in selected
+    ]
+
+
+def select_recovery_memories(memories: list[Memory], analysis_date: str) -> list[dict[str, Any]]:
+    """Recovery/risk memories for the restitution analyst, ranked and trimmed.
+
+    Distilled, recency-weighted context (e.g. a recent illness) the analyst uses to
+    explain anomalies in today's metrics — not the coach's wide, goal-inclusive set.
+    Scored against a low-readiness context so recovery/risk memories get their context
+    boost; deterministic for fixed inputs.
+    """
+    today = date.fromisoformat(analysis_date)
+    ctx = DayContext(readiness="low")
+    recovery = [m for m in memories if m.category in (MemoryCategory.RECOVERY, MemoryCategory.RISK)]
+    recovery.sort(key=lambda m: (_score_memory(m, ctx, today), m.updated_at), reverse=True)
+
+    return [
+        {
+            "scope": m.scope,
+            "category": m.category,
+            "content": m.content,
+            "confidence": m.confidence,
+        }
+        for m in recovery[:_MAX_RECOVERY_MEMORIES]
     ]
