@@ -38,16 +38,16 @@ interface CalendarDayCellProps {
   onAddPlan?: (e: React.MouseEvent) => void
 }
 
-const TSS_SCALE = 500
+const TSS_SCALE = 550 // a long (~8–9 h) race fills the bar
 
-// Intensity bands expressed as fractions of the cell width (and thus of TSS_SCALE).
-// The bar fills left-to-right and is clipped to its total width, so each band only
-// shows once the load reaches its starting offset.
+// Intensity bands by absolute TSS. Each band is drawn from its lower to upper TSS
+// bound (mapped to % of the bar track) and clipped to the day's actual load, so the
+// colour reflects how hard the day was rather than just the bar's length.
 const TSS_BANDS = [
-  { start: 0, end: 50, color: "bg-emerald-500" },
-  { start: 50, end: 75, color: "bg-amber-400" },
-  { start: 75, end: 90, color: "bg-orange-500" },
-  { start: 90, end: 100, color: "bg-violet-500" },
+  { min: 0, max: 150, color: "bg-emerald-500" },
+  { min: 150, max: 300, color: "bg-amber-400" },
+  { min: 300, max: 420, color: "bg-orange-500" },
+  { min: 420, max: TSS_SCALE, color: "bg-violet-500" },
 ]
 
 export function CalendarDayCell({
@@ -180,18 +180,20 @@ export function CalendarDayCell({
           {/* TSS load bar — stacked by intensity, coloured per cell-width band */}
           {tssBarWidth > 0 && (
             <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-md overflow-hidden bg-muted">
-              {TSS_BANDS.map((band) =>
-                tssBarWidth > band.start ? (
+              {TSS_BANDS.map((band) => {
+                const visible = Math.min(tss, band.max) - band.min
+                if (visible <= 0) return null
+                return (
                   <div
-                    key={band.start}
+                    key={band.min}
                     className={cn("absolute top-0 h-full transition-all", band.color)}
                     style={{
-                      left: `${band.start}%`,
-                      width: `${Math.min(tssBarWidth, band.end) - band.start}%`,
+                      left: `${(band.min / TSS_SCALE) * 100}%`,
+                      width: `${(visible / TSS_SCALE) * 100}%`,
                     }}
                   />
-                ) : null
-              )}
+                )
+              })}
             </div>
           )}
         </>
