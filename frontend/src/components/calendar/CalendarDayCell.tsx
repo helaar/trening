@@ -38,16 +38,16 @@ interface CalendarDayCellProps {
   onAddPlan?: (e: React.MouseEvent) => void
 }
 
-const TSS_SCALE = 550 // a long (~8–9 h) race fills the bar
+const TSS_SCALE = 500 // a long race fills the bar
 
 // Intensity bands by absolute TSS. Each band is drawn from its lower to upper TSS
 // bound (mapped to % of the bar track) and clipped to the day's actual load, so the
 // colour reflects how hard the day was rather than just the bar's length.
 const TSS_BANDS = [
-  { min: 0, max: 150, color: "bg-emerald-500" },
-  { min: 150, max: 300, color: "bg-amber-400" },
-  { min: 300, max: 420, color: "bg-orange-500" },
-  { min: 420, max: TSS_SCALE, color: "bg-violet-500" },
+  { min: 0, max: 100, color: "bg-emerald-500" },
+  { min: 100, max: 200, color: "bg-amber-400" },
+  { min: 200, max: 350, color: "bg-orange-500" },
+  { min: 350, max: TSS_SCALE, color: "bg-violet-500" },
 ]
 
 export function CalendarDayCell({
