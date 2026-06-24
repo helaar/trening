@@ -38,7 +38,17 @@ interface CalendarDayCellProps {
   onAddPlan?: (e: React.MouseEvent) => void
 }
 
-const TSS_SCALE = 500
+const TSS_SCALE = 500 // a long race fills the bar
+
+// Intensity bands by absolute TSS. Each band is drawn from its lower to upper TSS
+// bound (mapped to % of the bar track) and clipped to the day's actual load, so the
+// colour reflects how hard the day was rather than just the bar's length.
+const TSS_BANDS = [
+  { min: 0, max: 100, color: "bg-emerald-500" },
+  { min: 100, max: 200, color: "bg-amber-400" },
+  { min: 200, max: 350, color: "bg-orange-500" },
+  { min: 350, max: TSS_SCALE, color: "bg-violet-500" },
+]
 
 export function CalendarDayCell({
   day,
@@ -93,16 +103,25 @@ export function CalendarDayCell({
         >
           {dayNum}
         </span>
-        {onAddPlan && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddPlan(e) }}
-            className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            aria-label="Add plan"
-            title="Add plan"
-          >
-            <Plus className="h-3 w-3" />
-          </button>
-        )}
+        {/* Status icons (top-right): warning first, brain to its right */}
+        <div className="flex items-center gap-1">
+          {hasWarning && (
+            <AlertTriangle className="h-3 w-3 text-amber-500" aria-label="Missing data" />
+          )}
+          {day?.has_analysis && (
+            <Brain className="h-3 w-3 text-muted-foreground" aria-label="AI analysis available" />
+          )}
+          {onAddPlan && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onAddPlan(e) }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+              aria-label="Add plan"
+              title="Add plan"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {day && (
@@ -158,25 +177,25 @@ export function CalendarDayCell({
               ))}
             </div>
 
-          {/* TSS load bar */}
+          {/* TSS load bar — stacked by intensity, coloured per cell-width band */}
           {tssBarWidth > 0 && (
             <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-md overflow-hidden bg-muted">
-              <div
-                className="h-full bg-primary/40 transition-all"
-                style={{ width: `${tssBarWidth}%` }}
-              />
+              {TSS_BANDS.map((band) => {
+                const visible = Math.min(tss, band.max) - band.min
+                if (visible <= 0) return null
+                return (
+                  <div
+                    key={band.min}
+                    className={cn("absolute top-0 h-full transition-all", band.color)}
+                    style={{
+                      left: `${(band.min / TSS_SCALE) * 100}%`,
+                      width: `${(visible / TSS_SCALE) * 100}%`,
+                    }}
+                  />
+                )
+              })}
             </div>
           )}
-
-          {/* Icons row */}
-          <div className="mt-auto flex items-center gap-1 pt-1">
-            {day.has_analysis && (
-              <Brain className="h-3 w-3 text-muted-foreground" aria-label="AI analysis available" />
-            )}
-            {hasWarning && (
-              <AlertTriangle className="h-3 w-3 text-amber-500" aria-label="Missing data" />
-            )}
-          </div>
         </>
       )}
     </button>
