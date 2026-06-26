@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router"
-import { CalendarDays, Search, Settings, TrendingUp, User } from "lucide-react"
+import { CalendarDays, Search, Settings, TrendingUp, User, Users } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
+import { useEffect, useState } from "react"
 import { fetchCurrentAthlete } from "../../api/auth"
 import { cn } from "../../lib/utils"
 
@@ -9,6 +10,13 @@ const NAV_ITEMS = [
   { to: "/insights", label: "Insights", icon: TrendingUp, exact: false },
 ] as const
 
+const COACH_NAV_ITEMS = [
+  { to: "/coach", label: "Roster", icon: Users, exact: true },
+] as const
+
+type Perspective = "athlete" | "coach"
+const PERSPECTIVE_KEY = "sidekick:perspective"
+
 export function Sidebar() {
   const { location } = useRouterState()
   const { data: athlete } = useQuery({
@@ -16,9 +24,19 @@ export function Sidebar() {
     queryFn: fetchCurrentAthlete,
   })
 
+  const [perspective, setPerspective] = useState<Perspective>(
+    () => (localStorage.getItem(PERSPECTIVE_KEY) as Perspective | null) ?? "athlete"
+  )
+
+  useEffect(() => {
+    localStorage.setItem(PERSPECTIVE_KEY, perspective)
+  }, [perspective])
+
   const profileActive = location.pathname.startsWith("/settings")
   const setupActive = location.pathname.startsWith("/setup")
   const inspectActive = location.pathname.startsWith("/admin/inspect")
+
+  const navItems = perspective === "coach" ? COACH_NAV_ITEMS : NAV_ITEMS
 
   return (
     <aside className="hidden sm:flex h-full w-52 shrink-0 flex-col border-r bg-background">
@@ -26,8 +44,27 @@ export function Sidebar() {
         <span className="text-base font-semibold tracking-tight">Sidekick</span>
       </div>
 
+      {athlete?.is_coach && (
+        <div className="mx-3 mb-2 flex rounded-md border overflow-hidden">
+          {(["athlete", "coach"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPerspective(p)}
+              className={cn(
+                "flex-1 px-2 py-1.5 text-xs font-medium capitalize transition-colors",
+                perspective === p
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background hover:bg-accent text-foreground"
+              )}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
+
       <nav className="flex flex-col gap-1 px-3 flex-1">
-        {NAV_ITEMS.map(({ to, label, icon: Icon, exact }) => {
+        {navItems.map(({ to, label, icon: Icon, exact }) => {
           const active = exact
             ? location.pathname === to
             : location.pathname.startsWith(to)

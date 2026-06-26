@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse, JSONResponse
 
 from auth.oauth import StravaOAuthService
-from auth.dependencies import get_oauth_service, get_current_athlete
+from auth.dependencies import get_coach_repository, get_oauth_service, get_current_athlete
 from database.athlete_repository import AthleteRepository
+from database.coach_repository import CoachRepository
 from models.athlete import Athlete
 
 
@@ -64,11 +65,12 @@ async def strava_callback(
 
 @router.get("/me")
 async def get_current_user(
-    athlete: Athlete = Depends(get_current_athlete)
+    athlete: Athlete = Depends(get_current_athlete),
+    coach_repo: CoachRepository = Depends(get_coach_repository),
 ):
     """
     Get current authenticated athlete information.
-    
+
     Requires a valid JWT token in the Authorization header.
     """
     return {
@@ -78,7 +80,8 @@ async def get_current_user(
         "lastname": athlete.lastname,
         "profile_picture": athlete.profile_picture,
         "created_at": athlete.created_at,
-        "updated_at": athlete.updated_at
+        "updated_at": athlete.updated_at,
+        "is_coach": await coach_repo.is_coach(athlete.athlete_id),
     }
 
 

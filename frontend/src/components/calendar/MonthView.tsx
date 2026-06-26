@@ -44,9 +44,18 @@ interface MonthViewProps {
   date: string
   selectedDate: string
   onSelectDate: (date: string) => void
+  readOnly?: boolean
+  fetchFeedFn?: (athleteId: number, start: string, end: string) => Promise<FeedDay[]>
 }
 
-export function MonthView({ athleteId, date, selectedDate, onSelectDate }: MonthViewProps) {
+export function MonthView({
+  athleteId,
+  date,
+  selectedDate,
+  onSelectDate,
+  readOnly = false,
+  fetchFeedFn = fetchFeed,
+}: MonthViewProps) {
   const [year, month] = date.split("-").map(Number)
   const { start, end } = getMonthRange(date)
   const today = new Date().toISOString().split("T")[0]
@@ -55,7 +64,7 @@ export function MonthView({ athleteId, date, selectedDate, onSelectDate }: Month
 
   const { data: feed, isLoading } = useQuery({
     queryKey: ["feed", athleteId, start, end],
-    queryFn: () => fetchFeed(athleteId, start, end),
+    queryFn: () => fetchFeedFn(athleteId, start, end),
   })
 
   const feedMap = new Map<string, FeedDay>()
@@ -90,26 +99,28 @@ export function MonthView({ athleteId, date, selectedDate, onSelectDate }: Month
               isToday={cellDate === today}
               isSelected={cellDate === selectedDate}
               onClick={() => onSelectDate(cellDate)}
-              onAddPlan={() => setPlanFormDate(cellDate)}
+              onAddPlan={readOnly ? undefined : () => setPlanFormDate(cellDate)}
             />
           </div>
         ))}
       </div>
-      <Dialog open={!!planFormDate} onOpenChange={(open) => !open && setPlanFormDate(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add plan — {planFormDate}</DialogTitle>
-          </DialogHeader>
-          {planFormDate && (
-            <PlanForm
-              athleteId={athleteId}
-              date={planFormDate}
-              onSaved={closePlanForm}
-              onDeleted={closePlanForm}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {!readOnly && (
+        <Dialog open={!!planFormDate} onOpenChange={(open) => !open && setPlanFormDate(null)}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add plan — {planFormDate}</DialogTitle>
+            </DialogHeader>
+            {planFormDate && (
+              <PlanForm
+                athleteId={athleteId}
+                date={planFormDate}
+                onSaved={closePlanForm}
+                onDeleted={closePlanForm}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

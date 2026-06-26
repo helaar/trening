@@ -10,6 +10,8 @@ import { InsightsPage } from "./pages/InsightsPage"
 import { AthleteConfig } from "./pages/AthleteConfig"
 import { SetupPage } from "./pages/SetupPage"
 import { InspectPage } from "./pages/InspectPage"
+import { CoachOverviewPage } from "./pages/CoachOverviewPage"
+import { CoachAthleteDetailPage } from "./pages/CoachAthleteDetailPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,7 +69,27 @@ const inspectRoute = createRoute({
   component: InspectPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, insightsRoute, settingsRoute, setupRoute, inspectRoute])
+const coachOverviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/coach",
+  component: CoachOverviewPage,
+})
+
+const coachAthleteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/coach/athletes/$athleteId",
+  component: CoachAthleteDetailPage,
+})
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  insightsRoute,
+  settingsRoute,
+  setupRoute,
+  inspectRoute,
+  coachOverviewRoute,
+  coachAthleteRoute,
+])
 
 export const router = createRouter({ routeTree })
 

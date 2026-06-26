@@ -5,6 +5,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 from auth.oauth import StravaOAuthService
 from config import settings
 from database.athlete_repository import AthleteRepository
+from database.coach_repository import CoachRepository
 from database.mongodb import get_db
 from models.athlete import Athlete
 from clients.strava.client import StravaClient
@@ -79,6 +80,43 @@ async def get_current_athlete(
         )
     
     return athlete
+
+
+async def get_coach_repository(db: AsyncDatabase = Depends(get_db)) -> CoachRepository:
+    """Dependency to get coach repository."""
+    return CoachRepository(db)
+
+
+async def get_current_coach_id(
+    athlete_id: int = Depends(get_current_athlete_id),
+    coach_repo: CoachRepository = Depends(get_coach_repository),
+) -> int:
+    """Dependency to resolve the current authenticated user as a coach.
+
+    Coach-ness is a DB lookup (coaches collection), not a JWT claim, so existing
+    athlete tokens keep working unchanged.
+    """
+    if not await coach_repo.is_coach(athlete_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account is not registered as a coach",
+        )
+    return athlete_id
+
+
+async def verify_coach_athlete_access(
+    athlete_id: int,
+    coach_id: int = Depends(get_current_coach_id),
+    coach_repo: CoachRepository = Depends(get_coach_repository),
+) -> int:
+    """Dependency to enforce that a coach may only read athletes in their roster."""
+    roster = await coach_repo.get_roster_athlete_ids(coach_id)
+    if athlete_id not in roster:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Athlete is not in your roster",
+        )
+    return athlete_id
 
 
 async def get_strava_client(

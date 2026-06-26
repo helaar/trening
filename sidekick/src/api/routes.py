@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from api.athlete_routes import router as athlete_router
+from api.coach_routes import router as coach_router
 from api.daily_analysis_routes import router as daily_analysis_router
 from api.daily_entry_routes import router as daily_entry_router
 from api.feed_routes import router as feed_router
@@ -20,6 +21,7 @@ router.include_router(plan_router, prefix="/api/v1")
 router.include_router(feed_router, prefix="/api/v1")
 router.include_router(prompt_router, prefix="/api/v1")
 router.include_router(prompt_log_router, prefix="/api/v1")
+router.include_router(coach_router, prefix="/api/v1")
 
 
 @router.get("/api/v1/status")

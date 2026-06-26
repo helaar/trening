@@ -48,6 +48,10 @@ async def get_feed(
     if athlete_id != current_athlete_id:
         raise HTTPException(status_code=403, detail="You can only access your own data")
 
+    return await build_feed(db, athlete_id, start, end)
+
+
+async def build_feed(db: AsyncDatabase, athlete_id: int, start: str, end: str) -> list[FeedDay]:
     start_dt = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     end_dt = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
