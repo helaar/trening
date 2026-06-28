@@ -10,7 +10,7 @@ import { InsightsPage } from "./pages/InsightsPage"
 import { AthleteConfig } from "./pages/AthleteConfig"
 import { SetupPage } from "./pages/SetupPage"
 import { InspectPage } from "./pages/InspectPage"
-import { CoachOverviewPage } from "./pages/CoachOverviewPage"
+import { CoachHomePage } from "./pages/CoachHomePage"
 import { CoachAthleteDetailPage } from "./pages/CoachAthleteDetailPage"
 
 const queryClient = new QueryClient({
@@ -72,7 +72,7 @@ const inspectRoute = createRoute({
 const coachOverviewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/coach",
-  component: CoachOverviewPage,
+  component: CoachHomePage,
 })
 
 const coachAthleteRoute = createRoute({
