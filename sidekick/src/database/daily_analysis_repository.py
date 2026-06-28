@@ -44,6 +44,44 @@ class DailyAnalysisRepository:
             summaries.append(entry)
         return summaries
 
+    async def get_risk_summaries_for_range(
+        self, athlete_id: int, start_date: str, end_date: str
+    ) -> list[dict]:
+        """Return per-day risk flags split into performance vs restitution buckets.
+
+        Tolerates old documents where nested fields may be raw strings rather than dicts.
+        """
+        projection = {
+            "_id": 0,
+            "date": 1,
+            "workout_analysis.workouts.risk_flags": 1,
+            "restitution_analysis.risk_flags": 1,
+            "restitution_analysis.overall_recovery_quality": 1,
+        }
+        cursor = self.collection.find(
+            {"athlete_id": athlete_id, "date": {"$gte": start_date, "$lte": end_date}},
+            projection,
+        )
+        summaries = []
+        async for doc in cursor:
+            entry: dict = {
+                "date": doc.get("date"),
+                "performance_risk_flags": [],
+                "restitution_risk_flags": [],
+                "overall_recovery_quality": None,
+            }
+            wa = doc.get("workout_analysis")
+            if isinstance(wa, dict):
+                for workout in wa.get("workouts") or []:
+                    if isinstance(workout, dict):
+                        entry["performance_risk_flags"].extend(workout.get("risk_flags") or [])
+            ra = doc.get("restitution_analysis")
+            if isinstance(ra, dict):
+                entry["restitution_risk_flags"] = ra.get("risk_flags") or []
+                entry["overall_recovery_quality"] = ra.get("overall_recovery_quality")
+            summaries.append(entry)
+        return summaries
+
     async def get_dates_with_analysis(self, athlete_id: int, dates: list[str]) -> set[str]:
         """Return the subset of dates that have a stored analysis."""
         cursor = self.collection.find(
