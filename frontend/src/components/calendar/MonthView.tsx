@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { fetchFeed, type FeedDay } from "../../api/feed"
 import { CalendarDayCell } from "./CalendarDayCell"
-import { cn } from "../../lib/utils"
+import { cn, localToday } from "../../lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { PlanForm } from "../PlanForm"
 
@@ -58,7 +58,7 @@ export function MonthView({
 }: MonthViewProps) {
   const [year, month] = date.split("-").map(Number)
   const { start, end } = getMonthRange(date)
-  const today = new Date().toISOString().split("T")[0]
+  const today = localToday()
   const queryClient = useQueryClient()
   const [planFormDate, setPlanFormDate] = useState<string | null>(null)
 

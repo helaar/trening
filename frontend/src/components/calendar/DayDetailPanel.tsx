@@ -31,10 +31,7 @@ import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskForDate, getTaskSt
 import { PlanCard } from "../PlanCard"
 import { PlanForm } from "../PlanForm"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
-
-function todayDate(): string {
-  return new Date().toISOString().split("T")[0]
-}
+import { localToday } from "../../lib/utils"
 
 function daysBetween(from: string, to: string): number {
   const fromMs = new Date(from + "T00:00:00Z").getTime()
@@ -85,7 +82,7 @@ interface DayDetailPanelProps {
 
 export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDetailPanelProps) {
   const queryClient = useQueryClient()
-  const isToday = selectedDate === todayDate()
+  const isToday = selectedDate === localToday()
 
   const [restitution, setRestitution] = useState<Restitution>({})
   const [assessments, setAssessments] = useState<AssessmentMap>({})
@@ -156,7 +153,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     queryFn: () => fetchPlansForDate(athleteId, selectedDate),
   })
 
-  const todayStr = todayDate()
+  const todayStr = localToday()
 
   const { data: upcomingPlans } = useQuery({
     queryKey: ["races", athleteId, todayStr],

@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button"
 import { fetchCoachAthleteFeed, fetchCoachRoster } from "../api/coach"
 import type { RiskCounts } from "../api/coach"
 import { recoveryQualityTextStyle, severityBadgeStyle, severityFor } from "../lib/risk"
-import { cn } from "../lib/utils"
+import { cn, localToday } from "../lib/utils"
 
 function RiskBadge({ label, counts }: { label: string; counts: RiskCounts }) {
   const total = counts.low + counts.moderate + counts.high
@@ -27,10 +27,6 @@ function RiskBadge({ label, counts }: { label: string; counts: RiskCounts }) {
   )
 }
 
-function todayDate(): string {
-  return new Date().toISOString().split("T")[0]
-}
-
 function shiftMonth(date: string, delta: number): string {
   const [year, month] = date.split("-").map(Number)
   return new Date(Date.UTC(year, month - 1 + delta, 1)).toISOString().split("T")[0]
@@ -39,7 +35,7 @@ function shiftMonth(date: string, delta: number): string {
 export function CoachAthleteDetailPage() {
   const { athleteId } = useParams({ from: "/coach/athletes/$athleteId" })
   const id = Number(athleteId)
-  const today = todayDate()
+  const today = localToday()
   const [monthDate, setMonthDate] = useState(today)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 

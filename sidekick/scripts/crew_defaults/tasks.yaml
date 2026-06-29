@@ -148,6 +148,13 @@ restitution_analysis_task:
 
     If fewer than 5 days have restitution data, state this prominently in data_quality_note.
     Focus on multi-day patterns, not individual outliers.
+
+    Data gaps (missing HRV, resting HR, sleep, or other fields for any day) belong in
+    data_quality_note only — never restate a data gap as a risk_flag.
+
+    When a risk_flag cites a multi-day cumulative figure (e.g. "X TSS over N days"), show the
+    per-day values being summed so the figure is verifiable against the provided timeline —
+    never state a multi-day total without showing its components.
   expected_output: |
     A JSON object with the recovery analysis. recovery_baseline captures the athlete's typical
     metrics computed from the window. trend_analysis and load_recovery_correlation should be
