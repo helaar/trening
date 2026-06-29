@@ -152,9 +152,11 @@ restitution_analysis_task:
     Data gaps (missing HRV, resting HR, sleep, or other fields for any day) belong in
     data_quality_note only — never restate a data gap as a risk_flag.
 
-    When a risk_flag cites a multi-day cumulative figure (e.g. "X TSS over N days"), show the
-    per-day values being summed so the figure is verifiable against the provided timeline —
-    never state a multi-day total without showing its components.
+    When citing 2-3 day cumulative TSS load (e.g. post-race load), use the timeline's
+    precomputed rolling_tss_2d/rolling_tss_3d field for that date verbatim — do not sum
+    per-day total_tss values yourself, and do not reuse one day's total_tss for another day.
+    For any other multi-day total, state the individual per-day total_tss values for the
+    dates involved rather than computing a new sum.
   expected_output: |
     A JSON object with the recovery analysis. recovery_baseline captures the athlete's typical
     metrics computed from the window. trend_analysis and load_recovery_correlation should be
