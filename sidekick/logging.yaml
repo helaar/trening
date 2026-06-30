@@ -1,0 +1,32 @@
+loggers:
+    __main__: INFO
+    urllib3.connectionpool: WARNING
+    uvicorn: INFO
+    uvicorn.access: DEBUG
+    uvicorn.error: INFO
+    fastapi: INFO
+    asyncio: INFO
+    asyncssh.sftp: INFO
+    matplotlib.font_manager: INFO
+    matplotlib.ticker: INFO
+    httpcore.connection: INFO
+    httpcore.http11: INFO
+    urllib3.util.retry: INFO
+    botocore.auth: INFO
+    botocore.client: INFO
+    botocore.configprovider: INFO
+    botocore.endpoint: INFO
+    botocore.hooks: INFO 
+    botocore.httpsession: INFO
+    botocore.loaders: INFO
+    botocore.parsers: INFO
+    botocore.regions: INFO
+    botocore.retryhandler: INFO
+    botocore.utils: INFO
+
+handlers:
+  file_handler:
+    class: logging.FileHandler
+    filename: /var/log/sidekick/backend.log
+    format: "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+    date_format: "%Y-%m-%d %H:%M:%S"
