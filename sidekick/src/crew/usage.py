@@ -36,7 +36,21 @@ def _sum_costs(per_agent: list[AgentUsage]) -> float | None:
 def collect_run_usage(
     crew: "Crew", athlete_id: int, crew_name: str, run_id: str
 ) -> RunUsage:
-    """Build a RunUsage from the crew's per-agent token counters (call after kickoff)."""
+    """Build a RunUsage from the crew's per-agent token counters (call after kickoff).
+
+    Usage telemetry must never break the analysis it measures, so any failure here
+    falls back to a zeroed RunUsage rather than propagating.
+    """
+    try:
+        return _collect_run_usage(crew, athlete_id, crew_name, run_id)
+    except Exception:
+        logger.exception("Failed to collect run usage for run %s", run_id)
+        return RunUsage(run_id=run_id, athlete_id=athlete_id, crew_name=crew_name)
+
+
+def _collect_run_usage(
+    crew: "Crew", athlete_id: int, crew_name: str, run_id: str
+) -> RunUsage:
     per_agent: list[AgentUsage] = []
     for agent in crew.agents:
         token_process = getattr(agent, "_token_process", None)

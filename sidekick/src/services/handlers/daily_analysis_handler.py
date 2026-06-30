@@ -128,15 +128,20 @@ class DailyAnalysisHandler(TaskHandler):
         if self.prompt_log_repo:
             try:
                 await self.prompt_log_repo.insert_many(crew_result.get("prompt_log_entries", []))
-                run_usage = crew_result.get("run_usage")
-                await self.prompt_log_repo.insert_usage(run_usage)
-                if run_usage:
+            except Exception:
+                logger.exception("Failed to persist prompt log entries for task %s", task_id)
+            run_usage = crew_result.get("run_usage")
+            if run_usage is None:
+                logger.warning("No run_usage in crew result for task %s", task_id)
+            else:
+                try:
+                    await self.prompt_log_repo.insert_usage(run_usage)
                     logger.info(
                         "Persisted LLM usage for task %s: %s tokens, est $%s",
                         task_id, run_usage.total_tokens, run_usage.cost_usd,
                     )
-            except Exception:
-                logger.exception("Failed to persist prompt log entries for task %s", task_id)
+                except Exception:
+                    logger.exception("Failed to persist LLM usage for task %s", task_id)
 
         stored = DailyAnalysisResult(
             athlete_id=athlete_id,
