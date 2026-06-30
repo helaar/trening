@@ -46,6 +46,9 @@ async def lifespan(app: FastAPI):
     await PromptLogRepository(db_manager.db).ensure_indexes()
     await CrewDefinitionRepository(db_manager.db).ensure_indexes()
     register_prompt_log_listener()
+    logging.getLogger(__name__).info(
+        "Startup complete: LLM token-usage capture active (prompt_logs doc_type=usage)"
+    )
     yield
     # Shutdown
     await TaskProcessor.shutdown()
