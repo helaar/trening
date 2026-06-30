@@ -1,32 +1,61 @@
-loggers:
-    __main__: INFO
-    urllib3.connectionpool: WARNING
-    uvicorn: INFO
-    uvicorn.access: DEBUG
-    uvicorn.error: INFO
-    fastapi: INFO
-    asyncio: INFO
-    asyncssh.sftp: INFO
-    matplotlib.font_manager: INFO
-    matplotlib.ticker: INFO
-    httpcore.connection: INFO
-    httpcore.http11: INFO
-    urllib3.util.retry: INFO
-    botocore.auth: INFO
-    botocore.client: INFO
-    botocore.configprovider: INFO
-    botocore.endpoint: INFO
-    botocore.hooks: INFO 
-    botocore.httpsession: INFO
-    botocore.loaders: INFO
-    botocore.parsers: INFO
-    botocore.regions: INFO
-    botocore.retryhandler: INFO
-    botocore.utils: INFO
+# Logging configuration for the sidekick backend (Python logging.config.dictConfig).
+# Loaded at startup by main.py. Every record includes the logger name, so logs can
+# be filtered by area, e.g. grep " - crew.usage - " or " - services.handlers." .
+#
+# To get more detail from one area without touching code, set its level to DEBUG
+# below (e.g. crew: DEBUG) and restart. The noisy third-party libraries are kept
+# at WARNING so application logs stay searchable.
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  standard:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
 
 handlers:
-  file_handler:
-    class: logging.FileHandler
-    filename: /var/log/sidekick/backend.log
-    format: "%(asctime)s %(levelname)s [%(name)s] %(message)s"
-    date_format: "%Y-%m-%d %H:%M:%S"
+  console:
+    class: logging.StreamHandler
+    formatter: standard
+    stream: ext://sys.stdout
+
+root:
+  level: INFO
+  handlers: [console]
+
+loggers:
+  # ── Application areas (package names; flip to DEBUG to trace one area) ──
+  main: { level: INFO }
+  api: { level: INFO }
+  crew: { level: INFO }
+  services: { level: INFO }
+  database: { level: INFO }
+  analysis: { level: INFO }
+  clients: { level: INFO }
+  auth: { level: INFO }
+
+  # ── Web server (own handler so uvicorn's defaults don't double-log) ──
+  uvicorn:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  uvicorn.error:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  uvicorn.access:
+    level: WARNING
+    handlers: [console]
+    propagate: false
+
+  # ── Noisy dependencies, quieted to keep application logs readable ──
+  pymongo: { level: WARNING }
+  motor: { level: WARNING }
+  httpx: { level: WARNING }
+  httpcore: { level: WARNING }
+  urllib3: { level: WARNING }
+  litellm: { level: WARNING }
+  LiteLLM: { level: WARNING }
+  openai: { level: WARNING }
+  anthropic: { level: WARNING }
+  asyncio: { level: INFO }
