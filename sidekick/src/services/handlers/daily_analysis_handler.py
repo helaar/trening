@@ -128,6 +128,7 @@ class DailyAnalysisHandler(TaskHandler):
         if self.prompt_log_repo:
             try:
                 await self.prompt_log_repo.insert_many(crew_result.get("prompt_log_entries", []))
+                await self.prompt_log_repo.insert_usage(crew_result.get("run_usage"))
             except Exception:
                 logger.exception("Failed to persist prompt log entries for task %s", task_id)
 

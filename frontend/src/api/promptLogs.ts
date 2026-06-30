@@ -1,5 +1,26 @@
 import { apiFetch } from "./client"
 
+export interface AgentUsage {
+  agent_role: string | null
+  model: string | null
+  prompt_tokens: number
+  cached_prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  successful_requests: number
+  cost_usd: number | null
+}
+
+export interface RunUsage {
+  prompt_tokens: number
+  cached_prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  successful_requests: number
+  cost_usd: number | null
+  per_agent: AgentUsage[]
+}
+
 export interface PromptLogRunSummary {
   run_id: string
   athlete_id: number
@@ -7,6 +28,7 @@ export interface PromptLogRunSummary {
   agent_roles: (string | null)[]
   call_count: number
   started_at: string
+  usage?: RunUsage | null
 }
 
 export interface PromptLogMessage {

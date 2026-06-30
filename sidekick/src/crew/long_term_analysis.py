@@ -10,6 +10,7 @@ from crewai import Crew
 
 from config import settings
 from crew.prompt_logging import capture_prompt_log, drain_prompt_log
+from crew.usage import collect_run_usage
 from models.athlete import Athlete
 from models.crew_definition import AgentDoc, TaskDoc
 from models.daily_entry import DailyEntry
@@ -90,6 +91,9 @@ def run_long_term_analysis(input: LongTermAnalysisInput) -> dict[str, Any]:
     with capture_prompt_log(input.athlete.athlete_id, "long_term_analysis", crew) as prompt_log_run_id:
         result = crew.kickoff()
     prompt_log_entries = drain_prompt_log(prompt_log_run_id)
+    run_usage = collect_run_usage(
+        crew, input.athlete.athlete_id, "long_term_analysis", prompt_log_run_id
+    )
 
     restitution_analysis = (
         result.tasks_output[0].raw if result.tasks_output else str(result.raw)
@@ -97,4 +101,5 @@ def run_long_term_analysis(input: LongTermAnalysisInput) -> dict[str, Any]:
     return {
         "restitution_analysis": restitution_analysis,
         "prompt_log_entries": prompt_log_entries,
+        "run_usage": run_usage,
     }
