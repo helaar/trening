@@ -232,6 +232,19 @@ def _build_timeline(
         )
         current += timedelta(days=1)
 
+    # Precompute trailing cumulative TSS so the LLM can quote a 2/3-day load
+    # figure directly instead of summing per-day values itself (a frequent
+    # source of arithmetic errors and fabricated totals). Rest/no-training
+    # days contribute 0. Null if the window extends before the data range.
+    daily_tss = [entry["training"]["total_tss"] if entry["training"] else None for entry in timeline]
+    for i, entry in enumerate(timeline):
+        for window in (2, 3):
+            if i - window + 1 < 0:
+                entry[f"rolling_tss_{window}d"] = None
+            else:
+                window_values = daily_tss[i - window + 1 : i + 1]
+                entry[f"rolling_tss_{window}d"] = round(sum(v or 0 for v in window_values), 1)
+
     return timeline
 
 
@@ -351,7 +364,11 @@ class _RestitutionDataTool(BaseTool):
         "'restitution' (HRV, resting HR, sleep, readiness — null if not recorded), and "
         "'training' (TSS, IF, duration — null if no workouts that day). The most recent "
         "day's 'restitution' may also include a 'comment' field — the athlete's free-text "
-        "note about today's readiness/recovery (present only for today). Call this first."
+        "note about today's readiness/recovery (present only for today). Each entry also "
+        "includes precomputed 'rolling_tss_2d' and 'rolling_tss_3d' — the summed total_tss "
+        "for that day plus the preceding 1-2 days (null if the window extends before the "
+        "data range). Use these directly when citing 2-3 day cumulative load; do not sum "
+        "per-day TSS values yourself. Call this first."
     )
     _payload: str = ""
 

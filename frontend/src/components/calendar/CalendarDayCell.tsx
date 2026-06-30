@@ -1,5 +1,5 @@
 import { Brain, AlertTriangle, Plus } from "lucide-react"
-import { cn } from "../../lib/utils"
+import { cn, localToday } from "../../lib/utils"
 import type { FeedDay } from "../../api/feed"
 import { SPORT_COLORS, SPORT_COLORS_MUTED } from "./sportColors"
 
@@ -58,7 +58,7 @@ export function CalendarDayCell({
   onClick,
   onAddPlan,
 }: CalendarDayCellProps) {
-  const today = new Date().toISOString().split("T")[0]
+  const today = localToday()
   const dayNum = parseInt(date.split("-")[2], 10)
   const flags = day ? getMissingFlags(day, date, today) : null
   const hasWarning =

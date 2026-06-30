@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react"
 import { fetchFeed, type FeedDay } from "../../api/feed"
 import { CalendarDayCell } from "./CalendarDayCell"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
+import { localToday } from "../../lib/utils"
 import { PlanForm } from "../PlanForm"
 
 function getWeekRange(date: string): { start: string; end: string; dates: string[] } {
@@ -32,7 +33,7 @@ interface WeekViewProps {
 
 export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekViewProps) {
   const { start, end, dates } = getWeekRange(date)
-  const today = new Date().toISOString().split("T")[0]
+  const today = localToday()
   const queryClient = useQueryClient()
   const [planFormDate, setPlanFormDate] = useState<string | null>(null)
 

@@ -7,13 +7,9 @@ import { DayDetailPanel } from "../components/calendar/DayDetailPanel"
 import { MonthView } from "../components/calendar/MonthView"
 import { WeekView } from "../components/calendar/WeekView"
 import { Button } from "../components/ui/button"
-import { cn } from "../lib/utils"
+import { cn, localToday } from "../lib/utils"
 
 type CalendarView = "month" | "week" | "day"
-
-function todayDate(): string {
-  return new Date().toISOString().split("T")[0]
-}
 
 function formatPeriodLabel(view: CalendarView, date: string): string {
   const [year, month] = date.split("-").map(Number)
@@ -70,7 +66,7 @@ export function CalendarPage() {
   const navigate = useNavigate({ from: "/" })
   const router = useRouter()
 
-  const today = todayDate()
+  const today = localToday()
   const selectedDate = dateParam ?? today
   const view: CalendarView = viewParam ?? "month"
 

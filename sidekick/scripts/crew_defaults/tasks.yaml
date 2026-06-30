@@ -63,6 +63,13 @@ memory_consolidation_task:
 
     Be conservative with promotions. A pattern needs consistent evidence over several weeks
     before earning long_term scope.
+
+    6. Audit memory content for fabricated numeric claims: if a memory states a computed
+       aggregate (e.g. a multi-day cumulative TSS total, a rolling average) that cannot be
+       verified against the daily analysis data in the window, remove or correct that specific
+       claim. Replace multi-day TSS totals with the underlying per-day values where possible.
+       Deactivate a memory entirely if its core claim is a fabricated or unverifiable figure
+       with no correctable restatement — do not preserve memories built on bad arithmetic.
   expected_output: |
     A JSON object with four fields:
     - updates: list of memory updates (may be empty)
@@ -101,6 +108,11 @@ memory_extraction_task:
     - goal: short-term targets the athlete mentioned or demonstrated
 
     Only create memories for patterns with at least 2 data points. A single day is not a pattern.
+
+    Do not store computed multi-day TSS aggregates (e.g. "210 TSS over 48 hours") as durable
+    facts in memory content — these totals are re-derived from tool data at analysis time and
+    are a frequent source of error. Store per-day values instead (e.g. "June 27: 88.7 TSS,
+    June 28: 110.4 TSS"). Rolling sums will be recomputed correctly from the timeline.
   expected_output: |
     A JSON object with three fields:
     - new_memories: list of new memory drafts (may be empty)
@@ -148,6 +160,15 @@ restitution_analysis_task:
 
     If fewer than 5 days have restitution data, state this prominently in data_quality_note.
     Focus on multi-day patterns, not individual outliers.
+
+    Data gaps (missing HRV, resting HR, sleep, or other fields for any day) belong in
+    data_quality_note only — never restate a data gap as a risk_flag.
+
+    When citing 2-3 day cumulative TSS load (e.g. post-race load), use the timeline's
+    precomputed rolling_tss_2d/rolling_tss_3d field for that date verbatim — do not sum
+    per-day total_tss values yourself, and do not reuse one day's total_tss for another day.
+    For any other multi-day total, state the individual per-day total_tss values for the
+    dates involved rather than computing a new sum.
   expected_output: |
     A JSON object with the recovery analysis. recovery_baseline captures the athlete's typical
     metrics computed from the window. trend_analysis and load_recovery_correlation should be
