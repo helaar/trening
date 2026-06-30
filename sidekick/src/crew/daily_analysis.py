@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from config import settings
 from crew.prompt_logging import capture_prompt_log, drain_prompt_log
+from crew.usage import collect_run_usage
 from models.athlete import Athlete
 from models.crew_definition import AgentDoc, PhilosophyDoc, TaskDoc
 from utils.datetime_utils import convert_datetimes_in_obj
@@ -733,6 +734,9 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     with capture_prompt_log(input.athlete.athlete_id, "daily_analysis", crew) as prompt_log_run_id:
         result = crew.kickoff()
     prompt_log_entries = drain_prompt_log(prompt_log_run_id)
+    run_usage = collect_run_usage(
+        crew, input.athlete.athlete_id, "daily_analysis", prompt_log_run_id
+    )
 
     workout_output: WorkoutAnalysisOutput | None = None
     restitution_output: RestitutionAnalysisOutput | None = None
@@ -768,4 +772,5 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         "coaching_feedback": coaching_output,
         "memory_extraction": memory_extraction_output,
         "prompt_log_entries": prompt_log_entries,
+        "run_usage": run_usage,
     }

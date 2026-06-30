@@ -13,10 +13,23 @@ import {
   fetchPromptLogRuns,
   type PromptLogEntry,
   type PromptLogRunSummary,
+  type RunUsage,
 } from "../api/promptLogs"
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString()
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
+
+function formatCost(usd: number | null): string {
+  if (usd == null) return "n/a"
+  if (usd > 0 && usd < 0.01) return "<$0.01"
+  return `$${usd.toFixed(usd < 1 ? 4 : 2)}`
 }
 
 function formatToolArgs(args: PromptLogEntry["tool_args"]): string {
@@ -187,7 +200,57 @@ function GroupSection({ group }: { group: EntryGroup }) {
   )
 }
 
-function RunDetail({ runId }: { runId: string }) {
+function UsageSummary({ usage }: { usage: RunUsage }) {
+  return (
+    <div className="rounded-lg border bg-muted/30">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 text-sm">
+        <span className="font-semibold">Token usage &amp; cost</span>
+        <span className="text-muted-foreground">
+          {formatTokens(usage.total_tokens)} tokens
+        </span>
+        <span className="text-muted-foreground">
+          {formatTokens(usage.prompt_tokens)} in · {formatTokens(usage.completion_tokens)} out
+          {usage.cached_prompt_tokens > 0 && (
+            <> · {formatTokens(usage.cached_prompt_tokens)} cached</>
+          )}
+        </span>
+        <span className="text-muted-foreground">{usage.successful_requests} LLM requests</span>
+        <span className="ml-auto font-mono font-semibold">{formatCost(usage.cost_usd)}</span>
+      </div>
+      {usage.per_agent.length > 0 && (
+        <div className="border-t">
+          <table className="w-full text-xs">
+            <thead className="text-muted-foreground">
+              <tr className="border-b">
+                <th className="px-4 py-1.5 text-left font-medium">Agent</th>
+                <th className="px-4 py-1.5 text-left font-medium">Model</th>
+                <th className="px-2 py-1.5 text-right font-medium">In</th>
+                <th className="px-2 py-1.5 text-right font-medium">Out</th>
+                <th className="px-2 py-1.5 text-right font-medium">Total</th>
+                <th className="px-4 py-1.5 text-right font-medium">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usage.per_agent.map((a, i) => (
+                <tr key={i} className="border-b last:border-0">
+                  <td className="px-4 py-1.5">{a.agent_role ?? "—"}</td>
+                  <td className="px-4 py-1.5 font-mono text-muted-foreground">{a.model ?? "—"}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{formatTokens(a.prompt_tokens)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{formatTokens(a.completion_tokens)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{formatTokens(a.total_tokens)}</td>
+                  <td className="px-4 py-1.5 text-right font-mono">{formatCost(a.cost_usd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RunDetail({ run }: { run: PromptLogRunSummary }) {
+  const runId = run.run_id
   const { data, isLoading, error } = useQuery({
     queryKey: ["prompt-log-run", runId],
     queryFn: () => fetchPromptLogRun(runId),
@@ -212,6 +275,14 @@ function RunDetail({ runId }: { runId: string }) {
 
   return (
     <div className="space-y-3 p-3">
+      {run.usage ? (
+        <UsageSummary usage={run.usage} />
+      ) : (
+        <div className="rounded-lg border bg-muted/30 px-4 py-2.5 text-sm text-muted-foreground">
+          Token usage &amp; cost not recorded for this run (only runs from after this
+          feature shipped have usage data).
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">
         {data.length} calls across {groups.length} agent/task steps, in chronological order —
         each section is one agent working on one task; expand a step to see its messages, response,
@@ -249,6 +320,12 @@ function RunListItem({
       <div className="text-xs text-muted-foreground">
         Athlete {run.athlete_id} · {formatTimestamp(run.started_at)}
       </div>
+      {run.usage && (
+        <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>{formatTokens(run.usage.total_tokens)} tokens</span>
+          <span className="font-mono">{formatCost(run.usage.cost_usd)}</span>
+        </div>
+      )}
       <div className="mt-1 flex flex-wrap gap-1">
         {run.agent_roles.filter(Boolean).map((role) => (
           <span key={role} className="rounded bg-muted px-1.5 py-0.5 text-[11px]">
@@ -266,6 +343,8 @@ export function InspectPage() {
     queryKey: ["prompt-log-runs"],
     queryFn: () => fetchPromptLogRuns(),
   })
+
+  const selectedRun = runs?.find((r) => r.run_id === selectedRunId) ?? null
 
   return (
     <div className="mx-auto max-w-6xl p-6">
@@ -304,8 +383,8 @@ export function InspectPage() {
         </div>
 
         <div className="rounded-lg border min-h-[200px] max-h-[calc(100vh-12rem)] overflow-y-auto">
-          {selectedRunId ? (
-            <RunDetail runId={selectedRunId} />
+          {selectedRun ? (
+            <RunDetail run={selectedRun} />
           ) : (
             <p className="p-6 text-muted-foreground text-sm">
               Select a run on the left to inspect its prompts and responses.

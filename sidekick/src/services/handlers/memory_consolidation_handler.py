@@ -13,13 +13,17 @@ from database.athlete_repository import AthleteRepository
 from database.crew_definition_repository import CrewDefinitionRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.memory_repository import MemoryRepository
+from database.prompt_log_repository import PromptLogRepository
 from database.task_repository import TaskRepository
 from models.crew_definition import AgentDoc, TaskDoc
 from models.crew_outputs import MemoryConsolidationOutput
 from models.memory import Memory, MemoryScope
+from models.prompt_log import PromptLogEntry, RunUsage
 from utils.datetime_utils import to_athlete_tz
 from models.task import TaskStatus, TaskType
 from crew.daily_analysis import _make_agent, require_definition
+from crew.prompt_logging import capture_prompt_log, drain_prompt_log
+from crew.usage import collect_run_usage
 from services.handlers.base import TaskHandler
 from utils.duration import parse_iso8601_duration
 
@@ -57,12 +61,14 @@ class MemoryConsolidationHandler(TaskHandler):
         memory_repo: MemoryRepository,
         daily_analysis_repo: DailyAnalysisRepository,
         crew_def_repo: CrewDefinitionRepository,
+        prompt_log_repo: PromptLogRepository | None = None,
     ):
         self.task_repo = task_repo
         self.athlete_repo = athlete_repo
         self.memory_repo = memory_repo
         self.daily_analysis_repo = daily_analysis_repo
         self.crew_def_repo = crew_def_repo
+        self.prompt_log_repo = prompt_log_repo
 
     async def execute(self, task_id: str, athlete_id: int, parameters: dict[str, Any]) -> dict[str, Any]:
         from config import settings
@@ -131,7 +137,7 @@ class MemoryConsolidationHandler(TaskHandler):
         agent_def = require_definition(agents, "memory_consolidator", "agent")
         task_def = require_definition(tasks, "memory_consolidation_task", "task")
 
-        result = await asyncio.to_thread(
+        result, prompt_log_entries, run_usage = await asyncio.to_thread(
             self._run_consolidation_crew,
             payload,
             athlete_id,
@@ -141,6 +147,13 @@ class MemoryConsolidationHandler(TaskHandler):
             task_def,
         )
         await self.task_repo.update_task_progress(task_id, 0.8)
+
+        if self.prompt_log_repo:
+            try:
+                await self.prompt_log_repo.insert_many(prompt_log_entries)
+                await self.prompt_log_repo.insert_usage(run_usage)
+            except Exception:
+                logger.exception("Failed to persist prompt log entries for task %s", task_id)
 
         if result:
             await self._apply_consolidation(athlete_id, result, {m.memory_id: m for m in active_memories})
@@ -166,7 +179,7 @@ class MemoryConsolidationHandler(TaskHandler):
         settings: Any,
         agent_def: AgentDoc,
         task_def: TaskDoc,
-    ) -> MemoryConsolidationOutput | None:
+    ) -> tuple[MemoryConsolidationOutput | None, list[PromptLogEntry], RunUsage]:
         if settings.anthropic_api_key:
             os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
         if settings.openai_api_key:
@@ -182,13 +195,22 @@ class MemoryConsolidationHandler(TaskHandler):
             output_pydantic=MemoryConsolidationOutput,
         )
         crew = Crew(agents=[agent], tasks=[task], verbose=True)
-        result = crew.kickoff()
+        with capture_prompt_log(athlete_id, "memory_consolidation", crew) as prompt_log_run_id:
+            result = crew.kickoff()
+        prompt_log_entries = drain_prompt_log(prompt_log_run_id)
+        run_usage = collect_run_usage(crew, athlete_id, "memory_consolidation", prompt_log_run_id)
+
+        output: MemoryConsolidationOutput | None = None
         if result.tasks_output:
-            output = result.tasks_output[0].pydantic
-            if isinstance(output, MemoryConsolidationOutput):
-                return output
-            logger.warning("Memory consolidation pydantic output missing, raw=%r", result.tasks_output[0].raw[:200])
-        return None
+            pydantic_output = result.tasks_output[0].pydantic
+            if isinstance(pydantic_output, MemoryConsolidationOutput):
+                output = pydantic_output
+            else:
+                logger.warning(
+                    "Memory consolidation pydantic output missing, raw=%r",
+                    result.tasks_output[0].raw[:200],
+                )
+        return output, prompt_log_entries, run_usage
 
     async def _apply_consolidation(
         self,

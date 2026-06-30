@@ -41,7 +41,7 @@ class TaskProcessor:
         self._handlers: dict[TaskType, TaskHandler] = {
             TaskType.TRAINING_ANALYSIS: TrainingAnalysisHandler(task_repo, athlete_repo, workout_repo),
             TaskType.DAILY_LLM_ANALYSIS: DailyAnalysisHandler(task_repo, athlete_repo, workout_repo, plan_repo, daily_analysis_repo, daily_entry_repo, memory_repo, crew_def_repo, prompt_log_repo),
-            TaskType.MEMORY_CONSOLIDATION: MemoryConsolidationHandler(task_repo, athlete_repo, memory_repo, daily_analysis_repo, crew_def_repo),
+            TaskType.MEMORY_CONSOLIDATION: MemoryConsolidationHandler(task_repo, athlete_repo, memory_repo, daily_analysis_repo, crew_def_repo, prompt_log_repo),
         }
 
     async def process_task(self, task_id: str) -> None:

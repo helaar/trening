@@ -1,0 +1,71 @@
+# Logging configuration for the sidekick backend (Python logging.config.dictConfig).
+# Loaded at startup by main.py. Every record includes the logger name, so logs can
+# be filtered by area, e.g. grep " - crew.usage - " or " - services.handlers." .
+#
+# To get more detail from one area without touching code, set its level to DEBUG
+# below (e.g. crew: DEBUG) and restart. The noisy third-party libraries are kept
+# at WARNING so application logs stay searchable.
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  standard:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: standard
+    stream: ext://sys.stdout
+  # Persistent, grep-friendly log file. The parent directory is created at
+  # startup; if it cannot be written, this handler is dropped and logging falls
+  # back to console only (see main.py) so the service still starts.
+  file:
+    class: logging.handlers.RotatingFileHandler
+    formatter: standard
+    filename: /var/log/sidekick/backend.log
+    maxBytes: 10485760   # 10 MB per file
+    backupCount: 5       # keep backend.log.1 .. backend.log.5
+    encoding: utf-8
+
+root:
+  level: INFO
+  handlers: [console, file]
+
+loggers:
+  # ── Application areas (package names; flip to DEBUG to trace one area) ──
+  main: { level: INFO }
+  api: { level: INFO }
+  crew: { level: INFO }
+  services: { level: INFO }
+  database: { level: INFO }
+  analysis: { level: INFO }
+  clients: { level: INFO }
+  auth: { level: INFO }
+
+  # ── Web server (own handler so uvicorn's defaults don't double-log) ──
+  uvicorn:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  uvicorn.error:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  uvicorn.access:
+    level: WARNING
+    handlers: [console, file]
+    propagate: false
+
+  # ── Noisy dependencies, quieted to keep application logs readable ──
+  pymongo: { level: WARNING }
+  motor: { level: WARNING }
+  httpx: { level: WARNING }
+  httpcore: { level: WARNING }
+  urllib3: { level: WARNING }
+  litellm: { level: WARNING }
+  LiteLLM: { level: WARNING }
+  openai: { level: WARNING }
+  anthropic: { level: WARNING }
+  asyncio: { level: INFO }
