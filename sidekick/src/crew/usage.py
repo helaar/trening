@@ -28,6 +28,22 @@ def _agent_model(agent: Any) -> str | None:
     return getattr(llm, "model", None)
 
 
+def _agent_usage_summary(agent: Any) -> Any | None:
+    """Return an agent's token UsageMetrics.
+
+    CrewAI accumulates token usage on the LLM instance (`BaseLLM._token_usage`,
+    exposed via `get_token_usage_summary()`) when the agent uses a real LLM; the
+    agent's `_token_process` is only the legacy fallback and stays zero in that
+    case. Prefer the LLM summary, matching Crew.calculate_usage_metrics.
+    """
+    llm = getattr(agent, "llm", None)
+    getter = getattr(llm, "get_token_usage_summary", None)
+    if callable(getter):
+        return getter()
+    token_process = getattr(agent, "_token_process", None)
+    return token_process.get_summary() if token_process is not None else None
+
+
 def _sum_costs(per_agent: list[AgentUsage]) -> float | None:
     known = [a.cost_usd for a in per_agent if a.cost_usd is not None]
     return round(sum(known), 6) if known else None
@@ -53,13 +69,12 @@ def _collect_run_usage(
 ) -> RunUsage:
     per_agent: list[AgentUsage] = []
     for agent in crew.agents:
-        token_process = getattr(agent, "_token_process", None)
-        if token_process is None:
-            continue
         try:
-            summary = token_process.get_summary()
+            summary = _agent_usage_summary(agent)
         except Exception:
             logger.exception("Failed to read token usage for an agent in run %s", run_id)
+            continue
+        if summary is None:
             continue
         model = _agent_model(agent)
         per_agent.append(
