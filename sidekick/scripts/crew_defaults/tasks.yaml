@@ -101,6 +101,11 @@ memory_extraction_task:
     - goal: short-term targets the athlete mentioned or demonstrated
 
     Only create memories for patterns with at least 2 data points. A single day is not a pattern.
+
+    Do not store computed multi-day TSS aggregates (e.g. "210 TSS over 48 hours") as durable
+    facts in memory content — these totals are re-derived from tool data at analysis time and
+    are a frequent source of error. Store per-day values instead (e.g. "June 27: 88.7 TSS,
+    June 28: 110.4 TSS"). Rolling sums will be recomputed correctly from the timeline.
   expected_output: |
     A JSON object with three fields:
     - new_memories: list of new memory drafts (may be empty)
