@@ -275,7 +275,14 @@ function RunDetail({ run }: { run: PromptLogRunSummary }) {
 
   return (
     <div className="space-y-3 p-3">
-      {run.usage && <UsageSummary usage={run.usage} />}
+      {run.usage ? (
+        <UsageSummary usage={run.usage} />
+      ) : (
+        <div className="rounded-lg border bg-muted/30 px-4 py-2.5 text-sm text-muted-foreground">
+          Token usage &amp; cost not recorded for this run (only runs from after this
+          feature shipped have usage data).
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">
         {data.length} calls across {groups.length} agent/task steps, in chronological order —
         each section is one agent working on one task; expand a step to see its messages, response,
