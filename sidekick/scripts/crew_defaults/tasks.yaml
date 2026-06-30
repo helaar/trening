@@ -63,6 +63,13 @@ memory_consolidation_task:
 
     Be conservative with promotions. A pattern needs consistent evidence over several weeks
     before earning long_term scope.
+
+    6. Audit memory content for fabricated numeric claims: if a memory states a computed
+       aggregate (e.g. a multi-day cumulative TSS total, a rolling average) that cannot be
+       verified against the daily analysis data in the window, remove or correct that specific
+       claim. Replace multi-day TSS totals with the underlying per-day values where possible.
+       Deactivate a memory entirely if its core claim is a fabricated or unverifiable figure
+       with no correctable restatement — do not preserve memories built on bad arithmetic.
   expected_output: |
     A JSON object with four fields:
     - updates: list of memory updates (may be empty)
