@@ -22,10 +22,38 @@ from services.task_processor import TaskProcessor
 _LOGGING_CONFIG_PATH = Path(__file__).resolve().parent.parent / "logging.yaml"
 
 
+def _prune_unwritable_file_handlers(config: dict) -> list[str]:
+    """Create parent dirs for file handlers; drop any whose file can't be written.
+
+    A missing or unwritable log directory must not stop the service from starting,
+    so an unusable file handler is removed (and references to it pruned) and logging
+    degrades to the remaining handlers. Returns the dropped handler names.
+    """
+    handlers = config.get("handlers", {})
+    dropped: list[str] = []
+    for name, handler in list(handlers.items()):
+        filename = handler.get("filename")
+        if not filename:
+            continue
+        try:
+            Path(filename).parent.mkdir(parents=True, exist_ok=True)
+            with open(filename, "a", encoding="utf-8"):
+                pass
+        except OSError:
+            dropped.append(name)
+            handlers.pop(name)
+    if dropped:
+        targets = [config.get("root", {})] + list(config.get("loggers", {}).values())
+        for target in targets:
+            if target.get("handlers"):
+                target["handlers"] = [h for h in target["handlers"] if h not in dropped]
+    return dropped
+
+
 def _configure_logging() -> None:
     try:
         with open(_LOGGING_CONFIG_PATH) as f:
-            logging.config.dictConfig(yaml.safe_load(f))
+            config = yaml.safe_load(f)
     except FileNotFoundError:
         logging.basicConfig(
             level=settings.log_level,
@@ -34,6 +62,14 @@ def _configure_logging() -> None:
         )
         logging.getLogger(__name__).warning(
             "logging.yaml not found at %s; using basic stdout config", _LOGGING_CONFIG_PATH
+        )
+        return
+
+    dropped = _prune_unwritable_file_handlers(config)
+    logging.config.dictConfig(config)
+    if dropped:
+        logging.getLogger(__name__).warning(
+            "Disabled unwritable log handler(s) %s; logging to console only", dropped
         )
 
 

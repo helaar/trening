@@ -18,10 +18,20 @@ handlers:
     class: logging.StreamHandler
     formatter: standard
     stream: ext://sys.stdout
+  # Persistent, grep-friendly log file. The parent directory is created at
+  # startup; if it cannot be written, this handler is dropped and logging falls
+  # back to console only (see main.py) so the service still starts.
+  file:
+    class: logging.handlers.RotatingFileHandler
+    formatter: standard
+    filename: /var/log/sidekick/backend.log
+    maxBytes: 10485760   # 10 MB per file
+    backupCount: 5       # keep backend.log.1 .. backend.log.5
+    encoding: utf-8
 
 root:
   level: INFO
-  handlers: [console]
+  handlers: [console, file]
 
 loggers:
   # ── Application areas (package names; flip to DEBUG to trace one area) ──
@@ -37,15 +47,15 @@ loggers:
   # ── Web server (own handler so uvicorn's defaults don't double-log) ──
   uvicorn:
     level: INFO
-    handlers: [console]
+    handlers: [console, file]
     propagate: false
   uvicorn.error:
     level: INFO
-    handlers: [console]
+    handlers: [console, file]
     propagate: false
   uvicorn.access:
     level: WARNING
-    handlers: [console]
+    handlers: [console, file]
     propagate: false
 
   # ── Noisy dependencies, quieted to keep application logs readable ──
