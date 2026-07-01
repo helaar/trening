@@ -128,18 +128,13 @@ def _session_start_date(analysis: dict[str, Any]) -> str | None:
 
 
 def _is_power_classifiable(analysis: dict[str, Any]) -> bool:
-    """A session counts toward polarization only if it is a genuine power session.
+    """Classifiable if the session has power-zone data.
 
-    Commutes and ERG sessions are excluded (their intensity is not the athlete's own
-    pacing choice); so are sessions without power-zone data.
+    ERG, virtual, and commute rides are all real training load and are included: the
+    athlete must not be able to hide a gray-zone effort by labelling it a commute, and
+    trainer-set (ERG) power still represents genuine time at intensity. Only sessions
+    without power-zone data are left unclassified.
     """
-    session = analysis.get("session", {})
-    commute = session.get("commute", "no")
-    if isinstance(commute, str) and commute.startswith("yes"):
-        return False
-    erg = analysis.get("erg_analysis")
-    if isinstance(erg, dict) and erg.get("is_erg_workout"):
-        return False
     power_zones = ((analysis.get("zones") or {}).get("power_zones") or {}).get("zones")
     return bool(power_zones)
 
