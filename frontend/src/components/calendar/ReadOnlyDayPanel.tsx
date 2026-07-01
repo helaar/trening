@@ -108,6 +108,7 @@ export function ReadOnlyDayPanel({ athleteId, selectedDate }: ReadOnlyDayPanelPr
               workout_analysis: analysis.workout_analysis,
               restitution_analysis: analysis.restitution_analysis,
               coaching_feedback: analysis.coaching_feedback,
+              weekly_philosophy_assessment: analysis.weekly_philosophy_assessment,
             }}
             analyzedAt={analysis.analyzed_at}
           />

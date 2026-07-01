@@ -524,6 +524,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               workout_analysis: storedAnalysis.workout_analysis,
               restitution_analysis: storedAnalysis.restitution_analysis,
               coaching_feedback: storedAnalysis.coaching_feedback,
+              weekly_philosophy_assessment: storedAnalysis.weekly_philosophy_assessment,
             }}
             analyzedAt={storedAnalysis.analyzed_at}
           />
