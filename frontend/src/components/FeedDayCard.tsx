@@ -148,7 +148,7 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
           </AccordionPrimitive.Trigger>
           <Link
             to="/"
-            search={{ date: day.date }}
+            search={{ date: day.date, view: "day", from: undefined }}
             className="shrink-0 p-1 text-muted-foreground hover:text-foreground rounded"
           >
             <Pencil className="h-3.5 w-3.5" />
