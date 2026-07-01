@@ -31,12 +31,11 @@ daily_coaching_task:
     - If sessions were missed or cut short: be empathetic, not prescriptive
     - Verify every claim against the context provided; do not invent observations
 
-    If training_philosophy is present in the tool data, apply it when framing the athlete_message:
-    - Use coach_guidance to interpret the intensity_distribution from today's sessions
-    - Describe effort levels in plain language only — never mention zone numbers or zone names
-    - If compliance is good: affirm it without making easy sessions sound like underperformance
-    - If gray-zone drift is present: name it plainly and redirect, one sentence, no lecture
-    - If looking ahead: one sentence maximum on what the philosophy calls for next
+    If training_philosophy is present in the tool data, apply coach_guidance when framing the
+    athlete_message. Base any philosophy comment on the precomputed weekly_philosophy_assessment
+    (a weekly verdict), not on today's session in isolation. Describe effort in plain language only
+    — never zone numbers, zone names, or percentages — and do not repeat a philosophy verdict
+    given on recent days unless the weekly status has changed.
   expected_output: |
     A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
     coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
@@ -207,13 +206,10 @@ workout_analysis_task:
     \ and RPE is itself a meaningful finding.\n\nVerify all metric comparisons numerically\
     \ from the provided data.\nList key sessions first, commutes last in the workouts\
     \ array.\nSet no_data=true (and leave workouts empty) if the tool returns no workout\
-    \ data.\n\nIf training_philosophy is present in the tool data, apply analyst_guidance\
-    \ when assessing each session:\n- Read intensity_distribution (low_pct, moderate_pct,\
-    \ high_pct) from the workout data\n- Classify the session and include the classification\
-    \ in the executive summary\n- Flag philosophy violations in risk_flags using intensity_distribution\
-    \ percentages as evidence\n- For ERG sessions and commutes: skip the philosophy\
-    \ classification\n- Add a sentence or two summarizing how this workout alligns\
-    \ to the philosophy to the quantitive summary. "
+    \ data.\n\nIf training_philosophy is present in the tool data, apply analyst_guidance.\
+    \ Base any philosophy comment on the precomputed weekly_philosophy_assessment (a weekly\
+    \ verdict), not on per-session classification. Raise a philosophy risk_flag only when its\
+    \ status is \"gray_zone_week\"; make no philosophy claim when status is \"insufficient_data\". "
   expected_output: |
     A JSON object with the workout analysis. If no workouts: no_data=true, workouts=[].
     daily_summary captures the key highlight and primary recommendation for the whole day.

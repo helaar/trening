@@ -2,43 +2,39 @@ polarized_80_20:
   display_name: Polarized (80/20)
   intensity_targets: low ≥80%, moderate <5%, high ~20%
   coach_guidance: |-
-    The athlete trains polarized: easy days should be genuinely easy, hard days genuinely hard.
-    The gray zone (moderate intensity) is the enemy — it accumulates fatigue without driving
-    the adaptations of true high-intensity work.
+    The athlete trains polarized (80/20): most training genuinely easy, a meaningful slice
+    genuinely hard, and the moderate "gray zone" kept small. Judge this over the WEEK, not a
+    single session — one moderate ride is not a problem; a week that drifts into the gray zone is.
 
-    Use intensity_distribution and the analyst's classification to frame your message:
+    A precomputed `weekly_philosophy_assessment` is provided in the tool data. Use it directly —
+    do not recompute anything. Fields:
+    - status: "polarized" | "mild_drift" | "gray_zone_week" | "insufficient_data"
+    - description: a plain-language summary you may paraphrase
+    - low_pct / moderate_pct / high_pct, effective_gray_zone_min, weekly_tss, window
 
-    - If the session was "low": affirm the discipline explicitly. Do not treat easy days as
-      underperforming — they are the foundation. Say something like "that's exactly the kind of
-      session this philosophy is built on."
+    Frame the athlete_message from status:
+    - "polarized": affirm briefly that the week's balance is on track. Never make easy days sound
+      like underperformance — they are the foundation.
+    - "mild_drift": a light, non-scolding nudge that moderate time is starting to creep up.
+    - "gray_zone_week": name it plainly, once — moderate intensity has accumulated across the week,
+      costing recovery without the benefit of true hard work. Point at the week, not one workout.
+      Be matter-of-fact, not scolding.
+    - "insufficient_data": say nothing about polarization this week.
 
-    - If the session was "high": acknowledge the quality of the effort. If the analyst noted it
-      was sharp and controlled, reinforce that. If it ran long near threshold, gently note it
-      drifted toward the middle.
-
-    - If the session was "gray-zone drift": name it plainly in plain language — no zone numbers.
-      Something like: "your effort sat in that in-between range — harder than easy but not hard
-      enough to drive real gains, and it costs more recovery than it's worth." Be matter-of-fact,
-      not scolding. One drifted session is fine; a pattern is worth addressing directly.
-
-    - Never praise a moderate-intensity effort as "solid" or "strong" if it represents gray-zone
-      drift. Do not use "tempo" as a positive descriptor.
-
-    - When looking ahead: if gray-zone drift has appeared, remind the athlete of the polarized
-      principle briefly — one sentence maximum.
+    Never mention zones, percentages, or the word "assessment" — speak in plain effort terms. Do
+    NOT repeat a philosophy verdict you gave on recent days unless the weekly status has changed;
+    if the memory bank shows you already made the point, stay quiet.
   analyst_guidance: |-
-    The athlete follows a polarized training model. Classify each session using intensity_distribution:
-    - "low" if low_pct ≥ 85%
-    - "high" if high_pct ≥ 15% and moderate_pct < 10%
-    - "gray-zone drift" if moderate_pct > 10%
-    - "mixed" otherwise
+    The athlete follows a polarized model, judged over the WEEK. A precomputed
+    `weekly_philosophy_assessment` is provided (status, description, low_pct/moderate_pct/high_pct,
+    effective_gray_zone_min, window). Use it as the basis for any philosophy comment — do not
+    classify individual sessions or recompute percentages.
 
-    Include the classification in the executive summary for every non-commute session.
+    - In daily_summary you may note, in one sentence, how the week is tracking against the polarized
+      target, drawing on the assessment's status/description.
+    - Raise a philosophy risk_flag only when status is "gray_zone_week" (a genuine weekly pattern),
+      never for a single moderate session.
+    - When status is "insufficient_data", make no philosophy claim.
 
-    Flag gray-zone drift in risk_flags. A single drifted session is informational; two or more in the
-    same week warrants an explicit flag. Do not flag moderate_pct up to 5% — some drift during
-    transitions and warm-downs is normal.
-
-    For high-intensity sessions: note whether the effort was sharp and controlled (IF well above
-    threshold, short duration) or if the athlete prolonged time near threshold without going clearly
-    above it — the latter is also gray-zone drift in disguise.
+    All power sessions count toward the week — including ERG, virtual, and commute rides; strength
+    and non-endurance sessions are excluded automatically, so do not single them out.
