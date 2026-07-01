@@ -301,24 +301,35 @@ def _weekly_philosophy_assessment(
     result.update(low_pct=low_pct, moderate_pct=mod_pct, high_pct=high_pct)
     result["data_sufficiency"] = "sparse" if session_count < 3 else "ok"
 
-    if mod_pct > settings.polarized_gray_zone_week_pct:
-        result["status"] = "gray_zone_week"
-        result["description"] = (
-            f"Gray-zone drift is accumulating: {mod_pct:.0f}% of this week's classified "
-            f"training sat in the moderate range, well above the small share a polarized "
-            f"week targets ({low_pct:.0f}% easy, {high_pct:.0f}% hard)."
-        )
-    elif mod_pct >= settings.polarized_mild_drift_pct:
+    # 80/20 cares about easy volume: moderate is only a problem when it eats into easy.
+    # Judge on rounded shares so the verdict matches the percentages shown to the athlete.
+    low_i = round(low_pct)
+    mod_i = round(mod_pct)
+    target = settings.polarized_low_target_pct
+
+    if low_i >= target or mod_i <= settings.polarized_min_moderate_pct:
+        result["status"] = "polarized"
+        if low_i >= target:
+            result["description"] = (
+                f"Easy volume is on target at {low_pct:.0f}% this week "
+                f"({high_pct:.0f}% hard, {mod_pct:.0f}% moderate) — well polarized."
+            )
+        else:
+            result["description"] = (
+                f"Easy volume is a little below target at {low_pct:.0f}% this week, but not "
+                f"from gray-zone drift (only {mod_pct:.0f}% moderate)."
+            )
+    elif low_i >= settings.polarized_gray_zone_low_pct:
         result["status"] = "mild_drift"
         result["description"] = (
-            f"Mostly polarized with some drift this week: {low_pct:.0f}% easy, "
-            f"{mod_pct:.0f}% moderate, {high_pct:.0f}% hard."
+            f"Some gray-zone drift: easy has slipped to {low_pct:.0f}% (target "
+            f"≥{target:.0f}%), with {mod_pct:.0f}% of the week in the moderate range."
         )
     else:
-        result["status"] = "polarized"
+        result["status"] = "gray_zone_week"
         result["description"] = (
-            f"Well polarized this week: {low_pct:.0f}% easy and {high_pct:.0f}% hard, "
-            f"with moderate held to {mod_pct:.0f}%."
+            f"Gray-zone drift is eating into easy volume: only {low_pct:.0f}% easy this week "
+            f"(target ≥{target:.0f}%), with {mod_pct:.0f}% in the moderate range."
         )
     return result
 
