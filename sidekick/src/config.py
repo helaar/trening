@@ -42,11 +42,11 @@ class Settings(BaseSettings):
     power_histogram_bucket_watts: float = 5.0
 
     # Polarized (80/20) weekly assessment tunables — deterministic verdict thresholds.
-    # gray-zone (Z3) time only counts as drift when it sits above this fraction of the
-    # zone (0.5 = upper half) and is sustained at least this many minutes; time hugging
-    # the low border is tolerated.
-    polarized_gray_zone_depth_frac: float = 0.5
-    polarized_min_drift_minutes: float = 3.0
+    # Within the gray zone (Z3), only time in the upper part of the zone counts as drift;
+    # time in the lower `depth_frac` of the zone is treated as effectively easy
+    # (0.25 = tolerate the lower quarter). The weekly cutoffs below decide the verdict, so
+    # small amounts of drift never trip it and no minimum-duration knob is needed.
+    polarized_gray_zone_depth_frac: float = 0.25
     # Weekly status cutoffs, applied to effective (post-tolerance) intensity shares.
     polarized_low_target_pct: float = 80.0  # low_pct >= this supports "polarized"
     polarized_mild_drift_pct: float = 5.0  # effective moderate 5-10% -> mild_drift

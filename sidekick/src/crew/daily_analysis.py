@@ -127,60 +127,64 @@ def _session_start_date(analysis: dict[str, Any]) -> str | None:
     return start_time.date().isoformat() if hasattr(start_time, "date") else str(start_time)[:10]
 
 
-def _is_power_classifiable(analysis: dict[str, Any]) -> bool:
-    """Classifiable if the session has power-zone data.
-
-    ERG, virtual, and commute rides are all real training load and are included: the
-    athlete must not be able to hide a gray-zone effort by labelling it a commute, and
-    trainer-set (ERG) power still represents genuine time at intensity. Only sessions
-    without power-zone data are left unclassified.
-    """
-    power_zones = ((analysis.get("zones") or {}).get("power_zones") or {}).get("zones")
-    return bool(power_zones)
+# Activities eligible for the HR-fallback path. Cross-country skiing maps to the
+# "skiing" category; alpine skiing falls to "other" and is excluded. The power path is
+# NOT sport-gated (a power meter already implies an endurance effort), so MTB/gravel/etc.
+# still classify — this list only guards the HR path against low-HR strength volume.
+_ENDURANCE_CATEGORIES = {"cycling", "running", "skiing"}
+_ENDURANCE_OTHER_SPORTS = {"swim", "walk", "hike", "rowing"}
 
 
-def _coarse_session_bands(power_zones: list[dict[str, Any]]) -> dict[str, Any]:
+def _is_endurance_sport(analysis: dict[str, Any]) -> bool:
+    """True for endurance activities eligible for HR-based classification."""
+    session = analysis.get("session", {})
+    category = session.get("category")
+    if category in _ENDURANCE_CATEGORIES:
+        return True
+    if category == "other":
+        return (session.get("sport") or "").lower() in _ENDURANCE_OTHER_SPORTS
+    return False
+
+
+def _usable_power_zones(analysis: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Power zones if there is a resolvable gray zone (>=3 zones with a Z3 lower edge)."""
+    zones = ((analysis.get("zones") or {}).get("power_zones") or {}).get("zones") or []
+    if len(zones) >= 3 and zones[2].get("lower") is not None:
+        return zones
+    return None
+
+
+def _coarse_bands(zones: list[dict[str, Any]], basis: str) -> dict[str, Any]:
     """Low/moderate/high minutes from raw zone seconds (Z1-2 / Z3 / Z4+), no tolerance."""
-    low_s = sum((z.get("seconds") or 0) for z in power_zones[:2])
-    mod_s = power_zones[2].get("seconds") or 0
-    high_s = sum((z.get("seconds") or 0) for z in power_zones[3:])
+    low_s = sum((z.get("seconds") or 0) for z in zones[:2])
+    mod_s = zones[2].get("seconds") or 0
+    high_s = sum((z.get("seconds") or 0) for z in zones[3:])
     return {
         "low": low_s / 60,
         "moderate": mod_s / 60,
         "high": high_s / 60,
         "effective_gray_zone": mod_s / 60,
-        "basis": "power-zones",
+        "basis": basis,
     }
 
 
-def _polarized_session_bands(
-    analysis: dict[str, Any], depth_frac: float, min_drift_min: float
-) -> dict[str, Any] | None:
-    """Per-session low/moderate/high minutes for the polarized model.
+def _power_session_bands(
+    power_zones: list[dict[str, Any]], histogram: Any, depth_frac: float
+) -> dict[str, Any]:
+    """Low/moderate/high minutes from the power histogram with a graduated gray zone.
 
-    When the fine power histogram is present, gray-zone (Z3) time is graduated: only time
-    above ``depth_frac`` into the zone, sustained at least ``min_drift_min`` minutes, counts
-    as drift; time hugging the low border (or brief excursions) is treated as effectively
-    easy. Without a histogram, falls back to coarse zone seconds. Returns None if the session
-    is not power-classifiable.
+    Only Z3 time in the upper part of the zone (above ``depth_frac`` of the way in) counts
+    as drift; time in the lower part is treated as effectively easy. Without a usable
+    histogram, falls back to coarse zone seconds (all Z3 counts as moderate).
     """
-    if not _is_power_classifiable(analysis):
-        return None
-    power_zones = ((analysis.get("zones") or {}).get("power_zones") or {}).get("zones") or []
-    if len(power_zones) < 3:
-        return None
-    z3 = power_zones[2]
-    z3_lower = z3.get("lower")
-    z3_upper = z3.get("upper")  # None if Z3 is the open-ended top zone (unusual)
-    if z3_lower is None:
-        return None
-
-    histogram = analysis.get("power_histogram")
     seconds = histogram.get("seconds") if isinstance(histogram, dict) else None
     bucket_width = histogram.get("bucket_width") if isinstance(histogram, dict) else None
     if not seconds or not bucket_width or bucket_width <= 0:
-        return _coarse_session_bands(power_zones)
+        return _coarse_bands(power_zones, "power-zones")
 
+    z3 = power_zones[2]
+    z3_lower = z3.get("lower")
+    z3_upper = z3.get("upper")  # None if Z3 is the open-ended top zone (unusual)
     min_watts = histogram.get("min_watts") or 0.0
     zone_span = (z3_upper - z3_lower) if z3_upper is not None else 0.0
     depth_watts = z3_lower + depth_frac * zone_span
@@ -199,10 +203,6 @@ def _polarized_session_bands(
         else:
             mod_tolerated_s += sec
 
-    # Brief drift (below the minimum sustained duration) is tolerated as easy.
-    if mod_drift_s / 60 < min_drift_min:
-        low_s += mod_drift_s
-        mod_drift_s = 0.0
     # Border-hugging (lower-Z3) time is effectively easy.
     low_s += mod_tolerated_s
 
@@ -228,7 +228,6 @@ def _weekly_philosophy_assessment(
     start = end - timedelta(days=6)
     start_iso, end_iso = start.isoformat(), end.isoformat()
     depth_frac = settings.polarized_gray_zone_depth_frac
-    min_drift_min = settings.polarized_min_drift_minutes
 
     low = mod = high = eff_gray = unclassified_min = weekly_tss = 0.0
     tss_seen = False
@@ -239,12 +238,28 @@ def _weekly_philosophy_assessment(
         d = _session_start_date(analysis)
         if not d or not (start_iso <= d <= end_iso):
             continue
+        if analysis.get("session", {}).get("category") == "strength":
+            continue  # strength is not endurance training; ignore entirely
+        power_zones = _usable_power_zones(analysis)
+        # Power implies an endurance effort; otherwise require an endurance sport so a
+        # low-HR non-endurance session cannot inflate easy volume.
+        if power_zones is None and not _is_endurance_sport(analysis):
+            continue
+
         days.add(d)
         tss = analysis.get("metrics", {}).get("training_stress_score")
         if tss is not None:
             weekly_tss += tss
             tss_seen = True
-        bands = _polarized_session_bands(analysis, depth_frac, min_drift_min)
+
+        if power_zones is not None:
+            bands = _power_session_bands(power_zones, analysis.get("power_histogram"), depth_frac)
+        else:
+            hr_zones = ((analysis.get("zones") or {}).get("heart_rate_zones") or {}).get(
+                "zones"
+            ) or []
+            bands = _coarse_bands(hr_zones, "hr-zones") if len(hr_zones) >= 3 else None
+
         if bands is None:
             unclassified_min += (analysis.get("session", {}).get("duration_sec") or 0) / 60
             continue
@@ -276,7 +291,7 @@ def _weekly_philosophy_assessment(
         or len(days) < settings.polarized_min_training_days
     ):
         result["description"] = (
-            "Not enough classified power training this week to judge polarization."
+            "Not enough classified endurance training this week to judge polarization."
         )
         return result
 
