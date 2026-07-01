@@ -7,9 +7,9 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
 
-from crewai import Agent, Crew, Task
+from crewai import LLM, Agent, Crew, Task
 from crewai.tools import BaseTool
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from config import settings
 from crew.prompt_logging import capture_prompt_log, drain_prompt_log
@@ -237,7 +237,9 @@ def _build_timeline(
     # figure directly instead of summing per-day values itself (a frequent
     # source of arithmetic errors and fabricated totals). Rest/no-training
     # days contribute 0. Null if the window extends before the data range.
-    daily_tss = [entry["training"]["total_tss"] if entry["training"] else None for entry in timeline]
+    daily_tss = [
+        entry["training"]["total_tss"] if entry["training"] else None for entry in timeline
+    ]
     for i, entry in enumerate(timeline):
         for window in (2, 3):
             if i - window + 1 < 0:
@@ -492,7 +494,8 @@ def _normalize_llm(model: str) -> str:
 
 
 def _make_agent(agent_def: AgentDoc, tools: list, default_llm: str) -> Agent:
-    llm = _normalize_llm(agent_def.llm_model or default_llm)
+    model = _normalize_llm(agent_def.llm_model or default_llm)
+    llm = LLM(model=model, max_tokens=settings.llm_max_tokens)
     return Agent(
         role=agent_def.role,
         goal=agent_def.goal,
@@ -520,6 +523,25 @@ def _make_task(
         async_execution=async_execution,
         output_pydantic=output_pydantic,
     )
+
+
+def _parse_memory_extraction(raw: str) -> MemoryExtractionOutput | None:
+    """Best-effort parse of the memory extractor's raw output.
+
+    Returns None (logged) on any failure — memory extraction is non-essential and must
+    never discard the completed daily analysis (issue #54).
+    """
+    try:
+        return MemoryExtractionOutput.model_validate_json(raw)
+    except ValidationError:
+        start, end = raw.find("{"), raw.rfind("}")
+        if 0 <= start < end:
+            try:
+                return MemoryExtractionOutput.model_validate_json(raw[start : end + 1])
+            except ValidationError:
+                pass
+    logger.warning("memory_extraction_task output not parseable, raw=%r", raw[:200])
+    return None
 
 
 def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
@@ -721,7 +743,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         },
         agent=memory_extractor,
         context=[coaching_task],
-        output_pydantic=MemoryExtractionOutput,
+        output_pydantic=None,  # parsed tolerantly post-kickoff so truncation can't abort the crew
     )
 
     crew = Crew(
@@ -750,9 +772,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
             t1.pydantic if isinstance(t1.pydantic, RestitutionAnalysisOutput) else None
         )
         coaching_output = t2.pydantic if isinstance(t2.pydantic, CoachingOutput) else None
-        memory_extraction_output = (
-            t3.pydantic if isinstance(t3.pydantic, MemoryExtractionOutput) else None
-        )
+        memory_extraction_output = _parse_memory_extraction(t3.raw)
         if workout_output is None:
             logger.warning("workout_analysis_task pydantic output missing, raw=%r", t0.raw[:200])
         if restitution_output is None:
@@ -761,8 +781,6 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
             )
         if coaching_output is None:
             logger.warning("daily_coaching_task pydantic output missing, raw=%r", t2.raw[:200])
-        if memory_extraction_output is None:
-            logger.warning("memory_extraction_task pydantic output missing, raw=%r", t3.raw[:200])
     else:
         logger.warning("Unexpected tasks_output length: %d", len(result.tasks_output or []))
 

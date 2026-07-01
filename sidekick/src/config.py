@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     openai_api_key: str = ""
     llm_model: str = "anthropic/claude-haiku-4-5-20251001"
+    llm_max_tokens: int = 8192  # Output cap; prevents truncated structured (JSON) outputs
 
     # Memory consolidation — ISO 8601 duration; set PT0S to disable the guard
     consolidation_min_age: str = "P1W"
@@ -41,21 +42,21 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
-    
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse CORS origins into a list."""
         if self.cors_origins == "*":
             return ["*"]
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
-    
+
     @property
     def cors_methods_list(self) -> list[str]:
         """Parse CORS methods into a list."""
         if self.cors_allow_methods == "*":
             return ["*"]
         return [method.strip() for method in self.cors_allow_methods.split(",") if method.strip()]
-    
+
     @property
     def cors_headers_list(self) -> list[str]:
         """Parse CORS headers into a list."""
