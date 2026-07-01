@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from config import settings as app_settings
 from analysis.engine import analyze_workout
 from analysis.models import WorkoutAnalysis
 from clients.strava.client import StravaClient, StravaActivity, StravaDataParser
@@ -246,7 +247,10 @@ class WorkoutAnalysisService:
             parser.commute_status = "no"
         
         # Run analysis with athlete settings directly
-        analysis = analyze_workout(parser, settings)
+        analysis = analyze_workout(
+            parser, settings,
+            histogram_bucket_watts=app_settings.power_histogram_bucket_watts,
+        )
         analysis.activity_id = activity_id
 
         # Cache the analysis results with current settings hash for reference

@@ -37,6 +37,24 @@ class Settings(BaseSettings):
     # Memory consolidation — ISO 8601 duration; set PT0S to disable the guard
     consolidation_min_age: str = "P1W"
 
+    # Per-session power histogram bucket width (watts). FTP-agnostic; the weekly
+    # polarized assessment derives intensity bands from these buckets.
+    power_histogram_bucket_watts: float = 5.0
+
+    # Polarized (80/20) weekly assessment tunables — deterministic verdict thresholds.
+    # gray-zone (Z3) time only counts as drift when it sits above this fraction of the
+    # zone (0.5 = upper half) and is sustained at least this many minutes; time hugging
+    # the low border is tolerated.
+    polarized_gray_zone_depth_frac: float = 0.5
+    polarized_min_drift_minutes: float = 3.0
+    # Weekly status cutoffs, applied to effective (post-tolerance) intensity shares.
+    polarized_low_target_pct: float = 80.0  # low_pct >= this supports "polarized"
+    polarized_mild_drift_pct: float = 5.0  # effective moderate 5-10% -> mild_drift
+    polarized_gray_zone_week_pct: float = 10.0  # effective moderate > 10% -> gray_zone_week
+    # Sufficiency floor: below either and the week is "insufficient_data".
+    polarized_min_classified_minutes: float = 60.0
+    polarized_min_training_days: int = 2
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

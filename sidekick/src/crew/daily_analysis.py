@@ -36,6 +36,10 @@ logger = logging.getLogger(__name__)
 
 _RESTITUTION_WINDOW_DAYS = 14
 
+# The deterministic weekly assessment is specific to this philosophy; other
+# philosophies get no weekly classification.
+_POLARIZED_SLUG = "polarized_80_20"
+
 
 @dataclass
 class DailyAnalysisInput:
@@ -113,6 +117,200 @@ def _compute_intensity_distribution(analysis: dict[str, Any]) -> dict[str, Any]:
             return {**dist, "basis": "hr"}
 
     return {"low_pct": None, "moderate_pct": None, "high_pct": None, "basis": "unavailable"}
+
+
+def _session_start_date(analysis: dict[str, Any]) -> str | None:
+    """YYYY-MM-DD of a session's start_time (datetime or string), or None."""
+    start_time = analysis.get("session", {}).get("start_time")
+    if not start_time:
+        return None
+    return start_time.date().isoformat() if hasattr(start_time, "date") else str(start_time)[:10]
+
+
+def _is_power_classifiable(analysis: dict[str, Any]) -> bool:
+    """A session counts toward polarization only if it is a genuine power session.
+
+    Commutes and ERG sessions are excluded (their intensity is not the athlete's own
+    pacing choice); so are sessions without power-zone data.
+    """
+    session = analysis.get("session", {})
+    commute = session.get("commute", "no")
+    if isinstance(commute, str) and commute.startswith("yes"):
+        return False
+    erg = analysis.get("erg_analysis")
+    if isinstance(erg, dict) and erg.get("is_erg_workout"):
+        return False
+    power_zones = ((analysis.get("zones") or {}).get("power_zones") or {}).get("zones")
+    return bool(power_zones)
+
+
+def _coarse_session_bands(power_zones: list[dict[str, Any]]) -> dict[str, Any]:
+    """Low/moderate/high minutes from raw zone seconds (Z1-2 / Z3 / Z4+), no tolerance."""
+    low_s = sum((z.get("seconds") or 0) for z in power_zones[:2])
+    mod_s = power_zones[2].get("seconds") or 0
+    high_s = sum((z.get("seconds") or 0) for z in power_zones[3:])
+    return {
+        "low": low_s / 60,
+        "moderate": mod_s / 60,
+        "high": high_s / 60,
+        "effective_gray_zone": mod_s / 60,
+        "basis": "power-zones",
+    }
+
+
+def _polarized_session_bands(
+    analysis: dict[str, Any], depth_frac: float, min_drift_min: float
+) -> dict[str, Any] | None:
+    """Per-session low/moderate/high minutes for the polarized model.
+
+    When the fine power histogram is present, gray-zone (Z3) time is graduated: only time
+    above ``depth_frac`` into the zone, sustained at least ``min_drift_min`` minutes, counts
+    as drift; time hugging the low border (or brief excursions) is treated as effectively
+    easy. Without a histogram, falls back to coarse zone seconds. Returns None if the session
+    is not power-classifiable.
+    """
+    if not _is_power_classifiable(analysis):
+        return None
+    power_zones = ((analysis.get("zones") or {}).get("power_zones") or {}).get("zones") or []
+    if len(power_zones) < 3:
+        return None
+    z3 = power_zones[2]
+    z3_lower = z3.get("lower")
+    z3_upper = z3.get("upper")  # None if Z3 is the open-ended top zone (unusual)
+    if z3_lower is None:
+        return None
+
+    histogram = analysis.get("power_histogram")
+    seconds = histogram.get("seconds") if isinstance(histogram, dict) else None
+    bucket_width = histogram.get("bucket_width") if isinstance(histogram, dict) else None
+    if not seconds or not bucket_width or bucket_width <= 0:
+        return _coarse_session_bands(power_zones)
+
+    min_watts = histogram.get("min_watts") or 0.0
+    zone_span = (z3_upper - z3_lower) if z3_upper is not None else 0.0
+    depth_watts = z3_lower + depth_frac * zone_span
+
+    low_s = mod_tolerated_s = mod_drift_s = high_s = 0.0
+    for i, sec in enumerate(seconds):
+        if not sec:
+            continue
+        center = min_watts + (i + 0.5) * bucket_width
+        if center < z3_lower:
+            low_s += sec
+        elif z3_upper is not None and center >= z3_upper:
+            high_s += sec
+        elif center >= depth_watts:
+            mod_drift_s += sec
+        else:
+            mod_tolerated_s += sec
+
+    # Brief drift (below the minimum sustained duration) is tolerated as easy.
+    if mod_drift_s / 60 < min_drift_min:
+        low_s += mod_drift_s
+        mod_drift_s = 0.0
+    # Border-hugging (lower-Z3) time is effectively easy.
+    low_s += mod_tolerated_s
+
+    return {
+        "low": low_s / 60,
+        "moderate": mod_drift_s / 60,
+        "high": high_s / 60,
+        "effective_gray_zone": mod_drift_s / 60,
+        "basis": "power-histogram",
+    }
+
+
+def _weekly_philosophy_assessment(
+    recent_analyses: list[dict[str, Any]], end_date: str
+) -> dict[str, Any]:
+    """Deterministic polarized verdict over the trailing 7 days ending on end_date.
+
+    Aggregates per-session bands (with graduated gray-zone tolerance) into a weekly
+    distribution and a status + plain-language description the coach can paraphrase. All
+    thresholds are config tunables so the verdict can be adjusted without code changes.
+    """
+    end = date.fromisoformat(end_date)
+    start = end - timedelta(days=6)
+    start_iso, end_iso = start.isoformat(), end.isoformat()
+    depth_frac = settings.polarized_gray_zone_depth_frac
+    min_drift_min = settings.polarized_min_drift_minutes
+
+    low = mod = high = eff_gray = unclassified_min = weekly_tss = 0.0
+    tss_seen = False
+    session_count = 0
+    days: set[str] = set()
+
+    for analysis in recent_analyses:
+        d = _session_start_date(analysis)
+        if not d or not (start_iso <= d <= end_iso):
+            continue
+        days.add(d)
+        tss = analysis.get("metrics", {}).get("training_stress_score")
+        if tss is not None:
+            weekly_tss += tss
+            tss_seen = True
+        bands = _polarized_session_bands(analysis, depth_frac, min_drift_min)
+        if bands is None:
+            unclassified_min += (analysis.get("session", {}).get("duration_sec") or 0) / 60
+            continue
+        low += bands["low"]
+        mod += bands["moderate"]
+        high += bands["high"]
+        eff_gray += bands["effective_gray_zone"]
+        session_count += 1
+
+    classified = low + mod + high
+    result: dict[str, Any] = {
+        "window": f"{start_iso}..{end_iso}",
+        "status": "insufficient_data",
+        "description": "",
+        "low_pct": None,
+        "moderate_pct": None,
+        "high_pct": None,
+        "effective_gray_zone_min": round(eff_gray, 1),
+        "classified_minutes": round(classified, 1),
+        "unclassified_minutes": round(unclassified_min, 1),
+        "days_with_training": len(days),
+        "session_count": session_count,
+        "weekly_tss": round(weekly_tss, 1) if tss_seen else None,
+        "data_sufficiency": "insufficient",
+    }
+
+    if (
+        classified < settings.polarized_min_classified_minutes
+        or len(days) < settings.polarized_min_training_days
+    ):
+        result["description"] = (
+            "Not enough classified power training this week to judge polarization."
+        )
+        return result
+
+    low_pct = round(low / classified * 100, 1)
+    mod_pct = round(mod / classified * 100, 1)
+    high_pct = round(high / classified * 100, 1)
+    result.update(low_pct=low_pct, moderate_pct=mod_pct, high_pct=high_pct)
+    result["data_sufficiency"] = "sparse" if session_count < 3 else "ok"
+
+    if mod_pct > settings.polarized_gray_zone_week_pct:
+        result["status"] = "gray_zone_week"
+        result["description"] = (
+            f"Gray-zone drift is accumulating: {mod_pct:.0f}% of this week's classified "
+            f"training sat in the moderate range, well above the small share a polarized "
+            f"week targets ({low_pct:.0f}% easy, {high_pct:.0f}% hard)."
+        )
+    elif mod_pct >= settings.polarized_mild_drift_pct:
+        result["status"] = "mild_drift"
+        result["description"] = (
+            f"Mostly polarized with some drift this week: {low_pct:.0f}% easy, "
+            f"{mod_pct:.0f}% moderate, {high_pct:.0f}% hard."
+        )
+    else:
+        result["status"] = "polarized"
+        result["description"] = (
+            f"Well polarized this week: {low_pct:.0f}% easy and {high_pct:.0f}% hard, "
+            f"with moderate held to {mod_pct:.0f}%."
+        )
+    return result
 
 
 def _athlete_settings_summary(athlete: Athlete) -> dict[str, Any]:
@@ -255,7 +453,10 @@ class _WorkoutDataTool(BaseTool):
     name: str = "get_workout_data"
     description: str = (
         "Retrieve workout analyses and athlete threshold/zone settings for today. "
-        "Returns JSON with 'athlete_settings' and 'workouts' keys. Call this first."
+        "Returns JSON with 'athlete_settings' and 'workouts' keys, plus "
+        "'training_philosophy' and a precomputed 'weekly_philosophy_assessment' "
+        "(status/description + weekly intensity distribution) when a philosophy is set. "
+        "Call this first."
     )
     _payload: str = ""
 
@@ -274,7 +475,9 @@ class _PlansDataTool(BaseTool):
     name: str = "get_plans_data"
     description: str = (
         "Retrieve today's planned activities and athlete settings. "
-        "Returns JSON with 'planned_activities' and 'athlete_settings' keys."
+        "Returns JSON with 'planned_activities' and 'athlete_settings' keys, plus "
+        "'training_philosophy' and a precomputed 'weekly_philosophy_assessment' "
+        "(status/description + weekly intensity distribution) when a philosophy is set."
     )
     _payload: str = ""
 
@@ -592,6 +795,12 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
 
     philosophy = _philosophy_payload(input.philosophy)
 
+    # Deterministic weekly polarization verdict (polarized philosophy only), computed
+    # from the 14-day recent analyses; the LLM presents it rather than recomputing it.
+    weekly_assessment = None
+    if input.philosophy and input.philosophy.name == _POLARIZED_SLUG:
+        weekly_assessment = _weekly_philosophy_assessment(input.recent_workout_analyses, input.date)
+
     athlete_tz = input.athlete.settings.timezone
     workout_payload_data: dict[str, Any] = {
         "athlete_settings": athlete_settings,
@@ -599,6 +808,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         workout_payload_data["training_philosophy"] = philosophy
+    if weekly_assessment:
+        workout_payload_data["weekly_philosophy_assessment"] = weekly_assessment
     workout_payload = json.dumps(
         convert_datetimes_in_obj(workout_payload_data, athlete_tz), default=str
     )
@@ -609,6 +820,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         plans_payload_data["training_philosophy"] = philosophy
+    if weekly_assessment:
+        plans_payload_data["weekly_philosophy_assessment"] = weekly_assessment
     plans_payload = json.dumps(plans_payload_data, default=str)
 
     def _race_entry(activity: PlannedActivity) -> dict[str, Any]:

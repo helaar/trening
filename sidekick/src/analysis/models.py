@@ -103,9 +103,23 @@ class ZoneDistribution(BaseModel):
 
 class ZoneAnalysis(BaseModel):
     """Time spent in different power and heart rate zones."""
-    
+
     power_zones: ZoneDistribution | None = None
     heart_rate_zones: ZoneDistribution | None = None
+
+
+class PowerHistogram(BaseModel):
+    """Fine-grained, FTP-agnostic distribution of time across fixed power buckets.
+
+    Bucket i covers watts [min_watts + i*bucket_width, min_watts + (i+1)*bucket_width)
+    and holds seconds[i] seconds. Lets any intensity band be derived by summing buckets,
+    including sub-zone resolution the coarse power zones cannot express.
+    """
+
+    bucket_width: float  # watts per bucket
+    min_watts: float = 0.0  # lower edge of the first bucket
+    seconds: list[float] = Field(default_factory=list)  # time per bucket, ascending
+    total_seconds: float = 0.0
 
 
 class HeartRateDrift(BaseModel):
@@ -199,6 +213,7 @@ class WorkoutAnalysis(BaseModel):
     activity_id: int | None = None  # Strava activity ID, set when loaded via API
     analysis_timestamp: datetime = Field(default_factory=datetime.now)
     zones: ZoneAnalysis | None = None
+    power_histogram: PowerHistogram | None = None
     
     # Detailed analysis
     laps: list[LapAnalysis] = Field(default_factory=list)
