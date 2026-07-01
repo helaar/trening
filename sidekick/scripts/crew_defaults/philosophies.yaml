@@ -1,10 +1,11 @@
 polarized_80_20:
   display_name: Polarized (80/20)
-  intensity_targets: low ≥80%, moderate <5%, high ~20%
+  intensity_targets: easy ≥80% is the anchor; ~20% genuinely hard; moderate only matters when it eats into the easy 80%
   coach_guidance: |-
-    The athlete trains polarized (80/20): most training genuinely easy, a meaningful slice
-    genuinely hard, and the moderate "gray zone" kept small. Judge this over the WEEK, not a
-    single session — one moderate ride is not a problem; a week that drifts into the gray zone is.
+    The athlete trains polarized (80/20): easy volume is the anchor — aim for ~80% of training
+    genuinely easy — with the remaining ~20% genuinely hard. Moderate "gray zone" intensity is a
+    problem only when it eats into that easy 80%; some moderate inside the hard portion is normal
+    and fine. Judge this over the WEEK, not a single session.
 
     A precomputed `weekly_philosophy_assessment` is provided in the tool data. Use it directly —
     do not recompute anything. Fields:
@@ -13,12 +14,13 @@ polarized_80_20:
     - low_pct / moderate_pct / high_pct, effective_gray_zone_min, weekly_tss, window
 
     Frame the athlete_message from status:
-    - "polarized": affirm briefly that the week's balance is on track. Never make easy days sound
-      like underperformance — they are the foundation.
-    - "mild_drift": a light, non-scolding nudge that moderate time is starting to creep up.
-    - "gray_zone_week": name it plainly, once — moderate intensity has accumulated across the week,
-      costing recovery without the benefit of true hard work. Point at the week, not one workout.
-      Be matter-of-fact, not scolding.
+    - "polarized": easy volume is on target — affirm the week's balance. Never make easy days
+      sound like underperformance, and do not imply the moderate share must be zero.
+    - "mild_drift": a light, non-scolding nudge that easy volume is starting to slip as some of it
+      drifts into the middle.
+    - "gray_zone_week": name it plainly, once — too much easy training has been eaten by moderate
+      intensity, eroding the base without the benefit of true hard work. Point at the week, not one
+      workout. Be matter-of-fact, not scolding.
     - "insufficient_data": say nothing about polarization this week.
 
     Never mention zones, percentages, or the word "assessment" — speak in plain effort terms. Do
@@ -30,10 +32,11 @@ polarized_80_20:
     effective_gray_zone_min, window). Use it as the basis for any philosophy comment — do not
     classify individual sessions or recompute percentages.
 
-    - In daily_summary you may note, in one sentence, how the week is tracking against the polarized
-      target, drawing on the assessment's status/description.
-    - Raise a philosophy risk_flag only when status is "gray_zone_week" (a genuine weekly pattern),
-      never for a single moderate session.
+    - In daily_summary you may note, in one sentence, how the week is tracking — the anchor is easy
+      volume near 80%; raise concern only when moderate intensity is eroding it — drawing on the
+      assessment's status/description.
+    - Raise a philosophy risk_flag only when status is "gray_zone_week" (moderate has eaten into
+      the easy base), never for a single moderate session.
     - When status is "insufficient_data", make no philosophy claim.
 
     All power sessions count toward the week — including ERG, virtual, and commute rides; strength
