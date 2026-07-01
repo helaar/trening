@@ -12,7 +12,7 @@ from clients.strava.client import StravaDataParser, StravaActivity
 from models.athlete import AthleteSettings
 from analysis.models import (
     ZoneInfo, WorkoutAnalysis, SessionInfo, WorkoutMetrics, StatsSummary, ZoneAnalysis,
-    ZoneDistribution, HeartRateDrift, LapAnalysis, ERGAnalysis
+    ZoneDistribution, HeartRateDrift, LapAnalysis, ERGAnalysis, PowerHistogram
 )
 
 from analysis.calculations import (
@@ -291,7 +291,35 @@ def _compute_zone_analysis(df: pd.DataFrame, settings: AnalysisSettings,
     return zones
 
 
-def _compute_heart_rate_drift_analysis(df: pd.DataFrame, drift_start: float | None, 
+def _compute_power_histogram(power_series: pd.Series, sample_interval: float,
+                             bucket_width: float) -> PowerHistogram | None:
+    """Bucket the raw power stream into fixed-width watt bins, valued in seconds.
+
+    FTP-agnostic: a pure property of the ride. Buckets ascend from 0 W in steps of
+    bucket_width; bucket i holds the time spent at [i*bucket_width, (i+1)*bucket_width).
+    """
+    if bucket_width <= 0:
+        return None
+    valid = power_series.dropna()
+    valid = valid[valid >= 0]
+    if valid.empty:
+        return None
+
+    bucket_index = (valid // bucket_width).astype(int)
+    counts = bucket_index.value_counts()
+    seconds = [0.0] * (int(bucket_index.max()) + 1)
+    for idx, count in counts.items():
+        seconds[int(idx)] = float(count) * sample_interval
+
+    return PowerHistogram(
+        bucket_width=float(bucket_width),
+        min_watts=0.0,
+        seconds=seconds,
+        total_seconds=float(sum(seconds)),
+    )
+
+
+def _compute_heart_rate_drift_analysis(df: pd.DataFrame, drift_start: float | None,
                                       drift_duration: float | None, has_power: bool, has_hr: bool) -> HeartRateDrift | None:
     """Compute heart rate drift analysis."""
     if not has_power or not has_hr:
@@ -433,7 +461,8 @@ def _compute_erg_analysis(lap_analyses: list[LapAnalysis], parser: StravaDataPar
 
 def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: AthleteSettings | None,
                             window: int = 30, drift_start: float | None = None,
-                            drift_duration: float | None = None, force_autolap: bool = False) -> WorkoutAnalysis:
+                            drift_duration: float | None = None, force_autolap: bool = False,
+                            histogram_bucket_watts: float = 5.0) -> WorkoutAnalysis:
     """
     Analyze endurance workout data and return structured analysis results.
     
@@ -507,7 +536,13 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     
     # Compute zone analysis (single pass)
     zones = _compute_zone_analysis(df, analysis_settings, sample_interval, has_power, has_hr)
-    
+
+    # Fine-grained power histogram (FTP-agnostic) for sub-zone intensity analysis
+    power_histogram = (
+        _compute_power_histogram(df["power"], sample_interval, histogram_bucket_watts)
+        if has_power else None
+    )
+
     # Compute heart rate drift (single computation)
     hr_drift = _compute_heart_rate_drift_analysis(df, drift_start, drift_duration, has_power, has_hr)
     
@@ -528,6 +563,7 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
         session=session,
         metrics=metrics,
         zones=zones,
+        power_histogram=power_histogram,
         laps=lap_analyses,
         heart_rate_drift=hr_drift,
         erg_analysis=erg_analysis,
@@ -628,7 +664,8 @@ def analyze_strength_workout(parser: StravaDataParser, athlete_settings: Athlete
 
 def analyze_workout(parser: StravaDataParser, athlete_settings: AthleteSettings | None,
                    window: int = 30, drift_start: float | None = None,
-                   drift_duration: float | None = None, force_autolap: bool = False) -> WorkoutAnalysis:
+                   drift_duration: float | None = None, force_autolap: bool = False,
+                   histogram_bucket_watts: float = 5.0) -> WorkoutAnalysis:
     """
     Main dispatcher function for workout analysis.
     
@@ -647,9 +684,9 @@ def analyze_workout(parser: StravaDataParser, athlete_settings: AthleteSettings 
     """
     match parser.workout.category:
         case "running" | "cycling" | "skiing":
-            return analyze_endurance_workout(parser, athlete_settings, window, drift_start, drift_duration, force_autolap)
+            return analyze_endurance_workout(parser, athlete_settings, window, drift_start, drift_duration, force_autolap, histogram_bucket_watts)
         case "strength":
             return analyze_strength_workout(parser, athlete_settings)
         case _:
             # Default to endurance analysis for unknown categories
-            return analyze_endurance_workout(parser, athlete_settings, window, drift_start, drift_duration, force_autolap)
+            return analyze_endurance_workout(parser, athlete_settings, window, drift_start, drift_duration, force_autolap, histogram_bucket_watts)
