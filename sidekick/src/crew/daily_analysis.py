@@ -1011,6 +1011,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         "workout_analysis": workout_output,
         "restitution_analysis": restitution_output,
         "coaching_feedback": coaching_output,
+        "weekly_philosophy_assessment": weekly_assessment,
         "memory_extraction": memory_extraction_output,
         "prompt_log_entries": prompt_log_entries,
         "run_usage": run_usage,

@@ -67,12 +67,35 @@ export interface RestitutionAnalysis {
   coach_recommendations: string[]
 }
 
+export type WeeklyPhilosophyStatus =
+  | "polarized"
+  | "mild_drift"
+  | "gray_zone_week"
+  | "insufficient_data"
+
+export interface WeeklyAssessment {
+  window: string
+  status: WeeklyPhilosophyStatus
+  description: string
+  low_pct: number | null
+  moderate_pct: number | null
+  high_pct: number | null
+  effective_gray_zone_min: number
+  classified_minutes: number
+  unclassified_minutes: number
+  days_with_training: number
+  session_count: number
+  weekly_tss: number | null
+  data_sufficiency: "ok" | "sparse" | "insufficient"
+}
+
 export interface StoredAnalysis {
   athlete_id: number
   date: string
   workout_analysis: WorkoutAnalysis | null
   restitution_analysis: RestitutionAnalysis | null
   coaching_feedback: CoachingFeedback | null
+  weekly_philosophy_assessment: WeeklyAssessment | null
   analyzed_at: string
 }
 

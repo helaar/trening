@@ -8,7 +8,9 @@ import type {
   WorkoutOutput,
   RestitutionAnalysis,
   RiskFlag,
+  WeeklyAssessment,
 } from "../api/tasks"
+import { WeeklyIntensityBar } from "./WeeklyIntensityBar"
 
 interface Props {
   status: TaskStatus
@@ -159,6 +161,7 @@ export function AnalysisPanel({ status, progress, result, error, analyzedAt }: P
   const coachingFeedback = result?.coaching_feedback as CoachingFeedback | null | undefined
   const workoutAnalysis = result?.workout_analysis as WorkoutAnalysis | null | undefined
   const restitutionAnalysis = result?.restitution_analysis as RestitutionAnalysis | null | undefined
+  const weeklyAssessment = result?.weekly_philosophy_assessment as WeeklyAssessment | null | undefined
 
   const coachingText = coachingFeedback?.athlete_message
   const hasWorkout = workoutAnalysis && !workoutAnalysis.no_data
@@ -196,6 +199,7 @@ export function AnalysisPanel({ status, progress, result, error, analyzedAt }: P
 
         {status === "completed" && (
           <div className="space-y-2">
+            {weeklyAssessment && <WeeklyIntensityBar a={weeklyAssessment} />}
             {coachingText && (
               <Section title="Coaching Feedback" defaultOpen={true}>
                 <p className="leading-relaxed whitespace-pre-wrap">{coachingText}</p>
@@ -214,7 +218,7 @@ export function AnalysisPanel({ status, progress, result, error, analyzedAt }: P
                 <RecoveryContent r={restitutionAnalysis} />
               </Section>
             )}
-            {!coachingText && !hasWorkout && !hasRestitution && (
+            {!coachingText && !hasWorkout && !hasRestitution && !weeklyAssessment && (
               <p className="text-sm text-gray-500">No analysis output returned.</p>
             )}
           </div>
