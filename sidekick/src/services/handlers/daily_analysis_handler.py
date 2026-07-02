@@ -149,6 +149,7 @@ class DailyAnalysisHandler(TaskHandler):
             workout_analysis=crew_result["workout_analysis"],
             restitution_analysis=crew_result["restitution_analysis"],
             coaching_feedback=crew_result["coaching_feedback"],
+            weekly_philosophy_assessment=crew_result.get("weekly_philosophy_assessment"),
         )
         await self.daily_analysis_repo.upsert(stored)
         logger.info("Stored daily analysis result for athlete %s on %s", athlete_id, date_str)
@@ -161,6 +162,7 @@ class DailyAnalysisHandler(TaskHandler):
             "workout_analysis": stored.workout_analysis.model_dump() if stored.workout_analysis else None,
             "restitution_analysis": stored.restitution_analysis.model_dump() if stored.restitution_analysis else None,
             "coaching_feedback": stored.coaching_feedback.model_dump() if stored.coaching_feedback else None,
+            "weekly_philosophy_assessment": stored.weekly_philosophy_assessment,
             "completed_at": stored.analyzed_at.isoformat(),
         }
 

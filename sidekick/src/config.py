@@ -47,10 +47,13 @@ class Settings(BaseSettings):
     # (0.25 = tolerate the lower quarter). The weekly cutoffs below decide the verdict, so
     # small amounts of drift never trip it and no minimum-duration knob is needed.
     polarized_gray_zone_depth_frac: float = 0.25
-    # Weekly status cutoffs, applied to effective (post-tolerance) intensity shares.
-    polarized_low_target_pct: float = 80.0  # low_pct >= this supports "polarized"
-    polarized_mild_drift_pct: float = 5.0  # effective moderate 5-10% -> mild_drift
-    polarized_gray_zone_week_pct: float = 10.0  # effective moderate > 10% -> gray_zone_week
+    # Weekly status cutoffs. The verdict keys on whether easy volume holds its target:
+    # gray-zone time only matters when it eats into easy. Easy at/above target (or with
+    # negligible moderate) reads as polarized; below target with moderate present is drift,
+    # graded by how far easy has slipped.
+    polarized_low_target_pct: float = 80.0  # easy >= this -> polarized
+    polarized_gray_zone_low_pct: float = 75.0  # easy below this (w/ moderate) -> gray_zone_week
+    polarized_min_moderate_pct: float = 5.0  # moderate <= this -> easy dip not blamed on gray zone
     # Sufficiency floor: below either and the week is "insufficient_data".
     polarized_min_classified_minutes: float = 60.0
     polarized_min_training_days: int = 2
