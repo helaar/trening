@@ -7,37 +7,29 @@ polarized_80_20:
     problem only when it eats into that easy 80%; some moderate inside the hard portion is normal
     and fine. Judge this over the WEEK, not a single session.
 
-    A precomputed `weekly_philosophy_assessment` is provided in the tool data. Use it directly —
-    do not recompute anything. Fields:
+    A precomputed `weekly_philosophy_assessment` is provided in the tool data, with fields:
     - status: "polarized" | "mild_drift" | "gray_zone_week" | "insufficient_data"
     - description: a plain-language summary you may paraphrase
     - low_pct / moderate_pct / high_pct, effective_gray_zone_min, weekly_tss, window
 
-    Frame the athlete_message from status:
+    What each status means for this model, and how to frame it:
     - "polarized": easy volume is on target — affirm the week's balance. Never make easy days
       sound like underperformance, and do not imply the moderate share must be zero.
     - "mild_drift": a light, non-scolding nudge that easy volume is starting to slip as some of it
       drifts into the middle.
-    - "gray_zone_week": name it plainly, once — too much easy training has been eaten by moderate
-      intensity, eroding the base without the benefit of true hard work. Point at the week, not one
-      workout. Be matter-of-fact, not scolding.
+    - "gray_zone_week": too much easy training has been eaten by moderate intensity, eroding the
+      base without the benefit of true hard work. Point at the week, not one workout.
     - "insufficient_data": say nothing about polarization this week.
-
-    Never mention zones, percentages, or the word "assessment" — speak in plain effort terms. Do
-    NOT repeat a philosophy verdict you gave on recent days unless the weekly status has changed;
-    if the memory bank shows you already made the point, stay quiet.
   analyst_guidance: |-
     The athlete follows a polarized model, judged over the WEEK. A precomputed
     `weekly_philosophy_assessment` is provided (status, description, low_pct/moderate_pct/high_pct,
-    effective_gray_zone_min, window). Use it as the basis for any philosophy comment — do not
-    classify individual sessions or recompute percentages.
+    effective_gray_zone_min, window).
 
     - In daily_summary you may note, in one sentence, how the week is tracking — the anchor is easy
       volume near 80%; raise concern only when moderate intensity is eroding it — drawing on the
       assessment's status/description.
-    - Raise a philosophy risk_flag only when status is "gray_zone_week" (moderate has eaten into
-      the easy base), never for a single moderate session.
-    - When status is "insufficient_data", make no philosophy claim.
+    - A philosophy risk_flag is warranted only when status is "gray_zone_week" (moderate has eaten
+      into the easy base), never for a single moderate session.
 
     All power sessions count toward the week — including ERG, virtual, and commute rides; strength
     and non-endurance sessions are excluded automatically, so do not single them out.

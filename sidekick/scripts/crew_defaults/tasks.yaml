@@ -31,11 +31,13 @@ daily_coaching_task:
     - If sessions were missed or cut short: be empathetic, not prescriptive
     - Verify every claim against the context provided; do not invent observations
 
-    If training_philosophy is present in the tool data, apply coach_guidance when framing the
-    athlete_message. Base any philosophy comment on the precomputed weekly_philosophy_assessment
-    (a weekly verdict), not on today's session in isolation. Describe effort in plain language only
-    — never zone numbers, zone names, or percentages — and do not repeat a philosophy verdict
-    given on recent days unless the weekly status has changed.
+    If training_philosophy is present in the tool data, apply its coach_guidance when framing the
+    athlete_message — it defines what this athlete's model means and how to frame each status.
+    Base any philosophy comment solely on the precomputed weekly_philosophy_assessment (a weekly
+    verdict), never on today's session in isolation, and do not recompute or reclassify anything
+    yourself. Describe effort in plain language only — never zone numbers, zone names,
+    percentages, or the word "assessment" — and do not repeat a philosophy verdict given on
+    recent days unless the weekly status has changed (check the memory bank first).
   expected_output: |
     A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
     coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
@@ -206,10 +208,12 @@ workout_analysis_task:
     \ and RPE is itself a meaningful finding.\n\nVerify all metric comparisons numerically\
     \ from the provided data.\nList key sessions first, commutes last in the workouts\
     \ array.\nSet no_data=true (and leave workouts empty) if the tool returns no workout\
-    \ data.\n\nIf training_philosophy is present in the tool data, apply analyst_guidance.\
-    \ Base any philosophy comment on the precomputed weekly_philosophy_assessment (a weekly\
-    \ verdict), not on per-session classification. Raise a philosophy risk_flag only when its\
-    \ status is \"gray_zone_week\"; make no philosophy claim when status is \"insufficient_data\". "
+    \ data.\n\nIf training_philosophy is present in the tool data, apply its analyst_guidance —\
+    \ it defines what this athlete's model means and which statuses warrant a flag. Base any\
+    \ philosophy comment solely on the precomputed weekly_philosophy_assessment (a weekly verdict),\
+    \ never on per-session classification, and do not recompute or reclassify anything yourself.\
+    \ Raise a philosophy risk_flag only when analyst_guidance calls for one given the current\
+    \ status, and make no philosophy claim at all when the assessment reflects insufficient data. "
   expected_output: |
     A JSON object with the workout analysis. If no workouts: no_data=true, workouts=[].
     daily_summary captures the key highlight and primary recommendation for the whole day.
