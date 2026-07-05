@@ -172,8 +172,8 @@ restitution_analysis_task:
     dates involved rather than computing a new sum.
   expected_output: |
     A JSON object with the recovery analysis. recovery_baseline captures the athlete's typical
-    metrics computed from the window. trend_analysis and load_recovery_correlation should be
-    as detailed as the data supports — do not truncate important observations.
+    metrics computed from the window. trend_analysis and load_recovery_correlation must each be
+    concise (max 100 words) and focus on the most significant multi-day patterns.
     overall_recovery_quality must be one of: "good", "adequate", "concerning".
     risk_flags contains only genuine multi-day patterns; empty list if none.
 workout_analysis_task:

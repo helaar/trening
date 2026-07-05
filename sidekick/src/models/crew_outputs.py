@@ -115,7 +115,7 @@ class RestitutionAnalysisOutput(BaseModel):
         description=(
             "Direction and magnitude of HRV, resting HR, sleep (hours and quality), and readiness "
             "across the analysis period. Focus on multi-day patterns, not daily noise. "
-            "Be as detailed as the data supports."
+            "Max 100 words."
         )
     )
     load_recovery_correlation: str = Field(
@@ -124,7 +124,7 @@ class RestitutionAnalysisOutput(BaseModel):
             "Apply the 1-day temporal lag: HRV and resting HR on day N reflect training from day N-1. "
             "Distinguish acute fatigue (short spikes, recover within 1-2 days) from chronic "
             "accumulation (sustained suppression across multiple days). "
-            "Be as detailed as the data supports."
+            "Max 100 words."
         )
     )
     risk_flags: list[RiskFlag] = Field(
