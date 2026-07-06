@@ -319,6 +319,37 @@ def _day_over_day_note(today: dict[str, Any], dropped: dict[str, Any]) -> str:
     return note
 
 
+def _window_composition(
+    recent_analyses: list[dict[str, Any]], end_date: str, depth_frac: float
+) -> list[dict[str, Any]]:
+    """Per-day bands for each trained day in the current 7-day window, coach-prompt only.
+
+    Includes ``days_until_rolls_off`` (1 = rolls off tomorrow, 7 = today) so the coach can
+    explain drift that's a rolling-window artifact — e.g. an easy day about to age out will
+    pull the mix toward moderate/hard with no behavior change — rather than reasoning about
+    today's session in isolation. Deliberately not part of _weekly_philosophy_assessment's
+    return value: it's only meant to seed the coach's prompt, not to be persisted/returned.
+    """
+    end = date.fromisoformat(end_date)
+    start = end - timedelta(days=6)
+    days: list[dict[str, Any]] = []
+    d = start
+    while d <= end:
+        bands = _day_bands(recent_analyses, d.isoformat(), depth_frac)
+        if bands["trained"]:
+            days.append(
+                {
+                    "date": bands["date"],
+                    "days_until_rolls_off": (d - end).days + 7,
+                    "low_min": bands["low_min"],
+                    "moderate_min": bands["moderate_min"],
+                    "high_min": bands["high_min"],
+                }
+            )
+        d += timedelta(days=1)
+    return days
+
+
 def _weekly_philosophy_assessment(
     recent_analyses: list[dict[str, Any]], end_date: str
 ) -> dict[str, Any]:
@@ -941,12 +972,20 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
     # The coach additionally writes philosophy_statement, which is specifically about
     # today's session, so its copy keeps `today` (but not the deterministic
-    # day_over_day_note text, so it writes its own sentence rather than paraphrasing it).
+    # day_over_day_note text, so it writes its own sentence rather than paraphrasing it),
+    # plus window_days so it can explain drift that's a rolling-window artifact and advise
+    # the athlete ahead of specific days aging out.
     weekly_assessment_for_coach = (
         {k: v for k, v in weekly_assessment.items() if k != "day_over_day_note"}
         if weekly_assessment
         else None
     )
+    if weekly_assessment_for_coach:
+        window_days = _window_composition(
+            input.recent_workout_analyses, input.date, settings.polarized_gray_zone_depth_frac
+        )
+        if window_days:
+            weekly_assessment_for_coach["window_days"] = window_days
 
     athlete_tz = input.athlete.settings.timezone
     workout_payload_data: dict[str, Any] = {

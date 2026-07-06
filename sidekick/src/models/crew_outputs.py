@@ -252,10 +252,15 @@ class CoachingOutput(BaseModel):
         description=(
             "Athlete-facing, 1-2 sentences: how TODAY's training (or rest) relates to the "
             "week's already-established polarization verdict — e.g. reinforced it, offset "
-            "recent drift, or barely changed it. Same tone rules as athlete_message. Do NOT "
-            "recompute or restate the weekly percentages/status yourself, and never use zone "
-            "numbers, zone names, or percentages — reference the precomputed verdict and "
-            "today's training only in plain language. Null when no training_philosophy is "
-            "active or the weekly assessment status is insufficient_data."
+            "recent drift, or barely changed it. Use window_days (days still inside the "
+            "rolling 7-day window, with days_until_rolls_off) to explain when the status is "
+            "driven by the window mechanism itself rather than a behavior change, and when "
+            "status is mild_drift or gray_zone_week end with one concrete, actionable "
+            "suggestion for the next 1-2 days grounded only in the provided data. Same tone "
+            "rules as athlete_message. Do NOT recompute or restate the weekly percentages/"
+            "status yourself, and never use zone numbers, zone names, or percentages — "
+            "reference the precomputed verdict and today's training only in plain language. "
+            "Null when no training_philosophy is active or the weekly assessment status is "
+            "insufficient_data."
         ),
     )
