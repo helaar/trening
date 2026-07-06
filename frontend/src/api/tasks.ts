@@ -73,6 +73,15 @@ export type WeeklyPhilosophyStatus =
   | "gray_zone_week"
   | "insufficient_data"
 
+export interface DailyIntensity {
+  date: string
+  trained: boolean
+  classified_minutes: number
+  low_pct: number | null
+  moderate_pct: number | null
+  high_pct: number | null
+}
+
 export interface WeeklyAssessment {
   window: string
   status: WeeklyPhilosophyStatus
@@ -87,6 +96,8 @@ export interface WeeklyAssessment {
   session_count: number
   weekly_tss: number | null
   data_sufficiency: "ok" | "sparse" | "insufficient"
+  today: DailyIntensity | null
+  day_over_day_note: string
 }
 
 export interface StoredAnalysis {

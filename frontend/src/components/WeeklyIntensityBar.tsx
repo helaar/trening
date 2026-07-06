@@ -1,4 +1,4 @@
-import type { WeeklyAssessment, WeeklyPhilosophyStatus } from "../api/tasks"
+import type { DailyIntensity, WeeklyAssessment, WeeklyPhilosophyStatus } from "../api/tasks"
 
 const STATUS_STYLE: Record<WeeklyPhilosophyStatus, string> = {
   polarized: "border-emerald-200 bg-emerald-50 text-emerald-800",
@@ -30,12 +30,59 @@ function StatusBadge({ status }: { status: WeeklyPhilosophyStatus }) {
   )
 }
 
+interface Segment {
+  key: string
+  label: string
+  color: string
+  pct: number
+}
+
+function IntensityBar({ segments, height = "h-4" }: { segments: Segment[]; height?: string }) {
+  return (
+    <div className={`flex ${height} w-full overflow-hidden rounded bg-gray-100`}>
+      {segments.map((s) => (
+        <div
+          key={s.key}
+          className={s.color}
+          style={{ width: `${s.pct}%` }}
+          title={`${s.label} ${s.pct.toFixed(0)}%`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function TodayIntensity({ today }: { today: DailyIntensity }) {
+  if (!today.trained || today.classified_minutes <= 0) {
+    return (
+      <div className="space-y-1">
+        <h5 className="text-xs font-medium text-gray-500">Today</h5>
+        <div className="flex h-3 w-full items-center rounded bg-gray-100 px-2 text-[10px] text-gray-400">
+          Rest day
+        </div>
+      </div>
+    )
+  }
+
+  const segments = BANDS.map((b) => ({
+    ...b,
+    pct: (today[`${b.key}_pct` as keyof DailyIntensity] as number | null) ?? 0,
+  }))
+
+  return (
+    <div className="space-y-1">
+      <h5 className="text-xs font-medium text-gray-500">Today</h5>
+      <IntensityBar segments={segments} height="h-3" />
+    </div>
+  )
+}
+
 export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
   const window = a.window.replace("..", " → ")
 
   if (a.status === "insufficient_data" || a.low_pct == null) {
     return (
-      <div className="rounded-md border bg-gray-50 px-4 py-3">
+      <div className="space-y-2 rounded-md border bg-gray-50 px-4 py-3">
         <div className="flex items-center gap-2">
           <h4 className="text-sm font-semibold text-gray-800">This week's intensity</h4>
           <StatusBadge status={a.status} />
@@ -45,6 +92,8 @@ export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
           {a.description ||
             "Not enough classified endurance training this week to judge polarization."}
         </p>
+        {a.today && <TodayIntensity today={a.today} />}
+        {a.day_over_day_note && <p className="text-xs text-gray-500">{a.day_over_day_note}</p>}
       </div>
     )
   }
@@ -66,16 +115,7 @@ export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
 
       {/* Stacked distribution bar with a marker at the 80%-easy polarized target. */}
       <div className="relative">
-        <div className="flex h-4 w-full overflow-hidden rounded bg-gray-100">
-          {segments.map((s) => (
-            <div
-              key={s.key}
-              className={s.color}
-              style={{ width: `${s.pct}%` }}
-              title={`${s.label} ${s.pct.toFixed(0)}%`}
-            />
-          ))}
-        </div>
+        <IntensityBar segments={segments} />
         <div
           className="pointer-events-none absolute inset-y-0 left-[80%] w-px bg-gray-700/70"
           title="80% easy target"
@@ -98,6 +138,11 @@ export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
 
       <p className="text-xs leading-relaxed text-gray-600">{a.description}</p>
       <p className="text-[10px] text-gray-400">Line marks the 80% easy target.</p>
+
+      {a.today && <TodayIntensity today={a.today} />}
+      {a.day_over_day_note && (
+        <p className="text-xs leading-relaxed text-gray-500">{a.day_over_day_note}</p>
+      )}
     </div>
   )
 }
