@@ -77,7 +77,13 @@ function TodayIntensity({ today }: { today: DailyIntensity }) {
   )
 }
 
-export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
+export function WeeklyIntensityBar({
+  a,
+  philosophyStatement,
+}: {
+  a: WeeklyAssessment
+  philosophyStatement?: string | null
+}) {
   const window = a.window.replace("..", " → ")
 
   if (a.status === "insufficient_data" || a.low_pct == null) {
@@ -94,6 +100,9 @@ export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
         </p>
         {a.today && <TodayIntensity today={a.today} />}
         {a.day_over_day_note && <p className="text-xs text-gray-500">{a.day_over_day_note}</p>}
+        {philosophyStatement && (
+          <p className="text-xs leading-relaxed text-gray-700">{philosophyStatement}</p>
+        )}
       </div>
     )
   }
@@ -142,6 +151,9 @@ export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
       {a.today && <TodayIntensity today={a.today} />}
       {a.day_over_day_note && (
         <p className="text-xs leading-relaxed text-gray-500">{a.day_over_day_note}</p>
+      )}
+      {philosophyStatement && (
+        <p className="text-xs leading-relaxed text-gray-700">{philosophyStatement}</p>
       )}
     </div>
   )

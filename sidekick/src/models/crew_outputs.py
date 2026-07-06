@@ -247,3 +247,15 @@ class CoachingOutput(BaseModel):
             "Verify all claims against provided context."
         )
     )
+    philosophy_statement: str | None = Field(
+        default=None,
+        description=(
+            "Athlete-facing, 1-2 sentences: how TODAY's training (or rest) relates to the "
+            "week's already-established polarization verdict — e.g. reinforced it, offset "
+            "recent drift, or barely changed it. Same tone rules as athlete_message. Do NOT "
+            "recompute or restate the weekly percentages/status yourself, and never use zone "
+            "numbers, zone names, or percentages — reference the precomputed verdict and "
+            "today's training only in plain language. Null when no training_philosophy is "
+            "active or the weekly assessment status is insufficient_data."
+        ),
+    )

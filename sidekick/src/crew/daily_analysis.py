@@ -932,10 +932,18 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     if input.philosophy and input.philosophy.name == _POLARIZED_SLUG:
         weekly_assessment = _weekly_philosophy_assessment(input.recent_workout_analyses, input.date)
 
-    # The prompt-facing copy omits today/day_over_day_note: the analyst/coach must judge
-    # polarization from the weekly verdict only, never today's session in isolation.
-    weekly_assessment_for_prompt = (
+    # The analyst must judge polarization from the weekly verdict only, never today's
+    # session in isolation, so its copy omits both today and day_over_day_note.
+    weekly_assessment_for_analyst = (
         {k: v for k, v in weekly_assessment.items() if k not in ("today", "day_over_day_note")}
+        if weekly_assessment
+        else None
+    )
+    # The coach additionally writes philosophy_statement, which is specifically about
+    # today's session, so its copy keeps `today` (but not the deterministic
+    # day_over_day_note text, so it writes its own sentence rather than paraphrasing it).
+    weekly_assessment_for_coach = (
+        {k: v for k, v in weekly_assessment.items() if k != "day_over_day_note"}
         if weekly_assessment
         else None
     )
@@ -947,8 +955,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         workout_payload_data["training_philosophy"] = philosophy
-    if weekly_assessment_for_prompt:
-        workout_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_prompt
+    if weekly_assessment_for_analyst:
+        workout_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_analyst
     workout_payload = json.dumps(
         convert_datetimes_in_obj(workout_payload_data, athlete_tz), default=str
     )
@@ -959,8 +967,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         plans_payload_data["training_philosophy"] = philosophy
-    if weekly_assessment_for_prompt:
-        plans_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_prompt
+    if weekly_assessment_for_coach:
+        plans_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_coach
     plans_payload = json.dumps(plans_payload_data, default=str)
 
     def _race_entry(activity: PlannedActivity) -> dict[str, Any]:

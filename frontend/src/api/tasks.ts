@@ -20,6 +20,7 @@ export interface CoachingFeedback {
   looking_ahead: string
   coach_notes: string
   athlete_message: string
+  philosophy_statement: string | null
 }
 
 export interface RiskFlag {

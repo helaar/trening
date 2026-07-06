@@ -199,7 +199,12 @@ export function AnalysisPanel({ status, progress, result, error, analyzedAt }: P
 
         {status === "completed" && (
           <div className="space-y-2">
-            {weeklyAssessment && <WeeklyIntensityBar a={weeklyAssessment} />}
+            {weeklyAssessment && (
+              <WeeklyIntensityBar
+                a={weeklyAssessment}
+                philosophyStatement={coachingFeedback?.philosophy_statement}
+              />
+            )}
             {coachingText && (
               <Section title="Coaching Feedback" defaultOpen={true}>
                 <p className="leading-relaxed whitespace-pre-wrap">{coachingText}</p>
