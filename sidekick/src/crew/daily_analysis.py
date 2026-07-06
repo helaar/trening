@@ -732,6 +732,12 @@ def _make_agent(agent_def: AgentDoc, tools: list, default_llm: str) -> Agent:
     )
 
 
+_JSON_OUTPUT_INSTRUCTION = (
+    "Output a single valid JSON object matching the schema exactly — no markdown code "
+    "fences, no commentary before or after, all strings properly escaped."
+)
+
+
 def _make_task(
     task_def: dict[str, Any],
     agent: Agent,
@@ -739,9 +745,12 @@ def _make_task(
     async_execution: bool = False,
     output_pydantic: type[BaseModel] | None = None,
 ) -> Task:
+    expected_output = task_def["expected_output"].strip()
+    if output_pydantic is not None:
+        expected_output = f"{expected_output}\n\n{_JSON_OUTPUT_INSTRUCTION}"
     return Task(
         description=task_def["description"].strip(),
-        expected_output=task_def["expected_output"].strip(),
+        expected_output=expected_output,
         agent=agent,
         context=context or [],
         async_execution=async_execution,
