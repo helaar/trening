@@ -17,7 +17,7 @@ from database.prompt_log_repository import PromptLogRepository
 from database.task_repository import TaskRepository
 from models.crew_definition import AgentDoc, TaskDoc
 from models.crew_outputs import MemoryConsolidationOutput
-from models.memory import Memory, MemoryScope
+from models.memory import Memory, MemoryScope, clamp_memory_content
 from models.prompt_log import PromptLogEntry, RunUsage
 from utils.datetime_utils import to_athlete_tz
 from models.task import TaskStatus, TaskType
@@ -225,7 +225,7 @@ class MemoryConsolidationHandler(TaskHandler):
             if not existing:
                 continue
             updated = existing.model_copy(update={
-                "content": update.content,
+                "content": clamp_memory_content(update.content),
                 "confidence": update.confidence,
                 "importance": update.importance,
                 "evidence_dates": update.evidence_dates,
@@ -252,7 +252,7 @@ class MemoryConsolidationHandler(TaskHandler):
                 athlete_id=athlete_id,
                 scope=MemoryScope.LONG_TERM,
                 category=draft.category,
-                content=draft.content,
+                content=clamp_memory_content(draft.content),
                 confidence=draft.confidence,
                 importance=draft.importance,
                 evidence_dates=draft.evidence_dates,

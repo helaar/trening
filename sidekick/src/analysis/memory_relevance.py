@@ -21,6 +21,13 @@ _MAX_MEMORIES = 14
 _CORE_MEMORIES = 6
 _MAX_RECOVERY_MEMORIES = 8
 
+# Guarantees the coach keeps some sense of the athlete's normal habits/performance even
+# during a sustained recovery/risk episode, where RECOVERY/RISK memories can otherwise
+# legitimately win every scored slot via the readiness:low context boost below. Excludes
+# long-term HABIT, which is already a core candidate (see _is_core_candidate).
+_MIN_DIVERSITY_SLOTS = 3
+_DIVERSITY_CATEGORIES = (MemoryCategory.HABIT, MemoryCategory.PERFORMANCE)
+
 # Category gets a full context match (1.0) in each of these situations.
 _CONTEXT_BOOSTS: dict[str, set[MemoryCategory]] = {
     "readiness:low": {MemoryCategory.RECOVERY, MemoryCategory.RISK},
@@ -104,6 +111,30 @@ def select_relevant_memories(
         reverse=True,
     )
     selected = (core + remaining)[:_MAX_MEMORIES]
+
+    # Diversity floor: if a sustained crisis has crowded HABIT/PERFORMANCE out of the
+    # non-core slots entirely, backfill from the top-scored ones not already selected,
+    # evicting the lowest-scored non-core, non-diversity selections to make room. A
+    # no-op when diversity memories already naturally make the cut.
+    selected_ids = {id(m) for m in selected}
+    diversity_selected = sum(1 for m in selected if m.category in _DIVERSITY_CATEGORIES)
+    if diversity_selected < _MIN_DIVERSITY_SLOTS:
+        needed = _MIN_DIVERSITY_SLOTS - diversity_selected
+        diversity_candidates = sorted(
+            (m for m in remaining if id(m) not in selected_ids and m.category in _DIVERSITY_CATEGORIES),
+            key=lambda m: (scored[id(m)], m.updated_at),
+            reverse=True,
+        )[:needed]
+        if diversity_candidates:
+            non_core_selected = sorted(
+                (m for m in selected if id(m) not in core_ids),
+                key=lambda m: (scored[id(m)], m.updated_at),
+            )
+            evictable = [m for m in non_core_selected if m.category not in _DIVERSITY_CATEGORIES]
+            for new_m, evict_m in zip(diversity_candidates, evictable):
+                selected.remove(evict_m)
+                selected.append(new_m)
+
     selected.sort(key=lambda m: (scored[id(m)], m.updated_at), reverse=True)
 
     return [

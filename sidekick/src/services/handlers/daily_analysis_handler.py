@@ -15,7 +15,7 @@ from database.prompt_log_repository import PromptLogRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
 from models.daily_analysis import DailyAnalysisResult
-from models.memory import Memory, MemoryScope
+from models.memory import Memory, MemoryScope, clamp_memory_content
 from services.handlers.base import TaskHandler
 
 logger = logging.getLogger(__name__)
@@ -187,7 +187,7 @@ class DailyAnalysisHandler(TaskHandler):
                 athlete_id=athlete_id,
                 scope=MemoryScope(draft.scope),
                 category=draft.category,
-                content=draft.content,
+                content=clamp_memory_content(draft.content),
                 confidence=draft.confidence,
                 importance=draft.importance,
                 evidence_dates=draft.evidence_dates,
@@ -203,7 +203,7 @@ class DailyAnalysisHandler(TaskHandler):
                 logger.warning("Memory update targets unknown memory_id=%s", update.memory_id)
                 continue
             updated = existing.model_copy(update={
-                "content": update.content,
+                "content": clamp_memory_content(update.content),
                 "confidence": update.confidence,
                 "importance": update.importance,
                 "evidence_dates": update.evidence_dates,
