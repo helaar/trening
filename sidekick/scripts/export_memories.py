@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from database.mongodb import db_manager
+from utils.datetime_utils import ensure_utc
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ async def _fetch(athlete_id: int | None) -> list[dict]:
 
 
 def _annotate(doc: dict, now: datetime) -> dict:
-    expires_at = doc.get("expires_at")
+    expires_at = ensure_utc(doc.get("expires_at"))
     doc["expired"] = bool(expires_at and expires_at < now)
     return doc
 
