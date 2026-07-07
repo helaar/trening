@@ -71,7 +71,8 @@ def _print_summary(docs: list[dict]) -> None:
             flag_str = f" [{', '.join(flags)}]" if flags else ""
             print(
                 f"  {d['scope']:10s} {d['category']:10s} "
-                f"conf={d['confidence']:.2f} imp={d['importance']:.2f}{flag_str}"
+                f"conf={d['confidence']:.2f} imp={d['importance']:.2f} "
+                f"len={len(d['content'])} id={d['memory_id']}{flag_str}"
             )
             print(f"      {d['content']}")
 
