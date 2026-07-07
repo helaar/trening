@@ -215,6 +215,77 @@ def _power_session_bands(
     }
 
 
+def _qualifies_for_polarized_classification(analysis: dict[str, Any]) -> bool:
+    """True if a session should be counted at all (not strength, has an endurance basis)."""
+    if analysis.get("session", {}).get("category") == "strength":
+        return False  # strength is not endurance training; ignore entirely
+    # Power implies an endurance effort; otherwise require an endurance sport so a
+    # low-HR non-endurance session cannot inflate easy volume.
+    return _usable_power_zones(analysis) is not None or _is_endurance_sport(analysis)
+
+
+def _classify_session(analysis: dict[str, Any], depth_frac: float) -> dict[str, float] | None:
+    """Low/moderate/high/effective_gray_zone minutes for one qualifying session.
+
+    Returns None when the session has no usable power or HR zones to classify against
+    (its duration should be counted as unclassified by the caller).
+    """
+    power_zones = _usable_power_zones(analysis)
+    if power_zones is not None:
+        return _power_session_bands(power_zones, analysis.get("power_histogram"), depth_frac)
+    hr_zones = ((analysis.get("zones") or {}).get("heart_rate_zones") or {}).get("zones") or []
+    if len(hr_zones) >= 3:
+        return _coarse_bands(hr_zones, "hr-zones")
+    return None
+
+
+def _day_bands(
+    recent_analyses: list[dict[str, Any]], day_iso: str, depth_frac: float
+) -> dict[str, Any]:
+    """Aggregate low/moderate/high minutes for a single calendar day.
+
+    ``trained`` is True as soon as a qualifying endurance session exists that day, even
+    if it couldn't be classified — distinct from ``classified_minutes == 0``.
+    """
+    low = mod = high = 0.0
+    trained = False
+    for analysis in recent_analyses:
+        if _session_start_date(analysis) != day_iso:
+            continue
+        if not _qualifies_for_polarized_classification(analysis):
+            continue
+        trained = True
+        bands = _classify_session(analysis, depth_frac)
+        if bands is None:
+            continue
+        low += bands["low"]
+        mod += bands["moderate"]
+        high += bands["high"]
+    classified = low + mod + high
+    return {
+        "date": day_iso,
+        "trained": trained,
+        "classified_minutes": round(classified, 1),
+        "low_min": round(low, 1),
+        "moderate_min": round(mod, 1),
+        "high_min": round(high, 1),
+        "low_pct": round(low / classified * 100, 1) if classified else None,
+        "moderate_pct": round(mod / classified * 100, 1) if classified else None,
+        "high_pct": round(high / classified * 100, 1) if classified else None,
+    }
+
+
+def _today_label(today: dict[str, Any]) -> str:
+    """One-word dominant-zone label for a single day, no window comparison at all."""
+    if not today["trained"]:
+        return "Rest day"
+    if today["classified_minutes"] <= 0:
+        return "Unclassified"
+    pct = {"Easy": today["low_pct"], "Moderate": today["moderate_pct"], "Hard": today["high_pct"]}
+    dominant = max(pct, key=lambda k: pct[k] or 0)
+    return f"{dominant} day"
+
+
 def _weekly_philosophy_assessment(
     recent_analyses: list[dict[str, Any]], end_date: str
 ) -> dict[str, Any]:
@@ -223,11 +294,17 @@ def _weekly_philosophy_assessment(
     Aggregates per-session bands (with graduated gray-zone tolerance) into a weekly
     distribution and a status + plain-language description the coach can paraphrase. All
     thresholds are config tunables so the verdict can be adjusted without code changes.
+
+    Also reports today's own contribution (its own low/moderate/high split and a
+    dominant-zone label), with no comparison to the rest of the window.
     """
     end = date.fromisoformat(end_date)
     start = end - timedelta(days=6)
     start_iso, end_iso = start.isoformat(), end.isoformat()
     depth_frac = settings.polarized_gray_zone_depth_frac
+
+    today_bands = _day_bands(recent_analyses, end_iso, depth_frac)
+    today_bands["label"] = _today_label(today_bands)
 
     low = mod = high = eff_gray = unclassified_min = weekly_tss = 0.0
     tss_seen = False
@@ -238,12 +315,7 @@ def _weekly_philosophy_assessment(
         d = _session_start_date(analysis)
         if not d or not (start_iso <= d <= end_iso):
             continue
-        if analysis.get("session", {}).get("category") == "strength":
-            continue  # strength is not endurance training; ignore entirely
-        power_zones = _usable_power_zones(analysis)
-        # Power implies an endurance effort; otherwise require an endurance sport so a
-        # low-HR non-endurance session cannot inflate easy volume.
-        if power_zones is None and not _is_endurance_sport(analysis):
+        if not _qualifies_for_polarized_classification(analysis):
             continue
 
         days.add(d)
@@ -252,14 +324,7 @@ def _weekly_philosophy_assessment(
             weekly_tss += tss
             tss_seen = True
 
-        if power_zones is not None:
-            bands = _power_session_bands(power_zones, analysis.get("power_histogram"), depth_frac)
-        else:
-            hr_zones = ((analysis.get("zones") or {}).get("heart_rate_zones") or {}).get(
-                "zones"
-            ) or []
-            bands = _coarse_bands(hr_zones, "hr-zones") if len(hr_zones) >= 3 else None
-
+        bands = _classify_session(analysis, depth_frac)
         if bands is None:
             unclassified_min += (analysis.get("session", {}).get("duration_sec") or 0) / 60
             continue
@@ -284,6 +349,7 @@ def _weekly_philosophy_assessment(
         "session_count": session_count,
         "weekly_tss": round(weekly_tss, 1) if tss_seen else None,
         "data_sufficiency": "insufficient",
+        "today": today_bands,
     }
 
     if (
@@ -831,6 +897,12 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     if input.philosophy and input.philosophy.name == _POLARIZED_SLUG:
         weekly_assessment = _weekly_philosophy_assessment(input.recent_workout_analyses, input.date)
 
+    # Both the analyst and coach must judge polarization from the weekly verdict only,
+    # never today's session in isolation, so the prompt-facing copy omits `today`.
+    weekly_assessment_for_prompt = (
+        {k: v for k, v in weekly_assessment.items() if k != "today"} if weekly_assessment else None
+    )
+
     athlete_tz = input.athlete.settings.timezone
     workout_payload_data: dict[str, Any] = {
         "athlete_settings": athlete_settings,
@@ -838,8 +910,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         workout_payload_data["training_philosophy"] = philosophy
-    if weekly_assessment:
-        workout_payload_data["weekly_philosophy_assessment"] = weekly_assessment
+    if weekly_assessment_for_prompt:
+        workout_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_prompt
     workout_payload = json.dumps(
         convert_datetimes_in_obj(workout_payload_data, athlete_tz), default=str
     )
@@ -850,8 +922,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         plans_payload_data["training_philosophy"] = philosophy
-    if weekly_assessment:
-        plans_payload_data["weekly_philosophy_assessment"] = weekly_assessment
+    if weekly_assessment_for_prompt:
+        plans_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_prompt
     plans_payload = json.dumps(plans_payload_data, default=str)
 
     def _race_entry(activity: PlannedActivity) -> dict[str, Any]:
