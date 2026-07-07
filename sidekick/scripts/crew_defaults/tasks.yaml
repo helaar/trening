@@ -33,38 +33,15 @@ daily_coaching_task:
 
     If training_philosophy is present in the tool data, apply its coach_guidance when framing the
     athlete_message — it defines what this athlete's model means and how to frame each status.
-    Base any philosophy comment in athlete_message solely on the precomputed
-    weekly_philosophy_assessment (a weekly verdict), never on today's session in isolation, and
-    do not recompute or reclassify anything yourself. Describe effort in plain language only —
-    never zone numbers, zone names, percentages, or the word "assessment" — and do not repeat a
-    philosophy verdict given on recent days unless the weekly status has changed (check the
-    memory bank first).
-
-    Philosophy day-note field (philosophy_statement, optional):
-    - This is the one place today's session may be discussed in relation to the philosophy — it
-      exists specifically to say how today connects to the already-computed weekly verdict.
-    - Only produce it when weekly_philosophy_assessment is present in the tool data and its
-      status is not insufficient_data; otherwise return null.
-    - Use weekly_philosophy_assessment.today (today's own low/moderate/high split) together with
-      the weekly status/description to explain briefly whether today reinforced, offset, or
-      barely affected the current drift. Do not recompute the weekly status or percentages
-      yourself — reference the precomputed verdict only.
-    - weekly_philosophy_assessment.window_days lists each trained day still inside the rolling
-      7-day window with its low/moderate/high minutes and days_until_rolls_off (1 = rolls off
-      tomorrow). When the status is driven mainly by the window mechanism itself — e.g. an easy
-      day about to age out will pull the mix toward moderate/hard with no behavior change, or a
-      harder day rolling off soon will naturally help — say so in plain conversational terms
-      rather than implying the athlete changed something.
-    - When status is mild_drift or gray_zone_week, end with one concrete, actionable suggestion
-      for the next 1-2 days (e.g. keep sessions easy, hold off on added tempo/threshold work)
-      that would help the week trend back toward target. Ground it only in the provided data —
-      never fabricate a session or a number that isn't there.
-    - 1-2 sentences, same tone and plain-language rules as athlete_message (no zone numbers, zone
-      names, or percentages).
+    Base any philosophy comment solely on the precomputed weekly_philosophy_assessment (a weekly
+    verdict), never on today's session in isolation, and do not recompute or reclassify anything
+    yourself. Describe effort in plain language only — never zone numbers, zone names,
+    percentages, or the word "assessment" — and do not repeat a philosophy verdict given on
+    recent days unless the weekly status has changed (check the memory bank first).
   expected_output: |
-    A JSON object with six fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
-    coach_notes (internal flags only, may be empty), athlete_message (casual, no formatting,
-    max 150 words), and philosophy_statement (nullable, 1-2 sentences, athlete-facing).
+    A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
+    coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
+    max 150 words).
 memory_consolidation_task:
   description: |
     Perform a full memory review for {athlete_name} covering the past {window_days} days.

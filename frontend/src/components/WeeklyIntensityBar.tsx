@@ -52,14 +52,20 @@ function IntensityBar({ segments, height = "h-4" }: { segments: Segment[]; heigh
   )
 }
 
+function TodayLabel({ label }: { label: string }) {
+  return (
+    <span className="shrink-0 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600">
+      {label}
+    </span>
+  )
+}
+
 function TodayIntensity({ today }: { today: DailyIntensity }) {
   if (!today.trained || today.classified_minutes <= 0) {
     return (
-      <div className="space-y-1">
+      <div className="flex items-center gap-2">
         <h5 className="text-xs font-medium text-gray-500">Today</h5>
-        <div className="flex h-3 w-full items-center rounded bg-gray-100 px-2 text-[10px] text-gray-400">
-          Rest day
-        </div>
+        <TodayLabel label={today.label} />
       </div>
     )
   }
@@ -71,19 +77,16 @@ function TodayIntensity({ today }: { today: DailyIntensity }) {
 
   return (
     <div className="space-y-1">
-      <h5 className="text-xs font-medium text-gray-500">Today</h5>
+      <div className="flex items-center gap-2">
+        <h5 className="text-xs font-medium text-gray-500">Today</h5>
+        <TodayLabel label={today.label} />
+      </div>
       <IntensityBar segments={segments} height="h-3" />
     </div>
   )
 }
 
-export function WeeklyIntensityBar({
-  a,
-  philosophyStatement,
-}: {
-  a: WeeklyAssessment
-  philosophyStatement?: string | null
-}) {
+export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
   const window = a.window.replace("..", " → ")
 
   if (a.status === "insufficient_data" || a.low_pct == null) {
@@ -99,10 +102,6 @@ export function WeeklyIntensityBar({
             "Not enough classified endurance training this week to judge polarization."}
         </p>
         {a.today && <TodayIntensity today={a.today} />}
-        {a.day_over_day_note && <p className="text-xs text-gray-500">{a.day_over_day_note}</p>}
-        {philosophyStatement && (
-          <p className="text-xs leading-relaxed text-gray-700">{philosophyStatement}</p>
-        )}
       </div>
     )
   }
@@ -149,12 +148,6 @@ export function WeeklyIntensityBar({
       <p className="text-[10px] text-gray-400">Line marks the 80% easy target.</p>
 
       {a.today && <TodayIntensity today={a.today} />}
-      {a.day_over_day_note && (
-        <p className="text-xs leading-relaxed text-gray-500">{a.day_over_day_note}</p>
-      )}
-      {philosophyStatement && (
-        <p className="text-xs leading-relaxed text-gray-700">{philosophyStatement}</p>
-      )}
     </div>
   )
 }

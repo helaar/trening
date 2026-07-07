@@ -20,7 +20,6 @@ export interface CoachingFeedback {
   looking_ahead: string
   coach_notes: string
   athlete_message: string
-  philosophy_statement: string | null
 }
 
 export interface RiskFlag {
@@ -81,6 +80,7 @@ export interface DailyIntensity {
   low_pct: number | null
   moderate_pct: number | null
   high_pct: number | null
+  label: string
 }
 
 export interface WeeklyAssessment {
@@ -98,7 +98,6 @@ export interface WeeklyAssessment {
   weekly_tss: number | null
   data_sufficiency: "ok" | "sparse" | "insufficient"
   today: DailyIntensity | null
-  day_over_day_note: string
 }
 
 export interface StoredAnalysis {

@@ -275,79 +275,15 @@ def _day_bands(
     }
 
 
-def _fmt_day_minutes(day: dict[str, Any]) -> str:
-    """Plain-language rundown of a day's classified minutes, e.g. '30m moderate, 45m easy'."""
-    parts = [
-        f"{day[key]:.0f}m {label}"
-        for key, label in (("high_min", "hard"), ("moderate_min", "moderate"), ("low_min", "easy"))
-        if day[key] >= 0.5
-    ]
-    if parts:
-        return ", ".join(parts)
-    return "an unclassified session" if day["trained"] else "no training"
-
-
-def _day_over_day_note(today: dict[str, Any], dropped: dict[str, Any]) -> str:
-    """Explain the day-to-day shift: today's addition vs. the day rolling out of the window.
-
-    The 7-day window is contiguous, so this week's totals minus last week's totals equal
-    today's minutes minus the dropped day's minutes for each band — an exact, cheap
-    explanation without recomputing the whole prior week.
-    """
-    if not today["trained"] and not dropped["trained"]:
-        return (
-            "No training today, and no session rolled off the 7-day window either — "
-            "the week's mix is unchanged from yesterday."
-        )
-
-    today_desc = _fmt_day_minutes(today) if today["trained"] else "no training"
-    if not dropped["trained"]:
-        return (
-            f"Today: {today_desc}. No session rolled off the 7-day window, so today's "
-            "training is the main driver of any shift."
-        )
-
-    dropped_desc = _fmt_day_minutes(dropped)
-    note = (
-        f"Today: {today_desc}. The {dropped['date']} session ({dropped_desc}) just rolled "
-        "off the 7-day window, so the week's mix reflects both changes."
-    )
-    mod_delta = today["moderate_min"] - dropped["moderate_min"]
-    if abs(mod_delta) >= 1:
-        sign = "+" if mod_delta > 0 else "-"
-        note += f" Moderate {sign}{abs(mod_delta):.0f} min this week as a result."
-    return note
-
-
-def _window_composition(
-    recent_analyses: list[dict[str, Any]], end_date: str, depth_frac: float
-) -> list[dict[str, Any]]:
-    """Per-day bands for each trained day in the current 7-day window, coach-prompt only.
-
-    Includes ``days_until_rolls_off`` (1 = rolls off tomorrow, 7 = today) so the coach can
-    explain drift that's a rolling-window artifact — e.g. an easy day about to age out will
-    pull the mix toward moderate/hard with no behavior change — rather than reasoning about
-    today's session in isolation. Deliberately not part of _weekly_philosophy_assessment's
-    return value: it's only meant to seed the coach's prompt, not to be persisted/returned.
-    """
-    end = date.fromisoformat(end_date)
-    start = end - timedelta(days=6)
-    days: list[dict[str, Any]] = []
-    d = start
-    while d <= end:
-        bands = _day_bands(recent_analyses, d.isoformat(), depth_frac)
-        if bands["trained"]:
-            days.append(
-                {
-                    "date": bands["date"],
-                    "days_until_rolls_off": (d - end).days + 7,
-                    "low_min": bands["low_min"],
-                    "moderate_min": bands["moderate_min"],
-                    "high_min": bands["high_min"],
-                }
-            )
-        d += timedelta(days=1)
-    return days
+def _today_label(today: dict[str, Any]) -> str:
+    """One-word dominant-zone label for a single day, no window comparison at all."""
+    if not today["trained"]:
+        return "Rest day"
+    if today["classified_minutes"] <= 0:
+        return "Unclassified"
+    pct = {"Easy": today["low_pct"], "Moderate": today["moderate_pct"], "Hard": today["high_pct"]}
+    dominant = max(pct, key=lambda k: pct[k] or 0)
+    return f"{dominant} day"
 
 
 def _weekly_philosophy_assessment(
@@ -359,17 +295,16 @@ def _weekly_philosophy_assessment(
     distribution and a status + plain-language description the coach can paraphrase. All
     thresholds are config tunables so the verdict can be adjusted without code changes.
 
-    Also reports today's own contribution and a day-over-day note explaining the shift
-    from yesterday's window (today's session vs. the day that rolled off 7 days back).
+    Also reports today's own contribution (its own low/moderate/high split and a
+    dominant-zone label), with no comparison to the rest of the window.
     """
     end = date.fromisoformat(end_date)
     start = end - timedelta(days=6)
     start_iso, end_iso = start.isoformat(), end.isoformat()
     depth_frac = settings.polarized_gray_zone_depth_frac
-    dropped_date = (start - timedelta(days=1)).isoformat()
 
     today_bands = _day_bands(recent_analyses, end_iso, depth_frac)
-    dropped_bands = _day_bands(recent_analyses, dropped_date, depth_frac)
+    today_bands["label"] = _today_label(today_bands)
 
     low = mod = high = eff_gray = unclassified_min = weekly_tss = 0.0
     tss_seen = False
@@ -415,7 +350,6 @@ def _weekly_philosophy_assessment(
         "weekly_tss": round(weekly_tss, 1) if tss_seen else None,
         "data_sufficiency": "insufficient",
         "today": today_bands,
-        "day_over_day_note": _day_over_day_note(today_bands, dropped_bands),
     }
 
     if (
@@ -963,29 +897,11 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     if input.philosophy and input.philosophy.name == _POLARIZED_SLUG:
         weekly_assessment = _weekly_philosophy_assessment(input.recent_workout_analyses, input.date)
 
-    # The analyst must judge polarization from the weekly verdict only, never today's
-    # session in isolation, so its copy omits both today and day_over_day_note.
-    weekly_assessment_for_analyst = (
-        {k: v for k, v in weekly_assessment.items() if k not in ("today", "day_over_day_note")}
-        if weekly_assessment
-        else None
+    # Both the analyst and coach must judge polarization from the weekly verdict only,
+    # never today's session in isolation, so the prompt-facing copy omits `today`.
+    weekly_assessment_for_prompt = (
+        {k: v for k, v in weekly_assessment.items() if k != "today"} if weekly_assessment else None
     )
-    # The coach additionally writes philosophy_statement, which is specifically about
-    # today's session, so its copy keeps `today` (but not the deterministic
-    # day_over_day_note text, so it writes its own sentence rather than paraphrasing it),
-    # plus window_days so it can explain drift that's a rolling-window artifact and advise
-    # the athlete ahead of specific days aging out.
-    weekly_assessment_for_coach = (
-        {k: v for k, v in weekly_assessment.items() if k != "day_over_day_note"}
-        if weekly_assessment
-        else None
-    )
-    if weekly_assessment_for_coach:
-        window_days = _window_composition(
-            input.recent_workout_analyses, input.date, settings.polarized_gray_zone_depth_frac
-        )
-        if window_days:
-            weekly_assessment_for_coach["window_days"] = window_days
 
     athlete_tz = input.athlete.settings.timezone
     workout_payload_data: dict[str, Any] = {
@@ -994,8 +910,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         workout_payload_data["training_philosophy"] = philosophy
-    if weekly_assessment_for_analyst:
-        workout_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_analyst
+    if weekly_assessment_for_prompt:
+        workout_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_prompt
     workout_payload = json.dumps(
         convert_datetimes_in_obj(workout_payload_data, athlete_tz), default=str
     )
@@ -1006,8 +922,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     }
     if philosophy:
         plans_payload_data["training_philosophy"] = philosophy
-    if weekly_assessment_for_coach:
-        plans_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_coach
+    if weekly_assessment_for_prompt:
+        plans_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_prompt
     plans_payload = json.dumps(plans_payload_data, default=str)
 
     def _race_entry(activity: PlannedActivity) -> dict[str, Any]:
