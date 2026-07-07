@@ -48,6 +48,7 @@ async def _fetch(athlete_id: int | None) -> list[dict]:
 def _annotate(doc: dict, now: datetime) -> dict:
     expires_at = ensure_utc(doc.get("expires_at"))
     doc["expired"] = bool(expires_at and expires_at < now)
+    doc.setdefault("importance", 0.5)  # field added after some memories were created
     return doc
 
 
