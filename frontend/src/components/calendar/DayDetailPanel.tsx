@@ -16,6 +16,7 @@ import { Button } from "../ui/button"
 import { RestitutionForm } from "../RestitutionForm"
 import { ActivityCard } from "../ActivityCard"
 import { AnalysisPanel } from "../AnalysisPanel"
+import { WeeklyIntensityBar } from "../WeeklyIntensityBar"
 import {
   fetchDetailedWorkouts,
   deleteWorkout,
@@ -27,7 +28,13 @@ import { fetchDailyEntry, saveDailyEntry } from "../../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../../api/dailyEntry"
 import { fetchPlansForDate, fetchPlansForRange, fetchTPPlans } from "../../api/plans"
 import type { PlannedActivity, PlannedActivityRequest, TPPlannedWorkout } from "../../api/plans"
-import { createDailyAnalysisTask, fetchStoredAnalysis, getTaskForDate, getTaskStatus } from "../../api/tasks"
+import {
+  createDailyAnalysisTask,
+  fetchStoredAnalysis,
+  fetchWeeklyIntensity,
+  getTaskForDate,
+  getTaskStatus,
+} from "../../api/tasks"
 import { PlanCard } from "../PlanCard"
 import { PlanForm } from "../PlanForm"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
@@ -140,7 +147,13 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     mutationFn: () => fetchDetailedWorkouts(athleteId, selectedDate, true),
     onSuccess: (data) => {
       queryClient.setQueryData(["workouts", athleteId, selectedDate], data)
+      queryClient.invalidateQueries({ queryKey: ["weekly-intensity", athleteId, selectedDate] })
     },
+  })
+
+  const { data: weeklyIntensity } = useQuery({
+    queryKey: ["weekly-intensity", athleteId, selectedDate],
+    queryFn: () => fetchWeeklyIntensity(athleteId, selectedDate),
   })
 
   const { data: existingEntry } = useQuery({
@@ -362,6 +375,8 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
           </div>
         )}
 
+        {weeklyIntensity && <WeeklyIntensityBar a={weeklyIntensity} />}
+
         <RestitutionForm value={restitution} onChange={setRestitution} />
 
         <section className="space-y-4">
@@ -524,7 +539,6 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               workout_analysis: storedAnalysis.workout_analysis,
               restitution_analysis: storedAnalysis.restitution_analysis,
               coaching_feedback: storedAnalysis.coaching_feedback,
-              weekly_philosophy_assessment: storedAnalysis.weekly_philosophy_assessment,
             }}
             analyzedAt={storedAnalysis.analyzed_at}
           />
