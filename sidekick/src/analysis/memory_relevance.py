@@ -85,10 +85,10 @@ def _is_core_candidate(memory: Memory) -> bool:
     )
 
 
-def select_relevant_memories(
+def select_relevant_memories_objects(
     memories: list[Memory], ctx: DayContext, analysis_date: str
-) -> list[dict[str, Any]]:
-    """Hybrid, leaning-wide selection.
+) -> list[Memory]:
+    """Hybrid, leaning-wide selection, returning the ranked ``Memory`` objects.
 
     A stable durable core (goals, long-term habits, active risks) is always present so the
     coach can track habits and progress over time; today's situation then fills the
@@ -137,6 +137,14 @@ def select_relevant_memories(
 
     selected.sort(key=lambda m: (scored[id(m)], m.updated_at), reverse=True)
 
+    return selected
+
+
+def select_relevant_memories(
+    memories: list[Memory], ctx: DayContext, analysis_date: str
+) -> list[dict[str, Any]]:
+    """Dict-shaped projection of ``select_relevant_memories_objects`` for LLM prompts."""
+    selected = select_relevant_memories_objects(memories, ctx, analysis_date)
     return [
         {
             "scope": m.scope,

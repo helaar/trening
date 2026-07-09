@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, CheckCircle, Plus, Trash2 } from "lucide-react"
+import { Loader2, CheckCircle, Plus, Trash2, RotateCcw, type LucideIcon } from "lucide-react"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
@@ -20,7 +20,13 @@ import {
 } from "../api/athleteSettings"
 import { fetchCurrentAthlete } from "../api/auth"
 import { fetchPrompts } from "../api/prompts"
-import { fetchAthleteMemories, type AthleteMemory } from "../api/memories"
+import {
+  fetchAthleteMemories,
+  fetchSuppressedMemories,
+  suppressMemory,
+  restoreMemory,
+  type AthleteMemory,
+} from "../api/memories"
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -538,10 +544,82 @@ interface MemoriesSectionProps {
   athleteId: number
 }
 
+interface MemoryCardAction {
+  label: string
+  icon: LucideIcon
+  onClick: () => void
+  pending: boolean
+}
+
+function MemoryCard({
+  memory,
+  action,
+  muted = false,
+}: {
+  memory: AthleteMemory
+  action: MemoryCardAction
+  muted?: boolean
+}) {
+  const Icon = action.icon
+  return (
+    <li
+      className={`rounded-lg border bg-card p-3 text-card-foreground shadow-sm ${muted ? "opacity-60" : ""}`}
+    >
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CATEGORY_STYLES[memory.category]}`}
+        >
+          {memory.category}
+        </span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          {SCOPE_LABELS[memory.scope]}
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {Math.round(memory.confidence * 100)}% confidence
+        </span>
+        <button
+          type="button"
+          aria-label={action.label}
+          onClick={action.onClick}
+          disabled={action.pending}
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <p className="text-sm leading-snug">{memory.content}</p>
+    </li>
+  )
+}
+
 function MemoriesSectionContent({ athleteId }: MemoriesSectionProps) {
+  const queryClient = useQueryClient()
+  const [showSuppressed, setShowSuppressed] = useState(false)
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["athlete-memories", athleteId],
     queryFn: () => fetchAthleteMemories(athleteId),
+  })
+
+  const suppressedQuery = useQuery({
+    queryKey: ["athlete-memories-suppressed", athleteId],
+    queryFn: () => fetchSuppressedMemories(athleteId),
+    enabled: showSuppressed,
+  })
+
+  const invalidateMemories = () => {
+    queryClient.invalidateQueries({ queryKey: ["athlete-memories", athleteId] })
+    queryClient.invalidateQueries({ queryKey: ["athlete-memories-suppressed", athleteId] })
+  }
+
+  const suppressMutation = useMutation({
+    mutationFn: (memoryId: string) => suppressMemory(athleteId, memoryId),
+    onSuccess: invalidateMemories,
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: (memoryId: string) => restoreMemory(athleteId, memoryId),
+    onSuccess: invalidateMemories,
   })
 
   if (isLoading) {
@@ -557,42 +635,82 @@ function MemoriesSectionContent({ athleteId }: MemoriesSectionProps) {
     return <p className="py-2 text-sm text-destructive">Could not load memories.</p>
   }
 
-  if (!data || data.length === 0) {
-    return (
-      <p className="py-2 text-sm text-muted-foreground">
-        No memories yet. The coach builds these up from your daily analyses over time.
-      </p>
-    )
-  }
-
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        What the coach remembers about you, ordered by relevance — most important first.
-      </p>
-      <ul className="space-y-2">
-        {data.map((memory, i) => (
-          <li
-            key={i}
-            className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
-          >
-            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CATEGORY_STYLES[memory.category]}`}
-              >
-                {memory.category}
-              </span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                {SCOPE_LABELS[memory.scope]}
-              </span>
-              <span className="ml-auto text-xs text-muted-foreground">
-                {Math.round(memory.confidence * 100)}% confidence
-              </span>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          What the coach remembers about you, ordered by relevance — most important first.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowSuppressed((v) => !v)}
+          className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+        >
+          {showSuppressed ? "Hide suppressed" : "Show suppressed"}
+        </button>
+      </div>
+
+      {!data || data.length === 0 ? (
+        <p className="py-2 text-sm text-muted-foreground">
+          No memories yet. The coach builds these up from your daily analyses over time.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {data.map((memory) => (
+            <MemoryCard
+              key={memory.memory_id}
+              memory={memory}
+              action={{
+                label: "Suppress memory",
+                icon: Trash2,
+                onClick: () => suppressMutation.mutate(memory.memory_id),
+                pending:
+                  suppressMutation.isPending &&
+                  suppressMutation.variables === memory.memory_id,
+              }}
+            />
+          ))}
+        </ul>
+      )}
+
+      {showSuppressed && (
+        <div className="space-y-2 border-t pt-3">
+          <p className="text-xs text-muted-foreground">
+            Suppressed memories — hidden from the coach until restored.
+          </p>
+          {suppressedQuery.isLoading && (
+            <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading suppressed memories…
             </div>
-            <p className="text-sm leading-snug">{memory.content}</p>
-          </li>
-        ))}
-      </ul>
+          )}
+          {suppressedQuery.isError && (
+            <p className="py-2 text-sm text-destructive">Could not load suppressed memories.</p>
+          )}
+          {suppressedQuery.data && suppressedQuery.data.length === 0 && (
+            <p className="py-2 text-sm text-muted-foreground">No suppressed memories.</p>
+          )}
+          {suppressedQuery.data && suppressedQuery.data.length > 0 && (
+            <ul className="space-y-2">
+              {suppressedQuery.data.map((memory) => (
+                <MemoryCard
+                  key={memory.memory_id}
+                  memory={memory}
+                  muted
+                  action={{
+                    label: "Restore memory",
+                    icon: RotateCcw,
+                    onClick: () => restoreMutation.mutate(memory.memory_id),
+                    pending:
+                      restoreMutation.isPending &&
+                      restoreMutation.variables === memory.memory_id,
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }

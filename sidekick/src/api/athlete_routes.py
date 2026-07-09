@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from pymongo.asynchronous.database import AsyncDatabase
 
-from analysis.memory_relevance import DayContext, select_relevant_memories
+from analysis.memory_relevance import DayContext, select_relevant_memories_objects
 from auth.dependencies import get_current_athlete_id
 from database.athlete_repository import AthleteRepository
 from database.memory_repository import MemoryRepository
@@ -40,6 +40,7 @@ async def get_memory_repository(
 class MemoryView(BaseModel):
     """A single memory as surfaced to the athlete, mirroring the coach's tool fields."""
 
+    memory_id: str
     scope: str
     category: str
     content: str
@@ -108,16 +109,89 @@ async def get_memories(
 ) -> list[MemoryView]:
     """The athlete's active memory bank, ranked the way the coach's tool sees it.
 
-    Reuses the coach's ``select_relevant_memories`` so the ordering matches what the
-    coach reasons over. First iteration uses a neutral ``DayContext`` — the situational
-    boost (today's readiness/demand/race-phase) requires the daily-analysis pipeline and
-    is a planned follow-up; confidence, importance, recency and the durable-core logic
-    already apply here identically.
+    Reuses the coach's ranking logic (``select_relevant_memories_objects``) so the
+    ordering matches what the coach reasons over. First iteration uses a neutral
+    ``DayContext`` — the situational boost (today's readiness/demand/race-phase)
+    requires the daily-analysis pipeline and is a planned follow-up; confidence,
+    importance, recency and the durable-core logic already apply here identically.
     """
     if athlete_id != current_athlete_id:
         raise HTTPException(status_code=403, detail="You can only access your own data")
 
     memories = await repo.get_active(athlete_id)
     today = datetime.now(timezone.utc).date().isoformat()
-    ranked = select_relevant_memories(memories, DayContext(), today)
-    return [MemoryView(**m) for m in ranked]
+    ranked = select_relevant_memories_objects(memories, DayContext(), today)
+    return [
+        MemoryView(
+            memory_id=m.memory_id,
+            scope=m.scope.value,
+            category=m.category.value,
+            content=m.content,
+            confidence=m.confidence,
+        )
+        for m in ranked
+    ]
+
+
+@router.get("/{athlete_id}/memories/suppressed", response_model=list[MemoryView])
+async def get_suppressed_memories(
+    athlete_id: int,
+    current_athlete_id: int = Depends(get_current_athlete_id),
+    repo: MemoryRepository = Depends(get_memory_repository),
+) -> list[MemoryView]:
+    """Memories the athlete or an admin has suppressed, most recently first.
+
+    A flat undo list — no relevance ranking, since that logic exists to pick what
+    the coach sees, not to rank things nobody currently acts on.
+    """
+    if athlete_id != current_athlete_id:
+        raise HTTPException(status_code=403, detail="You can only access your own data")
+
+    memories = await repo.get_inactive(athlete_id)
+    memories.sort(key=lambda m: m.updated_at, reverse=True)
+    return [
+        MemoryView(
+            memory_id=m.memory_id,
+            scope=m.scope.value,
+            category=m.category.value,
+            content=m.content,
+            confidence=m.confidence,
+        )
+        for m in memories
+    ]
+
+
+async def _get_owned_memory(athlete_id: int, memory_id: str, repo: MemoryRepository) -> None:
+    memory = await repo.get_by_id(memory_id)
+    if memory is None or memory.athlete_id != athlete_id:
+        raise HTTPException(status_code=404, detail="Memory not found")
+
+
+@router.delete("/{athlete_id}/memories/{memory_id}", status_code=204)
+async def suppress_memory(
+    athlete_id: int,
+    memory_id: str,
+    current_athlete_id: int = Depends(get_current_athlete_id),
+    repo: MemoryRepository = Depends(get_memory_repository),
+) -> None:
+    """Suppress a memory (soft delete) — a dev tool for tuning coach prompts."""
+    if athlete_id != current_athlete_id:
+        raise HTTPException(status_code=403, detail="You can only access your own data")
+
+    await _get_owned_memory(athlete_id, memory_id, repo)
+    await repo.deactivate(memory_id)
+
+
+@router.post("/{athlete_id}/memories/{memory_id}/restore", status_code=204)
+async def restore_memory(
+    athlete_id: int,
+    memory_id: str,
+    current_athlete_id: int = Depends(get_current_athlete_id),
+    repo: MemoryRepository = Depends(get_memory_repository),
+) -> None:
+    """Undo a suppression, restoring a memory to the active set."""
+    if athlete_id != current_athlete_id:
+        raise HTTPException(status_code=403, detail="You can only access your own data")
+
+    await _get_owned_memory(athlete_id, memory_id, repo)
+    await repo.reactivate(memory_id)
