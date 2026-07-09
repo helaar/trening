@@ -152,3 +152,12 @@ export async function fetchStoredAnalysis(
     `/api/v1/athlete/${athleteId}/daily-analysis?date=${date}`,
   )
 }
+
+export async function fetchWeeklyIntensity(
+  athleteId: number,
+  date: string,
+): Promise<WeeklyAssessment | null> {
+  return apiFetch<WeeklyAssessment | null>(
+    `/api/v1/athlete/${athleteId}/weekly-intensity?date=${date}`,
+  )
+}
