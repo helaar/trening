@@ -9,6 +9,21 @@ from utils.datetime_utils import ensure_utc
 
 _RECENT_TTL_DAYS = 30
 _LONG_TERM_TTL_DAYS = 365
+_MAX_CONTENT_CHARS = 600
+
+
+def clamp_memory_content(content: str, max_chars: int = _MAX_CONTENT_CHARS) -> str:
+    """Truncate memory content to max_chars at a word boundary.
+
+    Defensive backstop only, not a substitute for the 1-3 sentence rule enforced in
+    the extraction/consolidation task prompts — this just bounds a single runaway
+    LLM update from growing a memory's content unboundedly.
+    """
+    if len(content) <= max_chars:
+        return content
+    marker = " […truncated]"
+    truncated = content[: max_chars - len(marker)].rsplit(" ", 1)[0]
+    return truncated + marker
 
 
 class MemoryScope(str, Enum):
