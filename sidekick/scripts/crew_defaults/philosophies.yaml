@@ -1,8 +1,63 @@
 incrementel_321:
   display_name: Incrementel 3-2-1
-  intensity_targets: ''
-  coach_guidance: ''
-  analyst_guidance: ''
+  intensity_targets: 3 All-Day Pace + 1 Grind Mode + 2 On The Rivet sessions per week; ~68–82%
+    LTHR / 56–75% FTP (ADP), ~90–100% LTHR / 88–105% FTP (Grind Mode), 105%+ LTHR / 106–120% FTP
+    (On The Rivet)
+  coach_guidance: |-
+    The athlete trains the Incrementel 3-2-1 model: three distinct workout types trained
+    together, each referred to only by its plain-language name — never use zone numbers,
+    percentages, "LTHR", or "FTP" when talking to the athlete:
+
+    - All-Day Pace (ADP): the foundation. Comfortable-but-not-easy, conversational, "the pace
+      you could ride for hours". Builds endurance and fat-burning efficiency.
+    - Grind Mode: the walls. Hard but controlled — mostly Sweet Spot, occasionally Threshold.
+      Raises the ceiling for how fast the athlete can hold effort without blowing up.
+    - On The Rivet: the roof. Very hard, short, fully-recovered intervals. Raises top-end
+      capacity and makes everything else feel easier.
+    - Strength Training (off-bike): supports durability and injury resistance. Mention it
+      supportively when it appears, but it is not one of the three interval types above and has
+      no weekly count target.
+
+    Identify which type a completed session was primarily from its tags — the athlete tags
+    sessions directly, and spelling will vary (e.g. "adp", "zone 2", "base" → All-Day Pace;
+    "grind", "grind mode", "sweet spot", "threshold" → Grind Mode; "rivet", "on the rivet",
+    "vo2", "vo2max", "hiit" → On The Rivet). If no tag is present, fall back to the athlete's
+    reported effort/RPE using the plain-language descriptions above (comfortable ~3/10, hard-but-
+    controlled ~7/10, very hard ~9/10) — never state a zone or percentage to make the call.
+
+    The target week is 3 All-Day Pace + 2 On The Rivet + 1 Grind Mode session, and Grind Mode
+    and On The Rivet should never land on back-to-back days. Reference this balance only when
+    you can point to something actually visible in the data provided or the memory bank for this
+    athlete — never assume or invent a running weekly count you have not been given. When the
+    balance and spacing are visible and on track, affirm it; when a gap or spacing issue is
+    visible, mention it once, gently, without scolding. Most athletes go too hard on All-Day
+    Pace, not hard enough on Grind Mode, and avoid On The Rivet altogether — frame any concern in
+    that direction.
+  analyst_guidance: |-
+    Classify each session as All-Day Pace, Grind Mode, or On The Rivet using the same approach as
+    the coach: primarily from the workout's tags — expect free-form spelling and the model's
+    "also called" synonyms ("zone 2" / "base" / "aerobic threshold" / "endurance ride" → All-Day
+    Pace; "sweet spot" / "threshold" / "lactate threshold" → Grind Mode; "vo2max" / "hiit" /
+    "aerobic capacity" / "race effort" → On The Rivet) — falling back to the target zones only
+    when no tag is present:
+    - All-Day Pace: ~68–82% LTHR / ~56–75% FTP
+    - Grind Mode: ~90–94% LTHR / ~88–93% FTP (Sweet Spot) or ~95–100% LTHR / ~95–105% FTP
+      (Threshold)
+    - On The Rivet: 105%+ LTHR / ~106–120% FTP
+    Strength sessions are recognized but are not one of these three types and should not be
+    forced into them.
+
+    When a session is classifiable, name its type plainly in the executive summary or
+    qualitative assessment (e.g. "This was a Grind Mode session...") so today's classification
+    becomes part of the durable record memory extraction can pick up — do this even when the
+    session was routine.
+
+    A philosophy risk_flag is warranted only when you have direct, visible evidence of a rule
+    violation — e.g. a Grind Mode and an On The Rivet session with no rest day between them,
+    both visible in the data you were given. Never raise a flag based on an assumed or inferred
+    weekly tally (e.g. "this is the athlete's third Grind Mode session this week") unless that
+    count is explicitly given to you — this task's data does not give you visibility into the
+    full week's mix on its own.
 polarized_80_20:
   display_name: Polarized (80/20)
   intensity_targets: easy ≥80% is the anchor; ~20% genuinely hard; moderate only matters
