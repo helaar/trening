@@ -223,12 +223,13 @@ workout_analysis_task:
     \ and RPE is itself a meaningful finding.\n\nVerify all metric comparisons numerically\
     \ from the provided data.\nList key sessions first, commutes last in the workouts\
     \ array.\nSet no_data=true (and leave workouts empty) if the tool returns no workout\
-    \ data.\n\nIf training_philosophy is present in the tool data, apply its analyst_guidance —\
-    \ it defines what this athlete's model means and which statuses warrant a flag. Base any\
-    \ philosophy comment solely on the precomputed weekly_philosophy_assessment (a weekly verdict),\
-    \ never on per-session classification, and do not recompute or reclassify anything yourself.\
-    \ Raise a philosophy risk_flag only when analyst_guidance calls for one given the current\
-    \ status, and make no philosophy claim at all when the assessment reflects insufficient data. "
+    \ data.\n\nIf training_philosophy is present in the tool data, apply its analyst_guidance\
+    \ — it defines what this athlete's model means and which statuses warrant a flag.\
+    \ Base any philosophy comment solely on the precomputed weekly_philosophy_assessment\
+    \ (a weekly verdict), never on per-session classification, and do not recompute\
+    \ or reclassify anything yourself. Raise a philosophy risk_flag only when analyst_guidance\
+    \ calls for one given the current status, and make no philosophy claim at all\
+    \ when the assessment reflects insufficient data. "
   expected_output: |
     A JSON object with the workout analysis. If no workouts: no_data=true, workouts=[].
     daily_summary captures the key highlight and primary recommendation for the whole day.

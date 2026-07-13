@@ -1,6 +1,12 @@
+incrementel_321:
+  display_name: Incrementel 3-2-1
+  intensity_targets: ''
+  coach_guidance: ''
+  analyst_guidance: ''
 polarized_80_20:
   display_name: Polarized (80/20)
-  intensity_targets: easy ≥80% is the anchor; ~20% genuinely hard; moderate only matters when it eats into the easy 80%
+  intensity_targets: easy ≥80% is the anchor; ~20% genuinely hard; moderate only matters
+    when it eats into the easy 80%
   coach_guidance: |-
     The athlete trains polarized (80/20): easy volume is the anchor — aim for ~80% of training
     genuinely easy — with the remaining ~20% genuinely hard. Moderate "gray zone" intensity is a
