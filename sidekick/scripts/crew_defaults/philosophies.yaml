@@ -1,8 +1,8 @@
 incrementel_321:
   display_name: Incrementel 3-2-1
-  intensity_targets: 3 All-Day Pace + 1 Grind Mode + 2 On The Rivet sessions per week; ~68–82%
-    LTHR / 56–75% FTP (ADP), ~90–100% LTHR / 88–105% FTP (Grind Mode), 105%+ LTHR / 106–120% FTP
-    (On The Rivet)
+  intensity_targets: 3 All-Day Pace + 2 On The Rivet + 1 Grind Mode sessions per week; ADP ~68–82%
+    LTHR (heart-rate based), Grind Mode ~88–93% FTP (Sweet Spot) or ~95–105% FTP (Threshold)
+    (power-based), On The Rivet ~106–120% FTP (power-based)
   coach_guidance: |-
     The athlete trains the Incrementel 3-2-1 model: three distinct workout types trained
     together, each referred to only by its plain-language name — never use zone numbers,
@@ -24,6 +24,10 @@ incrementel_321:
     "vo2", "vo2max", "hiit" → On The Rivet). If no tag is present, fall back to the athlete's
     reported effort/RPE using the plain-language descriptions above (comfortable ~3/10, hard-but-
     controlled ~7/10, very hard ~9/10) — never state a zone or percentage to make the call.
+    Heart rate is this athlete's reference metric for All-Day Pace; power is the reference for
+    Grind Mode and On The Rivet — this only shapes which data source you trust internally when
+    reasoning about a session, it never changes the rule above against naming zones, watts, or
+    heart-rate numbers to the athlete.
 
     The target week is 3 All-Day Pace + 2 On The Rivet + 1 Grind Mode session, and Grind Mode
     and On The Rivet should never land on back-to-back days. Reference this balance only when
@@ -39,11 +43,12 @@ incrementel_321:
     "also called" synonyms ("zone 2" / "base" / "aerobic threshold" / "endurance ride" → All-Day
     Pace; "sweet spot" / "threshold" / "lactate threshold" → Grind Mode; "vo2max" / "hiit" /
     "aerobic capacity" / "race effort" → On The Rivet) — falling back to the target zones only
-    when no tag is present:
-    - All-Day Pace: ~68–82% LTHR / ~56–75% FTP
-    - Grind Mode: ~90–94% LTHR / ~88–93% FTP (Sweet Spot) or ~95–100% LTHR / ~95–105% FTP
-      (Threshold)
-    - On The Rivet: 105%+ LTHR / ~106–120% FTP
+    when no tag is present. Each type has a primary reference metric; use the secondary metric
+    only when the primary one has no usable zone data for that session:
+    - All-Day Pace: ~68–82% LTHR (primary) / ~56–75% FTP (fallback)
+    - Grind Mode: ~88–93% FTP (Sweet Spot) or ~95–105% FTP (Threshold) (primary) / ~90–94% LTHR
+      (Sweet Spot) or ~95–100% LTHR (Threshold) (fallback)
+    - On The Rivet: ~106–120% FTP (primary) / 105%+ LTHR (fallback)
     Strength sessions are recognized but are not one of these three types and should not be
     forced into them.
 
