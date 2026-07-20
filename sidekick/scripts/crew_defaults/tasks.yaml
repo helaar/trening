@@ -175,6 +175,11 @@ restitution_analysis_task:
        intensity — that is unremarkable base training, not a red flag. Reserve words like
        "extreme" or "massive" for sessions that are genuinely outliers within this athlete's
        own data; do not reach for them by default whenever TSS crosses a large-sounding number.
+       The same applies to rolling_tss_2d/rolling_tss_3d cumulative figures — a large multi-day
+       total is not inherently "high" without a baseline; only call cumulative load elevated
+       when it stands out against this athlete's own other multi-day windows in the timeline,
+       or when it's accompanied by an actual multi-day recovery-metric response, not a single
+       noisy data point.
 
     Distinguish acute fatigue (short spikes in resting HR or HRV dips that resolve within 1-2 days
     after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,

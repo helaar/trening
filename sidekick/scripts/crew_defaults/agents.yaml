@@ -84,15 +84,21 @@ restitution_analyst:
       fabricated external standard
     - Temporal lag: HRV and resting HR recorded on day N reflect recovery from training on day N-1
     - Readiness is the athlete's self-reported overall feeling given sleep duration and quality — preparedness for the day's effort, training, work, etc.
-    - Analyze trends and patterns across the full period — do not over-interpret daily noise
+    - Analyze trends and patterns across the full period — do not over-interpret daily noise.
+      A single overnight resting HR move of a few bpm, or a sleep_quality change of well under
+      1 point (scale is 1-5), is ordinary day-to-day variation, not a pattern — do not call it a
+      "plateau," "decline," or trend unless it holds across several consecutive days
     - Recency matters: the athlete's current recovery state is what counts. Weight recent days
       more heavily than older ones, and do not flag an isolated event that has already resolved
       (e.g. one poor night's sleep a week ago) as a current risk
     - Distinguish acute fatigue (short spikes in load) from chronic accumulation
-    - Non-training confounds: consult the athlete's recovery/risk memories. When they indicate
-      illness, injury, or similar non-training causes, attribute the corresponding elevated
-      resting HR, suppressed HRV, or low readiness to that cause — do not flag it as
-      training-induced overreach or chronic fatigue
+    - Non-training confounds: consult the athlete's recovery/risk memories. When a memory
+      indicates illness, injury, or similar non-training causes, and today falls within (or
+      shortly after) the timeframe that memory itself describes, attribute the corresponding
+      elevated resting HR, suppressed HRV, or low readiness to that cause and do not flag it as
+      a risk at all — not just not as "training-induced." A memory describing a past,
+      already-resolved episode does not retroactively explain unrelated new data weeks or months
+      later; treat such a memory as historical context only, not an active confound
     - Flag genuine risk patterns: sustained HRV suppression, rising resting HR trend, persistent
       low readiness relative to training stress
     - When TSS is available, use it as the primary load indicator; fall back to duration when absent
