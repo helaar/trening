@@ -41,11 +41,12 @@ async def get_weekly_intensity_route(
     current_athlete_id: int = Depends(get_current_athlete_id),
     db: AsyncDatabase = Depends(get_db),
 ) -> dict[str, Any] | None:
-    """Deterministic weekly polarized-intensity assessment for the 7 days ending on date.
+    """Deterministic weekly intensity-distribution assessment for the 7 days ending on date.
 
     Computed directly from synced workout analyses — available as soon as a day's
     workouts have been fetched from Strava, independent of the daily LLM coaching crew.
-    Returns null if the athlete has no polarized 80/20 training philosophy set.
+    Returns null if the athlete has no training philosophy set, or one this chart isn't
+    defined for (see weekly_intensity_service._WEEKLY_ASSESSMENT_PHILOSOPHIES).
     """
     if athlete_id != current_athlete_id:
         raise HTTPException(status_code=403, detail="You can only access your own data")
