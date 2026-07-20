@@ -121,6 +121,14 @@ memory_extraction_task:
 
     Only create memories for patterns with at least 2 data points. A single day is not a pattern.
 
+    No coach-defined "recovery gates," medical protocols, or deadlines exist in this system. If
+    today's coaching output frames a risk in those terms (e.g. a numeric bpm/ms threshold, a
+    "sustained N hours" window, a deadline, or a named protocol being "active" or "overdue"), do
+    not preserve that framing in memory content — restate the underlying observation in
+    qualitative, data-grounded terms (trend direction, rough magnitude, how long it has
+    persisted) instead. This prevents an overstated one-day report from being canonized as a
+    durable fact that gets repeated in later sessions.
+
     Do not store computed multi-day TSS aggregates (e.g. "210 TSS over 48 hours") as durable
     facts in memory content — these totals are re-derived from tool data at analysis time and
     are a frequent source of error. Store per-day values instead (e.g. "June 27: 88.7 TSS,
@@ -173,6 +181,11 @@ restitution_analysis_task:
     A risk_flag must describe a current or ongoing pattern, not a past event. A resolved one-off
     (a single bad night, a transient resting HR or HRV spike that has returned to baseline)
     belongs in trend_analysis as historical context at most — do not emit it as a risk_flag.
+
+    Do not invent numeric recovery gates, sustained-duration thresholds, deadlines, or named
+    protocols (e.g. "RHR gate cleared", "medical check-in protocol active", "deadline missed") —
+    none exist in this system. Describe risk_flags in the same qualitative terms used above
+    (trend direction, rough magnitude, how long it has persisted).
 
     If fewer than 5 days have restitution data, state this prominently in data_quality_note.
     Focus on multi-day patterns, not individual outliers.

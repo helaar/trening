@@ -274,6 +274,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily-entry"] })
+      queryClient.invalidateQueries({ queryKey: ["daily-analysis", athleteId, selectedDate] })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     },
