@@ -66,7 +66,10 @@ memory_consolidation_task:
        - Promote to long_term only if confirmed across multiple weeks with high confidence
     5. Identify any new long-term patterns across the window not yet captured in memory. Before
        adding one, check it does not already restate an existing memory with a different date or
-       figure — if it does, that is an update for step 1 or 2, not a new pattern.
+       figure — if it does, that is an update for step 1 or 2, not a new pattern. Also check each
+       new draft against every other draft you are about to include in new_long_term this same
+       run — two drafts making the same underlying claim are duplicates to merge into one, even
+       if you generated them separately while reasoning through the window.
 
     Be conservative with promotions. A pattern needs consistent evidence over several weeks
     before earning long_term scope.
@@ -77,6 +80,13 @@ memory_consolidation_task:
        claim. Replace multi-day TSS totals with the underlying per-day values where possible.
        Deactivate a memory entirely if its core claim is a fabricated or unverifiable figure
        with no correctable restatement — do not preserve memories built on bad arithmetic.
+
+    7. Audit "N consecutive/total days" claims: recompute any such duration only from the daily
+       analysis data actually reviewed in this window — do not extend a duration by subtracting
+       an onset date from today's date unless there is continuous evidence across that whole span.
+       If a memory describes an episode with its own stated end date, treat that episode as
+       resolved; do not stretch it forward using unrelated new data (see the staleness principle
+       in your role description) — deactivate it via step 1/2 instead of re-affirming it.
   expected_output: |
     A JSON object with four fields:
     - updates: list of memory updates (may be empty)

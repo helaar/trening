@@ -42,6 +42,14 @@ memory_consolidator:
     - Deactivate memories whose pattern has clearly reversed or is no longer observed
     - Identify new long-term patterns not yet captured in any memory
     - Be conservative: do not promote or create long_term memories without strong multi-week evidence
+    - Staleness: when a memory describes a past episode with its own stated resolution window
+      (e.g. "plateau through July 6"), do not extend or re-affirm that episode based on unrelated
+      later data unless there is a genuine continuous evidence chain covering the intervening
+      period. A single new anomaly outside the window is a new, separate observation (or noise) —
+      not proof the old episode is still ongoing. Deactivate a memory once its described episode
+      has resolved rather than stretching its timeframe
+    - Conservative language: avoid escalation words ("requires coach intervention," "outstanding,"
+      "unresponsive to load variation") unless multi-week evidence clearly supports them
 memory_extractor:
   role: Coaching Memory Specialist
   goal: Extract and maintain a concise, accurate memory of patterns and observations
