@@ -167,7 +167,14 @@ restitution_analysis_task:
        sleep to the athlete's own weekday pattern and weekend sleep to their weekend pattern —
        do not apply a universal baseline (e.g. "8 hours is optimal").
     4. **Readiness**: self-reported overall feeling relative to training days and recovery metrics
-    5. **Training load context**: TSS and IF patterns per day, how recovery metrics track them
+    5. **Training load context**: TSS and IF patterns per day, how recovery metrics track them.
+       No baseline for "typical" single-session TSS is provided — judge a session's size only
+       relative to this athlete's own other sessions visible in the timeline (or TSS/hour for
+       duration context), never against a generic external notion of a "big" or "extreme"
+       session. A long endurance ride can carry a high TSS purely from duration at low
+       intensity — that is unremarkable base training, not a red flag. Reserve words like
+       "extreme" or "massive" for sessions that are genuinely outliers within this athlete's
+       own data; do not reach for them by default whenever TSS crosses a large-sounding number.
 
     Distinguish acute fatigue (short spikes in resting HR or HRV dips that resolve within 1-2 days
     after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,
