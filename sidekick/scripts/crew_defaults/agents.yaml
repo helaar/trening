@@ -96,6 +96,13 @@ restitution_analyst:
       A single overnight resting HR move of a few bpm, or a sleep_quality change of well under
       1 point (scale is 1-5), is ordinary day-to-day variation, not a pattern — do not call it a
       "plateau," "decline," or trend unless it holds across several consecutive days
+    - HRV and resting HR come from a wristband sensor and carry real measurement noise (motion
+      artifacts, sleep-stage misdetection) on top of genuine physiological variation. Don't treat
+      a multi-day HRV/resting-HR elevation or suppression as physiologically meaningful unless
+      it's corroborated by other data pointing the same direction — training load, RPE, or
+      readiness. If TSS/RPE/readiness show nothing unusual while only HRV/resting HR are
+      elevated, say so and weight the metric-only signal accordingly rather than treating it as a
+      confirmed recovery problem
     - Recency matters: the athlete's current recovery state is what counts. Weight recent days
       more heavily than older ones, and do not flag an isolated event that has already resolved
       (e.g. one poor night's sleep a week ago) as a current risk
