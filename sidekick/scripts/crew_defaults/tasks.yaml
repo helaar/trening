@@ -25,7 +25,16 @@ daily_coaching_task:
     - Casual and conversational — no headers, no bullet points
     - Do NOT praise ERG power stability (it is automatic, not an achievement)
     - Sleep commentary: compare to the athlete's own weekday or weekend pattern — not a fixed
-      external baseline ("8 hours is ideal")
+      external baseline ("8 hours is ideal") and not a recent exceptional streak. If sleep has
+      dropped from a recent best but still meets the athlete's normal baseline/target, that is
+      not a decline — do not raise it as one. Sleep is not a dial the athlete can turn up on
+      command: avoid reductive quick-fix language ("just get more sleep," "getting back to X
+      hours is the single best thing you can do"), and when a genuine shortfall exists, mention
+      it gently and infrequently rather than with urgency — dwelling on it can add pressure that
+      makes sleep worse, not better. This is about tone, not vocabulary — still name sleep
+      plainly when it's the actual factor. Don't launder it into vague euphemism ("recovery
+      markers," "give yourself breathing room," "when conditions are right") — that's evasive,
+      not calm. The athlete should know what's actually going on, just without pressure attached
     - Avoid false continuity: do not say "again", "as usual", "like yesterday" unless the data
       explicitly supports a recurring pattern
     - If sessions were missed or cut short: be empathetic, not prescriptive
@@ -66,7 +75,10 @@ memory_consolidation_task:
        - Promote to long_term only if confirmed across multiple weeks with high confidence
     5. Identify any new long-term patterns across the window not yet captured in memory. Before
        adding one, check it does not already restate an existing memory with a different date or
-       figure — if it does, that is an update for step 1 or 2, not a new pattern.
+       figure — if it does, that is an update for step 1 or 2, not a new pattern. Also check each
+       new draft against every other draft you are about to include in new_long_term this same
+       run — two drafts making the same underlying claim are duplicates to merge into one, even
+       if you generated them separately while reasoning through the window.
 
     Be conservative with promotions. A pattern needs consistent evidence over several weeks
     before earning long_term scope.
@@ -77,6 +89,19 @@ memory_consolidation_task:
        claim. Replace multi-day TSS totals with the underlying per-day values where possible.
        Deactivate a memory entirely if its core claim is a fabricated or unverifiable figure
        with no correctable restatement — do not preserve memories built on bad arithmetic.
+
+    7. Audit "N consecutive/total days" claims: recompute any such duration only from the daily
+       analysis data actually reviewed in this window — do not extend a duration by subtracting
+       an onset date from today's date unless there is continuous evidence across that whole span.
+       If a memory describes an episode with its own stated end date, treat that episode as
+       resolved; do not stretch it forward using unrelated new data (see the staleness principle
+       in your role description) — deactivate it via step 1/2 instead of re-affirming it.
+
+    8. Anchor any "decline"/"fading"/"erosion" wording to the athlete's own baseline or recovery
+       target, not to a recent best/exceptional value. A metric that has dropped from a temporary
+       peak but still sits at or above the athlete's established baseline/target is not a
+       regression — do not create or update a memory framing that as a problem requiring
+       monitoring or intervention.
   expected_output: |
     A JSON object with four fields:
     - updates: list of memory updates (may be empty)
@@ -121,6 +146,21 @@ memory_extraction_task:
 
     Only create memories for patterns with at least 2 data points. A single day is not a pattern.
 
+    No coach-defined "recovery gates," medical protocols, or deadlines exist in this system. If
+    today's coaching output frames a risk in those terms (e.g. a numeric bpm/ms threshold, a
+    "sustained N hours" window, a deadline, or a named protocol being "active" or "overdue"), do
+    not preserve that framing in memory content — restate the underlying observation in
+    qualitative, data-grounded terms (trend direction, rough magnitude, how long it has
+    persisted) instead. This prevents an overstated one-day report from being canonized as a
+    durable fact that gets repeated in later sessions.
+
+    Anchor to baseline/target, not a recent peak: if today's coaching output describes a metric
+    (sleep, HRV, RHR, etc.) declining from a recent best/exceptional value, only record it as a
+    decline if the new level is at or below the athlete's own established baseline or recovery
+    target. A reversion from an exceptional streak back to a level that still meets baseline/target
+    is not a regression — do not word a memory as "fading," "eroding," or "requiring restoration"
+    for that case.
+
     Do not store computed multi-day TSS aggregates (e.g. "210 TSS over 48 hours") as durable
     facts in memory content — these totals are re-derived from tool data at analysis time and
     are a frequent source of error. Store per-day values instead (e.g. "June 27: 88.7 TSS,
@@ -159,7 +199,19 @@ restitution_analysis_task:
        sleep to the athlete's own weekday pattern and weekend sleep to their weekend pattern —
        do not apply a universal baseline (e.g. "8 hours is optimal").
     4. **Readiness**: self-reported overall feeling relative to training days and recovery metrics
-    5. **Training load context**: TSS and IF patterns per day, how recovery metrics track them
+    5. **Training load context**: TSS and IF patterns per day, how recovery metrics track them.
+       No baseline for "typical" single-session TSS is provided — judge a session's size only
+       relative to this athlete's own other sessions visible in the timeline (or TSS/hour for
+       duration context), never against a generic external notion of a "big" or "extreme"
+       session. A long endurance ride can carry a high TSS purely from duration at low
+       intensity — that is unremarkable base training, not a red flag. Reserve words like
+       "extreme" or "massive" for sessions that are genuinely outliers within this athlete's
+       own data; do not reach for them by default whenever TSS crosses a large-sounding number.
+       The same applies to rolling_tss_2d/rolling_tss_3d cumulative figures — a large multi-day
+       total is not inherently "high" without a baseline; only call cumulative load elevated
+       when it stands out against this athlete's own other multi-day windows in the timeline,
+       or when it's accompanied by an actual multi-day recovery-metric response, not a single
+       noisy data point.
 
     Distinguish acute fatigue (short spikes in resting HR or HRV dips that resolve within 1-2 days
     after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,
@@ -173,6 +225,20 @@ restitution_analysis_task:
     A risk_flag must describe a current or ongoing pattern, not a past event. A resolved one-off
     (a single bad night, a transient resting HR or HRV spike that has returned to baseline)
     belongs in trend_analysis as historical context at most — do not emit it as a risk_flag.
+
+    Do not invent numeric recovery gates, sustained-duration thresholds, deadlines, or named
+    protocols (e.g. "RHR gate cleared", "medical check-in protocol active", "deadline missed") —
+    none exist in this system. Describe risk_flags in the same qualitative terms used above
+    (trend direction, rough magnitude, how long it has persisted).
+
+    A metric reverting from a recent best/exceptional value is only a decline if it drops to or
+    below the athlete's own baseline or recovery target — not merely below the recent peak.
+
+    coach_recommendations must avoid reductive quick-fix framing, especially for sleep: never
+    phrase a recommendation as "just get more sleep" or "X is the single best/most important
+    thing you can do." Sleep is not a lever the athlete can pull on command, and framing it with
+    urgency can add pressure that makes it worse. If sleep is genuinely below baseline, note it as
+    one contributing factor, not a prescriptive directive.
 
     If fewer than 5 days have restitution data, state this prominently in data_quality_note.
     Focus on multi-day patterns, not individual outliers.

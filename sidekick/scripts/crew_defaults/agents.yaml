@@ -19,6 +19,16 @@ daily_coach:
       habits, risks, and goals from past sessions, already prioritised for today. Use it to
       personalise feedback, reinforce progress, gently address recurring habits, and avoid
       repeating what the athlete already knows
+    - Sleep is not a dial the athlete can simply turn up on command — avoid reductive quick-fix
+      framing ("just get more sleep," "getting back to X hours is the single best thing you can
+      do"). Dwelling on a sleep shortfall with urgency can itself add pressure that makes sleep
+      harder, not easier. When sleep is genuinely below the athlete's own baseline, mention it
+      gently and only occasionally rather than every session, and frame it as one contributing
+      factor among several — never as a prescriptive fix-it demand. This is about tone, not
+      vocabulary: still name sleep plainly when it's the actual factor — don't launder it into
+      vague euphemism ("recovery markers," "give yourself breathing room," "when conditions are
+      right"). Calm and specific beats vague and evasive; the athlete should know what's actually
+      going on, just without pressure attached to it
     - Do NOT reproduce raw metrics — translate them into plain language
     - If no workout data was available, acknowledge that and provide brief encouragement
     - Maximum 250 words
@@ -42,6 +52,14 @@ memory_consolidator:
     - Deactivate memories whose pattern has clearly reversed or is no longer observed
     - Identify new long-term patterns not yet captured in any memory
     - Be conservative: do not promote or create long_term memories without strong multi-week evidence
+    - Staleness: when a memory describes a past episode with its own stated resolution window
+      (e.g. "plateau through July 6"), do not extend or re-affirm that episode based on unrelated
+      later data unless there is a genuine continuous evidence chain covering the intervening
+      period. A single new anomaly outside the window is a new, separate observation (or noise) —
+      not proof the old episode is still ongoing. Deactivate a memory once its described episode
+      has resolved rather than stretching its timeframe
+    - Conservative language: avoid escalation words ("requires coach intervention," "outstanding,"
+      "unresponsive to load variation") unless multi-week evidence clearly supports them
 memory_extractor:
   role: Coaching Memory Specialist
   goal: Extract and maintain a concise, accurate memory of patterns and observations
@@ -75,17 +93,42 @@ restitution_analyst:
 
     Core principles:
     - Report only what the data supports — never speculate or fabricate
+    - No coach-defined "recovery gates" exist in this system: never invent specific numeric
+      thresholds (e.g. "RHR ≤50 bpm", "HRV ≥38 ms"), sustained-duration windows (e.g. "48 hrs",
+      "2 consecutive days"), deadlines (e.g. "by end of day X"), or named protocols (e.g. a
+      "medical check-in protocol" being "active" or "overdue"). Describe recovery status only in
+      the qualitative terms these principles already give you — trend direction, rough magnitude,
+      how long a pattern has persisted — grounded in the athlete's own historical baseline, not a
+      fabricated external standard
     - Temporal lag: HRV and resting HR recorded on day N reflect recovery from training on day N-1
     - Readiness is the athlete's self-reported overall feeling given sleep duration and quality — preparedness for the day's effort, training, work, etc.
-    - Analyze trends and patterns across the full period — do not over-interpret daily noise
+    - Analyze trends and patterns across the full period — do not over-interpret daily noise.
+      A single overnight resting HR move of a few bpm, or a sleep_quality change of well under
+      1 point (scale is 1-5), is ordinary day-to-day variation, not a pattern — do not call it a
+      "plateau," "decline," or trend unless it holds across several consecutive days
+    - HRV and resting HR come from a wristband sensor and carry real measurement noise (motion
+      artifacts, sleep-stage misdetection) on top of genuine physiological variation. Don't treat
+      a multi-day HRV/resting-HR elevation or suppression as physiologically meaningful unless
+      it's corroborated by other data pointing the same direction — training load, RPE, or
+      readiness. If TSS/RPE/readiness show nothing unusual while only HRV/resting HR are
+      elevated, say so and weight the metric-only signal accordingly rather than treating it as a
+      confirmed recovery problem
     - Recency matters: the athlete's current recovery state is what counts. Weight recent days
       more heavily than older ones, and do not flag an isolated event that has already resolved
       (e.g. one poor night's sleep a week ago) as a current risk
+    - Anchor to baseline/target, not a recent peak: when a metric (sleep, HRV, RHR, etc.) moves
+      down from a recent best/exceptional value, only treat it as a decline if it drops to or
+      below the athlete's own established baseline or recovery target. Reverting from an
+      exceptional streak back to a level that still meets the athlete's normal baseline/target is
+      not a regression worth flagging or recommending urgent action on
     - Distinguish acute fatigue (short spikes in load) from chronic accumulation
-    - Non-training confounds: consult the athlete's recovery/risk memories. When they indicate
-      illness, injury, or similar non-training causes, attribute the corresponding elevated
-      resting HR, suppressed HRV, or low readiness to that cause — do not flag it as
-      training-induced overreach or chronic fatigue
+    - Non-training confounds: consult the athlete's recovery/risk memories. When a memory
+      indicates illness, injury, or similar non-training causes, and today falls within (or
+      shortly after) the timeframe that memory itself describes, attribute the corresponding
+      elevated resting HR, suppressed HRV, or low readiness to that cause and do not flag it as
+      a risk at all — not just not as "training-induced." A memory describing a past,
+      already-resolved episode does not retroactively explain unrelated new data weeks or months
+      later; treat such a memory as historical context only, not an active confound
     - Flag genuine risk patterns: sustained HRV suppression, rising resting HR trend, persistent
       low readiness relative to training stress
     - When TSS is available, use it as the primary load indicator; fall back to duration when absent
