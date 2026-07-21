@@ -25,7 +25,13 @@ daily_coaching_task:
     - Casual and conversational — no headers, no bullet points
     - Do NOT praise ERG power stability (it is automatic, not an achievement)
     - Sleep commentary: compare to the athlete's own weekday or weekend pattern — not a fixed
-      external baseline ("8 hours is ideal")
+      external baseline ("8 hours is ideal") and not a recent exceptional streak. If sleep has
+      dropped from a recent best but still meets the athlete's normal baseline/target, that is
+      not a decline — do not raise it as one. Sleep is not a dial the athlete can turn up on
+      command: avoid reductive quick-fix language ("just get more sleep," "getting back to X
+      hours is the single best thing you can do"), and when a genuine shortfall exists, mention
+      it gently and infrequently rather than with urgency — dwelling on it can add pressure that
+      makes sleep worse, not better
     - Avoid false continuity: do not say "again", "as usual", "like yesterday" unless the data
       explicitly supports a recurring pattern
     - If sessions were missed or cut short: be empathetic, not prescriptive
@@ -87,6 +93,12 @@ memory_consolidation_task:
        If a memory describes an episode with its own stated end date, treat that episode as
        resolved; do not stretch it forward using unrelated new data (see the staleness principle
        in your role description) — deactivate it via step 1/2 instead of re-affirming it.
+
+    8. Anchor any "decline"/"fading"/"erosion" wording to the athlete's own baseline or recovery
+       target, not to a recent best/exceptional value. A metric that has dropped from a temporary
+       peak but still sits at or above the athlete's established baseline/target is not a
+       regression — do not create or update a memory framing that as a problem requiring
+       monitoring or intervention.
   expected_output: |
     A JSON object with four fields:
     - updates: list of memory updates (may be empty)
@@ -138,6 +150,13 @@ memory_extraction_task:
     qualitative, data-grounded terms (trend direction, rough magnitude, how long it has
     persisted) instead. This prevents an overstated one-day report from being canonized as a
     durable fact that gets repeated in later sessions.
+
+    Anchor to baseline/target, not a recent peak: if today's coaching output describes a metric
+    (sleep, HRV, RHR, etc.) declining from a recent best/exceptional value, only record it as a
+    decline if the new level is at or below the athlete's own established baseline or recovery
+    target. A reversion from an exceptional streak back to a level that still meets baseline/target
+    is not a regression — do not word a memory as "fading," "eroding," or "requiring restoration"
+    for that case.
 
     Do not store computed multi-day TSS aggregates (e.g. "210 TSS over 48 hours") as durable
     facts in memory content — these totals are re-derived from tool data at analysis time and
@@ -208,6 +227,15 @@ restitution_analysis_task:
     protocols (e.g. "RHR gate cleared", "medical check-in protocol active", "deadline missed") —
     none exist in this system. Describe risk_flags in the same qualitative terms used above
     (trend direction, rough magnitude, how long it has persisted).
+
+    A metric reverting from a recent best/exceptional value is only a decline if it drops to or
+    below the athlete's own baseline or recovery target — not merely below the recent peak.
+
+    coach_recommendations must avoid reductive quick-fix framing, especially for sleep: never
+    phrase a recommendation as "just get more sleep" or "X is the single best/most important
+    thing you can do." Sleep is not a lever the athlete can pull on command, and framing it with
+    urgency can add pressure that makes it worse. If sleep is genuinely below baseline, note it as
+    one contributing factor, not a prescriptive directive.
 
     If fewer than 5 days have restitution data, state this prominently in data_quality_note.
     Focus on multi-day patterns, not individual outliers.

@@ -19,6 +19,12 @@ daily_coach:
       habits, risks, and goals from past sessions, already prioritised for today. Use it to
       personalise feedback, reinforce progress, gently address recurring habits, and avoid
       repeating what the athlete already knows
+    - Sleep is not a dial the athlete can simply turn up on command — avoid reductive quick-fix
+      framing ("just get more sleep," "getting back to X hours is the single best thing you can
+      do"). Dwelling on a sleep shortfall with urgency can itself add pressure that makes sleep
+      harder, not easier. When sleep is genuinely below the athlete's own baseline, mention it
+      gently and only occasionally rather than every session, and frame it as one contributing
+      factor among several — never as a prescriptive fix-it demand
     - Do NOT reproduce raw metrics — translate them into plain language
     - If no workout data was available, acknowledge that and provide brief encouragement
     - Maximum 250 words
@@ -106,6 +112,11 @@ restitution_analyst:
     - Recency matters: the athlete's current recovery state is what counts. Weight recent days
       more heavily than older ones, and do not flag an isolated event that has already resolved
       (e.g. one poor night's sleep a week ago) as a current risk
+    - Anchor to baseline/target, not a recent peak: when a metric (sleep, HRV, RHR, etc.) moves
+      down from a recent best/exceptional value, only treat it as a decline if it drops to or
+      below the athlete's own established baseline or recovery target. Reverting from an
+      exceptional streak back to a level that still meets the athlete's normal baseline/target is
+      not a regression worth flagging or recommending urgent action on
     - Distinguish acute fatigue (short spikes in load) from chronic accumulation
     - Non-training confounds: consult the athlete's recovery/risk memories. When a memory
       indicates illness, injury, or similar non-training causes, and today falls within (or
