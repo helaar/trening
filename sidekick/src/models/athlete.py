@@ -51,6 +51,12 @@ class ERGDetectionSettings(BaseModel):
     stdev_threshold: float = Field(default=0.10, description="Maximum coefficient of variation (stdev/avg) of power for ERG detection")
 
 
+class IntervalsIcuSettings(BaseModel):
+    """Intervals.icu integration settings. API-key auth, no OAuth — Strava stays the sole login mechanism."""
+    api_key: str | None = Field(default=None, description="Intervals.icu athlete API key (Settings -> Developer)")
+    intervals_athlete_id: str | None = Field(default=None, description="Intervals.icu athlete id")
+
+
 class AthleteSettings(BaseModel):
     """Athlete-specific settings including zones and FTP values."""
     heart_rate: HeartRateSettings | None = None
@@ -60,6 +66,7 @@ class AthleteSettings(BaseModel):
     erg_detection: ERGDetectionSettings = Field(default_factory=ERGDetectionSettings, description="ERG mode detection settings")
     autolap: str | None = Field(default="PT10M", description="Autolap interval as ISO8601 duration string (e.g., 'PT10M' for 10 minutes). Set to None to disable.")
     trainingpeaks_ical_url: str | None = Field(default=None, description="TrainingPeaks calendar sync URL (.ics) for planned workout preview")
+    intervals_icu: IntervalsIcuSettings | None = Field(default=None, description="Intervals.icu integration settings")
     timezone: str = Field(default="UTC", description="Athlete's local timezone as IANA string (e.g. 'Europe/Oslo')")
     training_philosophy: str | None = Field(default=None, description="Selected training philosophy slug (references a philosophy in crew_definitions)")
 

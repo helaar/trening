@@ -74,6 +74,27 @@ class WorkoutRepository:
         
         return activities
     
+    async def get_activities_for_range(
+        self,
+        athlete_id: int,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list[StravaActivityRaw]:
+        """Get all activities for an athlete over an inclusive date range."""
+        start_of_range = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_exclusive = end_date.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+
+        cursor = self.activities_collection.find({
+            "athlete_id": athlete_id,
+            "activity_date": {"$gte": start_of_range, "$lt": end_exclusive},
+        }).sort("activity_date", 1)
+
+        activities = []
+        async for doc in cursor:
+            doc.pop("_id", None)
+            activities.append(StravaActivityRaw(**doc))
+        return activities
+
     async def get_activity(
         self,
         athlete_id: int,

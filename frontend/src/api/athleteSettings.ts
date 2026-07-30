@@ -21,6 +21,11 @@ export interface HeartRateSettings {
   hr_zones: ZoneDefinition[]
 }
 
+export interface IntervalsIcuSettings {
+  api_key: string | null
+  intervals_athlete_id: string | null
+}
+
 export interface AthleteSettings {
   cycling: SportSettings | null
   running: SportSettings | null
@@ -28,6 +33,7 @@ export interface AthleteSettings {
   autolap: string | null
   trainingpeaks_ical_url: string | null
   training_philosophy: string | null
+  intervals_icu: IntervalsIcuSettings | null
 }
 
 export type AthleteSettingsPatch = Partial<AthleteSettings>
