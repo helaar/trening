@@ -5,11 +5,10 @@ AthleteSettings.intervals_icu — no OAuth dance, matching the convention alread
 used for the TrainingPeaks calendar-sync URL. Strava remains the sole login
 mechanism; this client is a second data source, not a second auth path.
 
-Endpoint paths and field names below are best-effort from public documentation.
-The Intervals.icu docs domain returned 403 to automated fetches during planning,
-so every path here must be confirmed against a real API key (see
-scripts/spike_intervals_icu.py) before any Phase 2 mapping code is written
-against the response shapes this client returns.
+All five endpoint paths below were confirmed (HTTP 200) against a real
+Intervals.icu account via scripts/spike_intervals_icu.py on 2026-07-30.
+Response-field mapping (NP/TSS/zones/eFTP/wellness/etc.) is deferred to
+Phase 2 — this client only returns raw JSON.
 """
 
 from datetime import date

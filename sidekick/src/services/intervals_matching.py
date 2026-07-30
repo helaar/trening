@@ -7,40 +7,42 @@ at all even though the "same" workout exists in both systems. Both matching
 tiers below are expected to fire regularly — fuzzy matching is not a rare
 fallback.
 
-Field names used to extract a Strava-id back-reference, start time, duration,
-and polyline from an Intervals.icu activity payload are best-effort guesses
-(the Intervals.icu docs domain returned 403 to automated fetches during
-planning). Verify these against a real API response (see
-scripts/spike_intervals_icu.py) and adjust the candidate-key tuples below if
-needed — the extraction helpers are isolated exactly so that's a one-place fix.
+Field names below were confirmed against a real Intervals.icu API response
+(scripts/spike_intervals_icu.py, run 2026-07-30):
+- Activities do carry a dedicated `strava_id` field (not a regex-parsed guess).
+- There is no polyline/map field on this Intervals.icu endpoint, so fuzzy
+  matching uses `distance` (present on both sides, in meters) instead of route
+  similarity. This is unrelated to commute detection, which runs on Strava's
+  own polyline via clients/strava/polyline.py and is unaffected.
+- `start_date`/`moving_time`/`elapsed_time` match Strava's own field names
+  exactly, so no separate candidate list was needed for those.
+Still unconfirmed: whether `strava_id` is actually populated (vs. null) for
+activities that reached Intervals.icu via Garmin/Zwift without passing through
+Strava — the matcher is designed to fall through to the fuzzy path correctly
+either way, so this doesn't block anything, it just isn't verified yet.
 """
 
 import logging
-import re
 from datetime import datetime, timedelta
 from typing import Any, Literal
 
-from clients.strava.polyline import is_route_match
 from models.intervals_activity import IntervalsActivityRaw
 from models.strava_activity import StravaActivityRaw
 
 logger = logging.getLogger(__name__)
 
-# --- field-name candidates (verify in Phase 0, see module docstring) ---------
-
-_STRAVA_ID_KEYS = ("strava_id", "stravaId", "strava_activity_id")
-_EXTERNAL_ID_KEYS = ("external_id", "externalId")
-_EXTERNAL_ID_STRAVA_RE = re.compile(r"strava[_-]?(\d+)", re.IGNORECASE)
-_INTERVALS_ID_KEYS = ("id", "intervals_id", "intervalsId")
-_START_TIME_KEYS = ("start_date", "start_date_local", "startTime")
-_DURATION_KEYS = ("moving_time", "movingTime", "elapsed_time", "elapsedTime", "duration")
+_STRAVA_ID_KEYS = ("strava_id",)
+_INTERVALS_ID_KEYS = ("id",)
+_START_TIME_KEYS = ("start_date",)
+_DURATION_KEYS = ("moving_time", "elapsed_time")
 
 # --- matching tolerances -----------------------------------------------------
 
 START_TIME_TOLERANCE = timedelta(minutes=5)
 DURATION_RELATIVE_TOLERANCE = 0.05
 DURATION_ABS_FLOOR_SECONDS = 60.0
-ROUTE_MATCH_THRESHOLD_METERS = 100.0
+DISTANCE_RELATIVE_TOLERANCE = 0.05
+DISTANCE_ABS_FLOOR_METERS = 200.0
 
 
 def _extract_strava_id(intervals_activity: dict[str, Any]) -> int | None:
@@ -51,12 +53,6 @@ def _extract_strava_id(intervals_activity: dict[str, Any]) -> int | None:
                 return int(value)
             except (TypeError, ValueError):
                 continue
-    for key in _EXTERNAL_ID_KEYS:
-        external_id = intervals_activity.get(key)
-        if external_id:
-            match = _EXTERNAL_ID_STRAVA_RE.search(str(external_id))
-            if match:
-                return int(match.group(1))
     return None
 
 
@@ -90,21 +86,20 @@ def _extract_duration_seconds(data: dict[str, Any]) -> float | None:
     return None
 
 
-def _extract_polyline(data: dict[str, Any]) -> str | None:
-    for key in ("polyline", "summary_polyline"):
-        value = data.get(key)
-        if value:
-            return str(value)
-    map_data = data.get("map")
-    if isinstance(map_data, dict):
-        return map_data.get("summary_polyline") or map_data.get("polyline")
-    return None
+def _extract_distance_meters(data: dict[str, Any]) -> float | None:
+    value = data.get("distance")
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _is_fuzzy_candidate(
     intervals_start: datetime | None,
     intervals_duration: float | None,
-    intervals_polyline: str | None,
+    intervals_distance: float | None,
     strava: StravaActivityRaw,
 ) -> bool:
     strava_start = _parse_start_time(strava.raw_data)
@@ -119,11 +114,10 @@ def _is_fuzzy_candidate(
         if abs(strava_duration - intervals_duration) > tolerance:
             return False
 
-    strava_polyline = _extract_polyline(strava.raw_data)
-    if strava_polyline and intervals_polyline:
-        if not is_route_match(
-            strava_polyline, intervals_polyline, threshold_meters=ROUTE_MATCH_THRESHOLD_METERS
-        ):
+    strava_distance = _extract_distance_meters(strava.raw_data)
+    if strava_distance and intervals_distance:
+        tolerance = max(DISTANCE_ABS_FLOOR_METERS, strava_distance * DISTANCE_RELATIVE_TOLERANCE)
+        if abs(strava_distance - intervals_distance) > tolerance:
             return False
 
     return True
@@ -152,7 +146,7 @@ def match_intervals_activities(
             continue
 
         strava_id = _extract_strava_id(intervals_activity)
-        match_method: Literal["strava_id", "fuzzy_polyline_date_duration", "ambiguous"]
+        match_method: Literal["strava_id", "fuzzy_date_duration_distance", "ambiguous"]
         resolved_strava_id: int | None
 
         if strava_id is not None:
@@ -161,14 +155,14 @@ def match_intervals_activities(
         else:
             intervals_start = _parse_start_time(intervals_activity)
             intervals_duration = _extract_duration_seconds(intervals_activity)
-            intervals_polyline = _extract_polyline(intervals_activity)
+            intervals_distance = _extract_distance_meters(intervals_activity)
             candidates = [
                 s
                 for s in strava_activities
-                if _is_fuzzy_candidate(intervals_start, intervals_duration, intervals_polyline, s)
+                if _is_fuzzy_candidate(intervals_start, intervals_duration, intervals_distance, s)
             ]
             if len(candidates) == 1:
-                match_method = "fuzzy_polyline_date_duration"
+                match_method = "fuzzy_date_duration_distance"
                 resolved_strava_id = candidates[0].activity_id
             else:
                 if len(candidates) > 1:

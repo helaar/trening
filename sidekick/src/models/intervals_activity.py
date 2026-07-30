@@ -13,8 +13,9 @@ class IntervalsActivityRaw(BaseModel):
     activity may reach us via a direct Strava-id back-reference, or — since the
     athlete's devices (Garmin, Zwift) upload to Strava and Intervals.icu
     independently rather than through a single chained hop — via fuzzy matching
-    on start time/duration/route. match_method records which path produced the
-    pairing so a wrong fuzzy match is auditable.
+    on start time/duration/distance (Intervals.icu doesn't expose a polyline on
+    this endpoint). match_method records which path produced the pairing so a
+    wrong fuzzy match is auditable.
     """
 
     athlete_id: int = Field(..., description="Athlete ID who owns this activity")
@@ -22,7 +23,7 @@ class IntervalsActivityRaw(BaseModel):
         None, description="Cross-referenced Strava activity ID, if matched"
     )
     intervals_activity_id: str = Field(..., description="Intervals.icu activity ID")
-    match_method: Literal["strava_id", "fuzzy_polyline_date_duration", "ambiguous", "manual"]
+    match_method: Literal["strava_id", "fuzzy_date_duration_distance", "ambiguous", "manual"]
     raw_data: dict[str, Any] = Field(..., description="Raw activity data from Intervals.icu API")
     intervals: list[dict[str, Any]] | None = Field(
         None, description="Per-interval/lap breakdown from Intervals.icu, if available"
