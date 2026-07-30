@@ -16,10 +16,14 @@ Field names below were confirmed against a real Intervals.icu API response
   own polyline via clients/strava/polyline.py and is unaffected.
 - `start_date`/`moving_time`/`elapsed_time` match Strava's own field names
   exactly, so no separate candidate list was needed for those.
-Still unconfirmed: whether `strava_id` is actually populated (vs. null) for
-activities that reached Intervals.icu via Garmin/Zwift without passing through
-Strava — the matcher is designed to fall through to the fuzzy path correctly
-either way, so this doesn't block anything, it just isn't verified yet.
+
+Confirmed against the athlete's real activity history (2026-07-30): `strava_id`
+is populated on older activities synced via a Strava connection (source
+"UPLOAD"), but is null on every activity since the athlete switched to
+Intervals.icu's direct Garmin Connect integration (source "GARMIN_CONNECT",
+2026-07-14 onward) — so for ongoing activity ingestion, fuzzy matching is the
+dominant path, not a rare fallback, exactly as this module is designed to
+handle.
 """
 
 import logging
