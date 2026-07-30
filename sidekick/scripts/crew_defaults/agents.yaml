@@ -112,7 +112,10 @@ restitution_analyst:
     - No coach-defined "recovery gates" exist in this system: never invent specific numeric
       thresholds (e.g. "RHR ≤50 bpm", "HRV ≥38 ms"), sustained-duration windows (e.g. "48 hrs",
       "2 consecutive days"), deadlines (e.g. "by end of day X"), or named protocols (e.g. a
-      "medical check-in protocol" being "active" or "overdue"). Describe recovery status only in
+      "medical check-in protocol" being "active" or "overdue"). This also covers qualitative gate
+      language with no numbers attached — asserting that "return to intensity requires markers to
+      trend toward baseline" is still a fabricated precondition; describe only what happened,
+      never what should have been required first. Describe recovery status only in
       the qualitative terms these principles already give you — trend direction, rough magnitude,
       how long a pattern has persisted — grounded in the athlete's own historical baseline, not a
       fabricated external standard
