@@ -47,6 +47,12 @@ daily_coaching_task:
     yourself. Describe effort in plain language only — never zone numbers, zone names,
     percentages, or the word "assessment" — and do not repeat a philosophy verdict given on
     recent days unless the weekly status has changed (check the memory bank first).
+
+    When the philosophy's own guidance calls for more of a prescribed intensity type (e.g. this
+    athlete's model expecting most athletes to under-do harder sessions) and an active risk memory
+    pulls the other way, resolve it using today's actual evidence: a plan-compliant session
+    executed well outweighs a memory-based caution that today's data does not support. Do not let
+    a standing risk memory override what actually happened in today's session.
   expected_output: |
     A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
     coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
@@ -73,6 +79,10 @@ memory_consolidation_task:
        as central to coaching, lower it for fading ones. Importance is independent of confidence.
     4. Review recent-scope memories for promotion:
        - Promote to long_term only if confirmed across multiple weeks with high confidence
+       - When counting confirming evidence for a risk pattern, exclude instances where the
+         flagged behaviour recurred but the predicted outcome did not occur (good execution, no
+         adverse signal) — those are disconfirming, not confirming, and must reduce rather than
+         support a promotion
     5. Identify any new long-term patterns across the window not yet captured in memory. Before
        adding one, check it does not already restate an existing memory with a different date or
        figure — if it does, that is an update for step 1 or 2, not a new pattern. Also check each
@@ -102,6 +112,15 @@ memory_consolidation_task:
        peak but still sits at or above the athlete's established baseline/target is not a
        regression — do not create or update a memory framing that as a problem requiring
        monitoring or intervention.
+
+    9. Audit for fabricated recovery gates or protocols: no coach-defined numeric thresholds
+       (e.g. "HRV ≥38 ms", "RHR ≤50 bpm"), sustained-duration windows (e.g. "48 hrs", "2
+       consecutive days"), deadlines, or named protocols (e.g. a "medical check-in protocol"
+       being "active" or "overdue") exist in this system. If a memory being updated, compacted,
+       or promoted contains this framing — including if it was already present in an existing
+       memory's content — rewrite it in qualitative, data-grounded terms (trend direction, rough
+       magnitude, how long it has persisted) before saving. Do not let one report's fabricated
+       framing become permanently canonized through compaction or promotion.
   expected_output: |
     A JSON object with four fields:
     - updates: list of memory updates (may be empty)
@@ -133,6 +152,12 @@ memory_extraction_task:
     high; incidental observations are low. When a pattern is changing (improving or worsening),
     say so in the content so the coach can reinforce progress or flag regression.
 
+    When today's coaching output shows a previously-flagged behaviour recurring, also check its
+    outcome: if the session was executed well with no adverse signal (e.g. targets hit, a new
+    best), that disconfirms the risk pattern rather than reinforcing it — do not raise confidence
+    or importance for it today, and consider whether the memory's content should now reflect that
+    counter-instance.
+
     Scope guidance:
     - recent: behaviour observed over days to a few weeks; may still be forming
     - long_term: pattern confirmed over multiple weeks with consistent evidence
@@ -145,6 +170,13 @@ memory_extraction_task:
     - goal: short-term targets the athlete mentioned or demonstrated
 
     Only create memories for patterns with at least 2 data points. A single day is not a pattern.
+
+    Before recording or reinforcing a "premature return to intensity" risk pattern, check whether
+    the session was plan-prescribed (rest day taken beforehand, intensity type/spacing matches the
+    athlete's stated weekly training targets) — if so, do not extend or reinforce that pattern
+    from this instance; it is compliant execution, not a recovery-signal override. Only unplanned
+    or extra intensity sessions, or ones that violate the plan's own spacing rules, count as
+    instances of this pattern.
 
     No coach-defined "recovery gates," medical protocols, or deadlines exist in this system. If
     today's coaching output frames a risk in those terms (e.g. a numeric bpm/ms threshold, a

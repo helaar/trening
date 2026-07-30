@@ -80,7 +80,7 @@ def _score_memory(memory: Memory, ctx: DayContext, today: date) -> float:
 
 
 def _is_core_candidate(memory: Memory) -> bool:
-    return memory.category in (MemoryCategory.GOAL, MemoryCategory.RISK) or (
+    return memory.category == MemoryCategory.GOAL or (
         memory.category == MemoryCategory.HABIT and memory.scope == MemoryScope.LONG_TERM
     )
 
@@ -90,9 +90,11 @@ def select_relevant_memories_objects(
 ) -> list[Memory]:
     """Hybrid, leaning-wide selection, returning the ranked ``Memory`` objects.
 
-    A stable durable core (goals, long-term habits, active risks) is always present so the
-    coach can track habits and progress over time; today's situation then fills the
-    remaining slots and orders the whole set. Deterministic for fixed inputs.
+    A stable durable core (goals, long-term habits) is always present so the coach can track
+    habits and progress over time; today's situation then fills the remaining slots and orders
+    the whole set. Risk memories compete on relevance like recovery/performance memories rather
+    than being unconditionally core, so a long-lived risk memory doesn't outlive its relevance.
+    Deterministic for fixed inputs.
     """
     today = date.fromisoformat(analysis_date)
     scored = {id(m): _score_memory(m, ctx, today) for m in memories}
@@ -156,16 +158,17 @@ def select_relevant_memories(
     ]
 
 
-def select_recovery_memories(memories: list[Memory], analysis_date: str) -> list[dict[str, Any]]:
+def select_recovery_memories(
+    memories: list[Memory], analysis_date: str, ctx: DayContext
+) -> list[dict[str, Any]]:
     """Recovery/risk memories for the restitution analyst, ranked and trimmed.
 
     Distilled, recency-weighted context (e.g. a recent illness) the analyst uses to
     explain anomalies in today's metrics — not the coach's wide, goal-inclusive set.
-    Scored against a low-readiness context so recovery/risk memories get their context
-    boost; deterministic for fixed inputs.
+    Scored against today's actual situation, so recovery/risk memories only get their
+    context boost when it's genuinely warranted; deterministic for fixed inputs.
     """
     today = date.fromisoformat(analysis_date)
-    ctx = DayContext(readiness="low")
     recovery = [m for m in memories if m.category in (MemoryCategory.RECOVERY, MemoryCategory.RISK)]
     recovery.sort(key=lambda m: (_score_memory(m, ctx, today), m.updated_at), reverse=True)
 
