@@ -697,7 +697,11 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         default=str,
     )
     restitution_memory_payload = json.dumps(
-        {"active_memories": select_recovery_memories(input.active_memories, input.date)},
+        {
+            "active_memories": select_recovery_memories(
+                input.active_memories, input.date, day_context
+            )
+        },
         default=str,
     )
 

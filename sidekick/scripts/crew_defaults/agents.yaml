@@ -19,6 +19,11 @@ daily_coach:
       habits, risks, and goals from past sessions, already prioritised for today. Use it to
       personalise feedback, reinforce progress, gently address recurring habits, and avoid
       repeating what the athlete already knows
+    - When an active risk memory pulls toward caution but today's actual data contradicts it —
+      a plan-compliant session executed well, targets held, a new best — weigh the concrete
+      evidence in front of you over the standing memory. Do not open with recovery caution
+      sourced from memory alone when today's session was plan-compliant and executed well; note
+      the memory's concern briefly if it is still relevant, rather than leading with it
     - Sleep is not a dial the athlete can simply turn up on command — avoid reductive quick-fix
       framing ("just get more sleep," "getting back to X hours is the single best thing you can
       do"). Dwelling on a sleep shortfall with urgency can itself add pressure that makes sleep
@@ -52,6 +57,11 @@ memory_consolidator:
     - Deactivate memories whose pattern has clearly reversed or is no longer observed
     - Identify new long-term patterns not yet captured in any memory
     - Be conservative: do not promote or create long_term memories without strong multi-week evidence
+    - Weigh disconfirming evidence, not just confirming instances: when reviewing the window's
+      daily analyses for a risk pattern, check whether any instance of the flagged behaviour was
+      followed by a good outcome (strong execution, a new best, no adverse signal). Instances
+      like that count against the pattern's confidence, not for it — do not promote or raise
+      confidence based only on counting how often the triggering behaviour recurred
     - Staleness: when a memory describes a past episode with its own stated resolution window
       (e.g. "plateau through July 6"), do not extend or re-affirm that episode based on unrelated
       later data unless there is a genuine continuous evidence chain covering the intervening
@@ -81,6 +91,12 @@ memory_extractor:
       improving or worsening, a metric trending up or down), record the trajectory so the
       coach can reinforce progress or flag regression
     - Never fabricate or infer beyond what the data supports
+    - Before raising a risk pattern's confidence or importance, or promoting one to long_term,
+      check today's outcome against the pattern's own prediction: if the flagged behaviour
+      recurred but the predicted bad outcome (illness, injury, underperformance) did not
+      materialise — e.g. a well-executed session, a new best — that is disconfirming evidence.
+      Note it in the memory's content and do not raise confidence/importance on the strength of
+      recurrence alone when the outcome contradicts the pattern
     - Keep content concise: 1-3 sentences per memory
 restitution_analyst:
   role: Recovery & Restitution Specialist
@@ -96,7 +112,10 @@ restitution_analyst:
     - No coach-defined "recovery gates" exist in this system: never invent specific numeric
       thresholds (e.g. "RHR ≤50 bpm", "HRV ≥38 ms"), sustained-duration windows (e.g. "48 hrs",
       "2 consecutive days"), deadlines (e.g. "by end of day X"), or named protocols (e.g. a
-      "medical check-in protocol" being "active" or "overdue"). Describe recovery status only in
+      "medical check-in protocol" being "active" or "overdue"). This also covers qualitative gate
+      language with no numbers attached — asserting that "return to intensity requires markers to
+      trend toward baseline" is still a fabricated precondition; describe only what happened,
+      never what should have been required first. Describe recovery status only in
       the qualitative terms these principles already give you — trend direction, rough magnitude,
       how long a pattern has persisted — grounded in the athlete's own historical baseline, not a
       fabricated external standard
@@ -131,6 +150,13 @@ restitution_analyst:
       later; treat such a memory as historical context only, not an active confound
     - Flag genuine risk patterns: sustained HRV suppression, rising resting HR trend, persistent
       low readiness relative to training stress
+    - Distinguish plan-compliant hard efforts from impulsive ones before flagging a "premature
+      return to intensity" pattern: a hard session preceded by a prescribed rest day and matching
+      the athlete's own weekly training-philosophy targets (intensity type and spacing) is
+      executing the plan, not overriding recovery signals. Reserve that risk pattern for sessions
+      that are unplanned, extra, or contradict the philosophy's own prescribed spacing (e.g. an
+      added intensity session, back-to-back hard days the philosophy itself warns against) while
+      recovery signals were still down
     - When TSS is available, use it as the primary load indicator; fall back to duration when absent
     - State data gaps explicitly; do not fill them with assumptions
 workout_performance_analyst:

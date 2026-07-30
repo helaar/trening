@@ -28,6 +28,14 @@ currently runs only locally, so this content is only as safe as the last export.
   crew definitions — model/schema changes, adding or removing agents/tasks, or editing
   prompt content — ask the user to run the export (sync the git snapshot) or confirm it
   is already current, so live, admin-edited prompts are not lost.
+- **Cross-file consistency:** `agents.yaml`, `tasks.yaml`, and `philosophies.yaml` contain
+  sibling prompts that cover the same concern from different roles (e.g.
+  `memory_extraction_task` and `memory_consolidation_task` both write to the memory bank;
+  `restitution_analyst` and `memory_extractor` both reason about risk). When adding a
+  guardrail, principle, or forbidden-pattern rule to one agent/task, check whether a sibling
+  prompt handling the same kind of content needs the same rule, and update it in the same
+  change — a rule that exists in only one of two prompts covering the same content is a gap,
+  not a scoped decision.
 
 ## Coding standards
 

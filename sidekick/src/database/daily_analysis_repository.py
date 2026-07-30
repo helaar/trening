@@ -26,6 +26,7 @@ class DailyAnalysisRepository:
             "coaching_feedback.key_takeaway": 1,
             "coaching_feedback.coach_notes": 1,
             "restitution_analysis.overall_recovery_quality": 1,
+            "workout_analysis.daily_summary": 1,
         }
         cursor = self.collection.find(
             {"athlete_id": athlete_id, "date": {"$gte": start_date, "$lte": end_date}},
@@ -41,6 +42,9 @@ class DailyAnalysisRepository:
             ra = doc.get("restitution_analysis")
             if isinstance(ra, dict):
                 entry["recovery_quality"] = ra.get("overall_recovery_quality")
+            wa = doc.get("workout_analysis")
+            if isinstance(wa, dict):
+                entry["workout_highlights"] = wa.get("daily_summary")
             summaries.append(entry)
         return summaries
 
