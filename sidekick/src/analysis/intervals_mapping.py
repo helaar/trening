@@ -62,6 +62,21 @@ def map_power_metrics(intervals_activity: IntervalsActivityRaw | None) -> PowerM
     )
 
 
+def map_rpe(intervals_activity: IntervalsActivityRaw | None) -> int | None:
+    """Athlete-logged RPE (1-10) for this activity, sourced from Intervals.icu.
+
+    Field name (icu_rpe) is a best documented guess, pending confirmation via
+    scripts/spike_intervals_icu.py's RPE diagnostics (candidates also captured
+    there: feel, session_rpe, perceived_exertion).
+    """
+    if intervals_activity is None:
+        return None
+    value = intervals_activity.raw_data.get("icu_rpe")
+    if isinstance(value, int) and 1 <= value <= 10:
+        return value
+    return None
+
+
 def map_athlete_ftp(intervals_activity: IntervalsActivityRaw | None) -> float | None:
     """FTP Intervals.icu used for this activity's own IF/TSS calculation.
 

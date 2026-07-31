@@ -230,7 +230,12 @@ class WorkoutAnalysis(BaseModel):
     # Intervals.icu hasn't processed it, or no match found yet),
     # "not_configured" (athlete hasn't connected Intervals.icu).
     intervals_sync_status: Literal["synced", "not_yet_synced", "not_configured"] | None = None
-    
+
+    # Athlete-logged RPE (1-10) sourced from Intervals.icu, when the athlete
+    # hasn't already logged one in sidekick's own assessment (see
+    # crew/daily_analysis.py's _enrich_workout and DayDetailPanel.tsx's prefill).
+    intervals_rpe: int | None = None
+
     @property
     def is_virtual_activity(self) -> bool:
         """Check if this is a virtual/indoor activity."""

@@ -5,6 +5,7 @@ import httpx
 
 from config import settings as app_settings
 from analysis.engine import ANALYSIS_ENGINE_VERSION, analyze_workout
+from analysis.intervals_mapping import map_rpe
 from analysis.models import WorkoutAnalysis
 from clients.intervals_icu.client import IntervalsIcuClient, IntervalsIcuError, IntervalsIcuNotConfigured
 from clients.strava.client import StravaClient, StravaActivity, StravaDataParser
@@ -316,6 +317,7 @@ class WorkoutAnalysisService:
         )
         analysis.activity_id = activity_id
         analysis.intervals_sync_status = intervals_sync_status
+        analysis.intervals_rpe = map_rpe(intervals_activity)
 
         # Cache the analysis results with current settings hash for reference
         analysis_dict = analysis.model_dump()

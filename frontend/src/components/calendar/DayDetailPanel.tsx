@@ -221,7 +221,10 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         if (w.session.commute !== "no") return
         const key = workoutKey(w, i)
         if (!(key in next)) {
-          next[key] = { tags: w.session.tags?.length ? [...w.session.tags] : undefined }
+          next[key] = {
+            tags: w.session.tags?.length ? [...w.session.tags] : undefined,
+            rpe: w.intervals_rpe ?? undefined,
+          }
         }
       })
       return next

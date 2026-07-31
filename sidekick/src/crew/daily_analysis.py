@@ -623,6 +623,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
             enriched["athlete_rpe"] = assessment.rpe
             if assessment.notes:
                 enriched["athlete_notes"] = assessment.notes
+        elif w.get("intervals_rpe") is not None:
+            enriched["athlete_rpe"] = w["intervals_rpe"]
         enriched["intensity_distribution"] = _compute_intensity_distribution(w)
         return enriched
 

@@ -46,6 +46,7 @@ export interface WorkoutAnalysis {
   has_power_data: boolean
   has_heart_rate_data: boolean
   intervals_sync_status: "synced" | "not_yet_synced" | "not_configured" | null
+  intervals_rpe: number | null
 }
 
 export function deleteWorkout(athleteId: number, activityId: number): Promise<void> {
