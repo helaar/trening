@@ -15,7 +15,7 @@ from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
 from models.daily_analysis import DailyAnalysisResult
 from models.memory import Memory, MemoryScope, clamp_memory_content
-from services import intervals_calendar
+from services import intervals_calendar, intervals_wellness
 from services.handlers.base import TaskHandler
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,7 @@ class DailyAnalysisHandler(TaskHandler):
             recent_workout_analyses,
             active_memories,
             upcoming_races,
+            restitution_sync_series,
         ) = await asyncio.gather(
             self.workout_repo.get_analyses_for_date(athlete_id, activity_date),
             intervals_calendar.get_for_date(athlete_id, athlete.settings, date_str),
@@ -92,6 +93,7 @@ class DailyAnalysisHandler(TaskHandler):
             ),
             self.memory_repo.get_active(athlete_id),
             intervals_calendar.get_races_from(athlete_id, athlete.settings, date_str),
+            intervals_wellness.get_restitution_sync_series(athlete.settings, restitution_start, date_str),
         )
         logger.info(
             "Retrieved %d workout analyses, %d plans, %d daily entries, "
@@ -105,6 +107,16 @@ class DailyAnalysisHandler(TaskHandler):
             date_str,
         )
         await self.task_repo.update_task_progress(task_id, 0.3)
+
+        sync_by_date = {s.date: s for s in restitution_sync_series}
+        entries_by_date = {e.date: e for e in daily_entries}
+        for d in sorted(set(entries_by_date) | set(sync_by_date)):
+            merged = intervals_wellness.merge_restitution(
+                entries_by_date.get(d), athlete_id, d, sync_by_date.get(d)
+            )
+            if merged is not None:
+                entries_by_date[d] = merged
+        daily_entries = [entries_by_date[d] for d in sorted(entries_by_date)]
 
         analysis_input = DailyAnalysisInput(
             athlete=athlete,

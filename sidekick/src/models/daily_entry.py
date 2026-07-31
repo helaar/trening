@@ -12,6 +12,20 @@ class Restitution(BaseModel):
     comment: str | None = None
 
 
+class RestitutionSync(BaseModel):
+    """One day's objective restitution fields sourced live from Intervals.icu.
+
+    Not persisted — used to fill gaps in a manually-entered Restitution. No
+    equivalent for sleep_quality/readiness/comment: those are the athlete's
+    own subjective ratings, which Intervals.icu doesn't provide.
+    """
+
+    date: str  # YYYY-MM-DD
+    sleep_hours: float | None = None
+    hrv: int | None = None
+    resting_hr: int | None = None
+
+
 class ActivityAssessment(BaseModel):
     activity_id: int
     activity_name: str
