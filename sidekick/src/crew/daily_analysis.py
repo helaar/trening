@@ -41,6 +41,23 @@ _RESTITUTION_WINDOW_DAYS = 14
 # philosophies get no weekly classification.
 _POLARIZED_SLUG = "polarized_80_20"
 
+# Fields from a serialized WorkoutAnalysis that workout_analysis_task/
+# WorkoutOutput actually consume. laps/power_histogram/heart_rate_drift/zones
+# are computed but never referenced by name in the prompt or output schema —
+# zones specifically is superseded by the derived intensity_distribution
+# _enrich_workout already adds below.
+_WORKOUT_PAYLOAD_KEYS = (
+    "activity_id",
+    "analysis_type",
+    "session",
+    "metrics",
+    "erg_analysis",
+    "has_power_data",
+    "has_heart_rate_data",
+    "has_cadence_data",
+    "intervals_sync_status",
+)
+
 
 @dataclass
 class DailyAnalysisInput:
@@ -599,7 +616,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         session_tags = w.get("session", {}).get("tags", [])
         all_tags = list(dict.fromkeys(session_tags + user_tags))
 
-        enriched = dict(w)
+        enriched = {k: w[k] for k in _WORKOUT_PAYLOAD_KEYS if k in w}
         if all_tags:
             enriched["tags"] = all_tags
         if assessment:
