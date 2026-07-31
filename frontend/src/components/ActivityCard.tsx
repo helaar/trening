@@ -4,7 +4,63 @@ import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
 import { X } from "lucide-react"
 import { cn } from "../lib/utils"
-import type { WorkoutAnalysis } from "../api/workouts"
+import type { WorkoutAnalysis, ZoneDistribution, ZoneInfo } from "../api/workouts"
+
+// Ordered low->high intensity ramp, matching this file's existing RPE color
+// convention (rpeColor below) rather than an arbitrary categorical palette —
+// zones are an ordered progression, not unrelated categories.
+const ZONE_COLORS = [
+  "bg-emerald-400",
+  "bg-green-400",
+  "bg-lime-400",
+  "bg-yellow-400",
+  "bg-orange-400",
+  "bg-red-400",
+  "bg-red-600",
+]
+
+function summarizeZones(zones: ZoneInfo[]): { low: number; moderate: number; high: number } | null {
+  const total = zones.reduce((sum, z) => sum + z.seconds, 0)
+  if (!total) return null
+  const low = zones.slice(0, 2).reduce((sum, z) => sum + z.seconds, 0)
+  const moderate = zones[2]?.seconds ?? 0
+  const high = zones.slice(3).reduce((sum, z) => sum + z.seconds, 0)
+  return {
+    low: Math.round((low / total) * 100),
+    moderate: Math.round((moderate / total) * 100),
+    high: Math.round((high / total) * 100),
+  }
+}
+
+function ZoneDistributionBar({ distribution, unit }: { distribution: ZoneDistribution; unit: string }) {
+  const summary = summarizeZones(distribution.zones)
+  if (!summary) return null
+
+  return (
+    <div className="space-y-1">
+      <div className="flex h-2.5 w-full divide-x divide-background overflow-hidden rounded-full bg-muted">
+        {distribution.zones.map(
+          (zone, i) =>
+            zone.percent > 0 && (
+              <div
+                key={zone.name}
+                className={ZONE_COLORS[i % ZONE_COLORS.length]}
+                style={{ width: `${zone.percent}%` }}
+                title={`${zone.name}: ${zone.percent.toFixed(0)}%${
+                  zone.lower != null
+                    ? ` (${Math.round(zone.lower)}${zone.upper != null ? `–${Math.round(zone.upper)}` : "+"} ${unit})`
+                    : ""
+                }`}
+              />
+            )
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Low {summary.low}% &middot; Moderate {summary.moderate}% &middot; High {summary.high}%
+      </p>
+    </div>
+  )
+}
 
 interface Props {
   workout: WorkoutAnalysis
@@ -39,9 +95,11 @@ function sportLabel(category: string): string {
 }
 
 export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
-  const { session, metrics } = workout
+  const { session, metrics, zones, intervals_sync_status } = workout
   const isNote = session.manual === true
   const isCommute = session.commute !== "no"
+  const zoneDistribution = zones?.power_zones ?? zones?.heart_rate_zones ?? null
+  const zoneUnit = zones?.power_zones ? "W" : "bpm"
 
   // Note editing state — declared before any early return to satisfy hook rules
   const [editingNote, setEditingNote] = useState(false)
@@ -145,6 +203,16 @@ export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
 
       {!isCommute && (
         <CardContent className="space-y-4 border-t pt-4">
+          {zoneDistribution && (
+            <div className="space-y-1.5">
+              <Label>Zone distribution</Label>
+              <ZoneDistributionBar distribution={zoneDistribution} unit={zoneUnit} />
+            </div>
+          )}
+          {!zoneDistribution && intervals_sync_status === "not_yet_synced" && (
+            <p className="text-xs text-muted-foreground">Zone distribution: waiting on Intervals.icu sync</p>
+          )}
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>RPE</Label>

@@ -8,6 +8,24 @@ export interface WorkoutMetrics {
   intensity_factor: number | null
 }
 
+export interface ZoneInfo {
+  name: string
+  lower: number | null
+  upper: number | null
+  seconds: number
+  percent: number
+}
+
+export interface ZoneDistribution {
+  total_seconds: number
+  zones: ZoneInfo[]
+}
+
+export interface ZoneAnalysis {
+  power_zones: ZoneDistribution | null
+  heart_rate_zones: ZoneDistribution | null
+}
+
 export interface SessionInfo {
   name: string | null
   sport: string
@@ -24,8 +42,10 @@ export interface WorkoutAnalysis {
   activity_id: number | null
   session: SessionInfo
   metrics: WorkoutMetrics
+  zones: ZoneAnalysis | null
   has_power_data: boolean
   has_heart_rate_data: boolean
+  intervals_sync_status: "synced" | "not_yet_synced" | "not_configured" | null
 }
 
 export function deleteWorkout(athleteId: number, activityId: number): Promise<void> {

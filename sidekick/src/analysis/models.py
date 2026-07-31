@@ -224,6 +224,12 @@ class WorkoutAnalysis(BaseModel):
     has_power_data: bool = False
     has_heart_rate_data: bool = False
     has_cadence_data: bool = False
+
+    # Whether NP/IF/TSS/zones (Intervals.icu-sourced, no local fallback) are
+    # available: "synced" (data present), "not_yet_synced" (matched but
+    # Intervals.icu hasn't processed it, or no match found yet),
+    # "not_configured" (athlete hasn't connected Intervals.icu).
+    intervals_sync_status: Literal["synced", "not_yet_synced", "not_configured"] | None = None
     
     @property
     def is_virtual_activity(self) -> bool:

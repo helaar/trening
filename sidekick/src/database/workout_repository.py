@@ -170,31 +170,39 @@ class WorkoutRepository:
         self,
         athlete_id: int,
         activity_id: int
-    ) -> tuple[dict[str, Any], str] | None:
+    ) -> tuple[dict[str, Any], str, int] | None:
         """
         Get cached analysis for an activity.
-        
+
         Returns the cached analysis regardless of whether settings have changed.
         The caller should use the settings_hash to determine if user should be
         notified about stale data, but never automatically invalidate the cache.
-        
+        analysis_engine_version, unlike settings_hash, IS meant to be compared by
+        the caller against the current analysis/engine.py ANALYSIS_ENGINE_VERSION
+        to force a recompute after an engine-logic change, since a plain code
+        deploy doesn't otherwise invalidate anything cached here.
+
         Args:
             athlete_id: Athlete ID
             activity_id: Strava activity ID
-            
+
         Returns:
-            Tuple of (analysis_data dict, settings_hash) or None if not found
+            Tuple of (analysis_data dict, settings_hash, analysis_engine_version) or None if not found
         """
         # Find the analysis
         doc = await self.analyses_collection.find_one({
             "athlete_id": athlete_id,
             "activity_id": activity_id
         })
-        
+
         if not doc:
             return None
-        
-        return (doc.get("analysis_data"), doc.get("settings_hash", ""))
+
+        return (
+            doc.get("analysis_data"),
+            doc.get("settings_hash", ""),
+            doc.get("analysis_engine_version", 0),
+        )
     
     async def get_analyses_for_date(
         self,
@@ -274,26 +282,31 @@ class WorkoutRepository:
         athlete_id: int,
         activity_id: int,
         analysis_data: dict[str, Any],
-        settings: AthleteSettings | None = None
+        settings: AthleteSettings | None = None,
+        analysis_engine_version: int = 0,
     ) -> bool:
         """
         Store analysis results for an activity.
-        
+
         Args:
             athlete_id: Athlete ID
             activity_id: Strava activity ID
             analysis_data: Serialized WorkoutAnalysis data
             settings: Athlete settings used for analysis
-            
+            analysis_engine_version: analysis/engine.py's ANALYSIS_ENGINE_VERSION
+                at compute time, so a later engine-logic change can force a
+                recompute (see get_analysis)
+
         Returns:
             True if stored successfully
         """
         settings_hash = self._hash_settings(settings) if settings else ""
-        
+
         analysis_obj = WorkoutAnalysisData(
             athlete_id=athlete_id,
             activity_id=activity_id,
             settings_hash=settings_hash,
+            analysis_engine_version=analysis_engine_version,
             analysis_data=analysis_data
         )
         
