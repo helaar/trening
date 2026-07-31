@@ -11,11 +11,11 @@ No local caching: same rationale as intervals_calendar.py — wellness changes d
 and call volume here is low (once per Insights-page load), so a live read is both
 simpler and more correct than a cached one.
 
-Field names below (ctl/atl/rampRate/id/sleepSecs/hrv/restingHR) are Intervals.icu's
-documented wellness response fields; pending final confirmation against a real
-captured response via scripts/spike_intervals_icu.py's "Wellness" section before
-being treated as settled (see the Phase 2 precedent in analysis/intervals_mapping.py,
-where field names were confirmed the same way before being trusted).
+Field names below (ctl/atl/rampRate/id/sleepSecs/hrv/restingHR) confirmed against a
+real captured response via scripts/spike_intervals_icu.py's "Wellness" section
+(2026-08-01). Note hrv is a float in the real response (e.g. 50.0), not an int —
+rounded to int in map_wellness_entry_to_restitution to match Restitution.hrv's
+existing int type.
 
 Phase 5 also sources the restitution check-in's objective fields (sleep_hours, hrv,
 resting_hr) from the same wellness entries — see map_wellness_entry_to_restitution
@@ -52,11 +52,13 @@ def map_wellness_entry(entry: dict[str, Any]) -> FitnessPoint:
 
 def map_wellness_entry_to_restitution(entry: dict[str, Any]) -> RestitutionSync:
     sleep_secs = entry.get("sleepSecs")
+    hrv = entry.get("hrv")
+    resting_hr = entry.get("restingHR")
     return RestitutionSync(
         date=str(entry.get("id") or ""),
         sleep_hours=sleep_secs / 3600 if isinstance(sleep_secs, (int, float)) else None,
-        hrv=entry.get("hrv"),
-        resting_hr=entry.get("restingHR"),
+        hrv=round(hrv) if isinstance(hrv, (int, float)) else None,
+        resting_hr=round(resting_hr) if isinstance(resting_hr, (int, float)) else None,
     )
 
 
