@@ -26,10 +26,10 @@ function SeasonGoalBadge() {
   )
 }
 
-function RaceBadge() {
+function RaceBadge({ priority }: { priority: "A" | "B" | "C" | null }) {
   return (
     <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-amber-100 text-amber-700 border-amber-300">
-      🏆 Race
+      🏆 Race{priority ? ` (${priority})` : ""}
     </span>
   )
 }
@@ -52,7 +52,7 @@ export function PlanCard({ plan }: Props) {
         {(isSeasonGoal || isRace) && (
           <div className="flex flex-wrap gap-1.5">
             {isSeasonGoal && <SeasonGoalBadge />}
-            {isRace && <RaceBadge />}
+            {isRace && <RaceBadge priority={plan.race_priority} />}
           </div>
         )}
 

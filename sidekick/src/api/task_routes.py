@@ -11,7 +11,6 @@ from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
 from database.memory_repository import MemoryRepository
 from database.mongodb import get_db
-from database.plan_repository import PlanRepository
 from database.prompt_log_repository import PromptLogRepository
 from database.task_repository import TaskRepository
 from database.workout_repository import WorkoutRepository
@@ -36,11 +35,6 @@ def get_athlete_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> Ath
 def get_workout_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> WorkoutRepository:
     """Dependency to get workout repository."""
     return WorkoutRepository(db)
-
-
-def get_plan_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> PlanRepository:
-    """Dependency to get plan repository."""
-    return PlanRepository(db)
 
 
 def get_daily_analysis_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> DailyAnalysisRepository:
@@ -72,7 +66,6 @@ def get_task_processor(
     task_repo: Annotated[TaskRepository, Depends(get_task_repository)],
     athlete_repo: Annotated[AthleteRepository, Depends(get_athlete_repository)],
     workout_repo: Annotated[WorkoutRepository, Depends(get_workout_repository)],
-    plan_repo: Annotated[PlanRepository, Depends(get_plan_repository)],
     daily_analysis_repo: Annotated[DailyAnalysisRepository, Depends(get_daily_analysis_repository)],
     daily_entry_repo: Annotated[DailyEntryRepository, Depends(get_daily_entry_repository)],
     memory_repo: Annotated[MemoryRepository, Depends(get_memory_repository)],
@@ -80,7 +73,7 @@ def get_task_processor(
     prompt_log_repo: Annotated[PromptLogRepository, Depends(get_prompt_log_repository)],
 ) -> TaskProcessor:
     """Dependency to get task processor."""
-    return TaskProcessor(task_repo, athlete_repo, workout_repo, plan_repo, daily_analysis_repo, daily_entry_repo, memory_repo, crew_def_repo, prompt_log_repo)
+    return TaskProcessor(task_repo, athlete_repo, workout_repo, daily_analysis_repo, daily_entry_repo, memory_repo, crew_def_repo, prompt_log_repo)
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)

@@ -80,7 +80,6 @@ async def patch_settings(
         "running",
         "heart_rate",
         "autolap",
-        "trainingpeaks_ical_url",
         "training_philosophy",
         "intervals_icu",
     }

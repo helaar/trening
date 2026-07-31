@@ -97,7 +97,6 @@ export function CoachAthleteDetailPage() {
             date={monthDate}
             selectedDate={today}
             onSelectDate={setSelectedDate}
-            readOnly
             fetchFeedFn={fetchCoachAthleteFeed}
           />
         )}
