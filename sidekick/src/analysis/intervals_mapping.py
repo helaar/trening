@@ -65,9 +65,12 @@ def map_power_metrics(intervals_activity: IntervalsActivityRaw | None) -> PowerM
 def map_rpe(intervals_activity: IntervalsActivityRaw | None) -> int | None:
     """Athlete-logged RPE (1-10) for this activity, sourced from Intervals.icu.
 
-    Field name (icu_rpe) is a best documented guess, pending confirmation via
-    scripts/spike_intervals_icu.py's RPE diagnostics (candidates also captured
-    there: feel, session_rpe, perceived_exertion).
+    icu_rpe confirmed against a real captured response (2026-08-01) — values
+    track workout hardness directly (e.g. 10 on a "4x4" interval session, 4 on
+    easy rides). The other candidates from the Phase 0 spike are not this:
+    feel is a daily wellness "feel" rating that repeats across same-day
+    activities, session_rpe is an RPE*duration training-load figure (values in
+    the hundreds), and perceived_exertion was never populated.
     """
     if intervals_activity is None:
         return None
