@@ -5,7 +5,7 @@ import httpx
 
 from config import settings as app_settings
 from analysis.engine import ANALYSIS_ENGINE_VERSION, analyze_workout
-from analysis.intervals_mapping import map_rpe
+from analysis.intervals_mapping import map_athlete_ftp, map_power_metrics, map_rpe, map_zone_analysis
 from analysis.models import WorkoutAnalysis
 from clients.intervals_icu.client import IntervalsIcuClient, IntervalsIcuError, IntervalsIcuNotConfigured
 from clients.strava.client import StravaClient, StravaActivity, StravaDataParser
@@ -69,7 +69,54 @@ class WorkoutAnalysisService:
         )
         for match in matches:
             await self.intervals_activity_repo.store_activity(match)
-    
+
+    async def _refresh_intervals_enrichment(
+        self,
+        athlete_id: int,
+        activity_id: int,
+        analysis: WorkoutAnalysis,
+        settings: AthleteSettings | None,
+    ) -> WorkoutAnalysis:
+        """Best-effort re-check for a cached analysis stuck on "not_yet_synced".
+
+        No Strava re-fetch or re-parse — just a fresh Intervals.icu lookup for
+        this activity's day, patching only the Intervals.icu-sourced fields
+        (zones, NP/IF/TSS, athlete_ftp, RPE, sync status) if a match now
+        exists. Degrades silently on any failure/still-no-match, same as
+        _sync_intervals_activities_for_date this reuses — must never break a
+        normal page load. Without this, an analysis cached before Intervals.icu
+        had processed the activity would show "waiting on Intervals.icu sync"
+        forever, since a normal (non-refresh) page load never re-checks.
+        """
+        if analysis.session.start_time is None:
+            return analysis
+
+        await self._sync_intervals_activities_for_date(athlete_id, analysis.session.start_time, settings)
+        intervals_activity = await self.intervals_activity_repo.get_by_strava_activity_id(
+            athlete_id, activity_id
+        )
+        if intervals_activity is None:
+            return analysis  # still not synced — unchanged
+
+        analysis.zones = map_zone_analysis(intervals_activity)
+        analysis.intervals_rpe = map_rpe(intervals_activity)
+        analysis.intervals_sync_status = "synced"
+        if analysis.analysis_type == "endurance":
+            power_stats, np_value, vi_value, if_value, tss_value = map_power_metrics(intervals_activity)
+            analysis.metrics.power = power_stats
+            analysis.metrics.normalized_power = np_value
+            analysis.metrics.variability_index = vi_value
+            analysis.metrics.intensity_factor = if_value
+            analysis.metrics.training_stress_score = tss_value
+            analysis.metrics.athlete_ftp = map_athlete_ftp(intervals_activity) or analysis.metrics.athlete_ftp
+
+        await self.workout_repo.store_analysis(
+            athlete_id, activity_id, analysis.model_dump(), settings,
+            analysis_engine_version=ANALYSIS_ENGINE_VERSION,
+        )
+        return analysis
+
+
     async def get_workouts_for_date(
         self,
         athlete_id: int,
@@ -182,6 +229,10 @@ class WorkoutAnalysisService:
                     logger.debug(f"Loaded analysis for activity {activity_id} from cache")
                     analysis = WorkoutAnalysis(**cached_analysis_data)
                     analysis.activity_id = activity_id
+                    if analysis.intervals_sync_status == "not_yet_synced":
+                        analysis = await self._refresh_intervals_enrichment(
+                            athlete_id, activity_id, analysis, settings
+                        )
                     return analysis
                 logger.debug(
                     f"Cached analysis for activity {activity_id} is engine v{cached_engine_version}, "
