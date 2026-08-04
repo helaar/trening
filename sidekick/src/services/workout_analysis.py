@@ -19,6 +19,7 @@ from models.strava_activity import StravaActivityRaw
 from models.workout import ActivitySummary, DailySummary
 from services.commute_detection import CommuteDetectionService
 from services.intervals_matching import match_intervals_activities
+from utils.datetime_utils import ensure_utc
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,10 @@ _RPE_RECHECK_WINDOW_DAYS = 3
 def _within_rpe_recheck_window(start_time: datetime | None) -> bool:
     if start_time is None:
         return False
-    return datetime.now(timezone.utc) - start_time <= timedelta(days=_RPE_RECHECK_WINDOW_DAYS)
+    # start_time may come back naive when loaded from a cached Mongo document
+    # (this codebase's datetime policy: Mongo reads are naive UTC).
+    aware_start_time = ensure_utc(start_time)
+    return datetime.now(timezone.utc) - aware_start_time <= timedelta(days=_RPE_RECHECK_WINDOW_DAYS)
 
 
 class WorkoutAnalysisService:
