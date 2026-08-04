@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -21,6 +21,20 @@ from services.commute_detection import CommuteDetectionService
 from services.intervals_matching import match_intervals_activities
 
 logger = logging.getLogger(__name__)
+
+# RPE is logged in Intervals.icu as a separate, later, manual action — often
+# after the base match (NP/IF/TSS/zones) has already landed and flipped
+# intervals_sync_status to "synced". Unlike "not_yet_synced" (self-limiting:
+# stops the moment a match lands), "synced but no RPE yet" has no natural end,
+# so re-checking is bounded to this window after the activity — past it,
+# "synced with no RPE" is treated as final rather than re-checked forever.
+_RPE_RECHECK_WINDOW_DAYS = 3
+
+
+def _within_rpe_recheck_window(start_time: datetime | None) -> bool:
+    if start_time is None:
+        return False
+    return datetime.now(timezone.utc) - start_time <= timedelta(days=_RPE_RECHECK_WINDOW_DAYS)
 
 
 class WorkoutAnalysisService:
@@ -229,7 +243,12 @@ class WorkoutAnalysisService:
                     logger.debug(f"Loaded analysis for activity {activity_id} from cache")
                     analysis = WorkoutAnalysis(**cached_analysis_data)
                     analysis.activity_id = activity_id
-                    if analysis.intervals_sync_status == "not_yet_synced":
+                    needs_recheck = analysis.intervals_sync_status == "not_yet_synced" or (
+                        analysis.intervals_sync_status == "synced"
+                        and analysis.intervals_rpe is None
+                        and _within_rpe_recheck_window(analysis.session.start_time)
+                    )
+                    if needs_recheck:
                         analysis = await self._refresh_intervals_enrichment(
                             athlete_id, activity_id, analysis, settings
                         )
