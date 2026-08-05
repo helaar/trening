@@ -52,18 +52,30 @@ class WorkoutRepository:
         activity_date: datetime
     ) -> list[StravaActivityRaw]:
         """
-        Get all activities for a specific athlete and date.
-        
+        Get all activities for a specific athlete on the calendar day containing
+        activity_date.
+
+        A range query, not an exact match: activity_date is stored with
+        inconsistent precision across call sites (sometimes midnight-zeroed,
+        sometimes an activity's precise start_date), and an exact-equality
+        match silently returns an empty list whenever the caller's datetime
+        doesn't happen to match that precision — which, fed as an empty
+        candidate pool into Intervals.icu fuzzy-matching, previously caused
+        good matches to be overwritten with "ambiguous"/no cross-reference.
+
         Args:
             athlete_id: Athlete ID
-            activity_date: Date to fetch activities for
-            
+            activity_date: Any datetime within the target calendar day
+
         Returns:
             List of StravaActivityRaw objects
         """
+        day_start = activity_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+
         cursor = self.activities_collection.find({
             "athlete_id": athlete_id,
-            "activity_date": activity_date
+            "activity_date": {"$gte": day_start, "$lt": day_end},
         })
         
         activities = []
