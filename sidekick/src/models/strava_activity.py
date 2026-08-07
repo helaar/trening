@@ -28,6 +28,9 @@ class WorkoutAnalysisData(BaseModel):
     athlete_id: int = Field(..., description="Athlete ID who owns this activity")
     activity_id: int = Field(..., description="Strava activity ID")
     settings_hash: str = Field(..., description="Hash of athlete settings used for analysis")
+    analysis_engine_version: int = Field(
+        default=0, description="analysis/engine.py's ANALYSIS_ENGINE_VERSION when this was computed"
+    )
     analysis_data: dict[str, Any] = Field(..., description="Serialized WorkoutAnalysis data")
     created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))

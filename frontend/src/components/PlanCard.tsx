@@ -1,5 +1,7 @@
+import { ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import type { PlannedActivity, Sport } from "../api/plans"
+import { mondayOf } from "../lib/utils"
 
 function sportLabel(sport: Sport): string {
   const labels: Record<Sport, string> = {
@@ -26,10 +28,10 @@ function SeasonGoalBadge() {
   )
 }
 
-function RaceBadge() {
+function RaceBadge({ priority }: { priority: "A" | "B" | "C" | null }) {
   return (
     <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-amber-100 text-amber-700 border-amber-300">
-      🏆 Race
+      🏆 Race{priority ? ` (${priority})` : ""}
     </span>
   )
 }
@@ -44,15 +46,27 @@ export function PlanCard({ plan }: Props) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base">{plan.name}</CardTitle>
-          <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-            {sportLabel(plan.sport)}
-          </span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+              {sportLabel(plan.sport)}
+            </span>
+            <a
+              href={`https://intervals.icu/?w=${mondayOf(plan.date)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Open week in Intervals.icu"
+              title="Open week in Intervals.icu"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
 
         {(isSeasonGoal || isRace) && (
           <div className="flex flex-wrap gap-1.5">
             {isSeasonGoal && <SeasonGoalBadge />}
-            {isRace && <RaceBadge />}
+            {isRace && <RaceBadge priority={plan.race_priority} />}
           </div>
         )}
 

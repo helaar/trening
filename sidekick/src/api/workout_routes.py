@@ -8,6 +8,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from auth.dependencies import get_current_athlete_id, get_strava_client, get_athlete_repository
 from clients.strava.client import StravaClient
+from database.intervals_activity_repository import IntervalsActivityRepository
 from database.mongodb import get_db
 from database.workout_repository import WorkoutRepository
 from database.athlete_repository import AthleteRepository
@@ -33,13 +34,21 @@ async def get_workout_repository(db: AsyncDatabase = Depends(get_db)) -> Workout
     return WorkoutRepository(db)
 
 
+async def get_intervals_activity_repository(
+    db: AsyncDatabase = Depends(get_db),
+) -> IntervalsActivityRepository:
+    """Dependency to get Intervals.icu activity cross-reference repository."""
+    return IntervalsActivityRepository(db)
+
+
 async def get_workout_analysis_service(
     strava_client: StravaClient = Depends(get_strava_client),
     workout_repo: WorkoutRepository = Depends(get_workout_repository),
-    athlete_repo: AthleteRepository = Depends(get_athlete_repository)
+    athlete_repo: AthleteRepository = Depends(get_athlete_repository),
+    intervals_activity_repo: IntervalsActivityRepository = Depends(get_intervals_activity_repository),
 ) -> WorkoutAnalysisService:
     """Dependency to get workout analysis service."""
-    return WorkoutAnalysisService(strava_client, workout_repo, athlete_repo)
+    return WorkoutAnalysisService(strava_client, workout_repo, athlete_repo, intervals_activity_repo)
 
 
 @router.get("/{athlete_id}/workouts/detailed", response_model=list[WorkoutAnalysis])
@@ -167,7 +176,7 @@ async def update_workout_note(
     cached = await workout_repo.get_analysis(athlete_id, activity_id)
     if not cached:
         raise HTTPException(status_code=404, detail="Note not found")
-    analysis_data, _ = cached
+    analysis_data, _, _ = cached
     if not analysis_data.get("session", {}).get("manual"):
         raise HTTPException(status_code=400, detail="Activity is not a manual note")
     analysis_data["session"]["name"] = update.text

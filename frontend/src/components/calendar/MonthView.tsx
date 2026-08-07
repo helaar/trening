@@ -1,11 +1,8 @@
-import { useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { fetchFeed, type FeedDay } from "../../api/feed"
 import { CalendarDayCell } from "./CalendarDayCell"
 import { cn, localToday } from "../../lib/utils"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
-import { PlanForm } from "../PlanForm"
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -44,7 +41,6 @@ interface MonthViewProps {
   date: string
   selectedDate: string
   onSelectDate: (date: string) => void
-  readOnly?: boolean
   fetchFeedFn?: (athleteId: number, start: string, end: string) => Promise<FeedDay[]>
 }
 
@@ -53,14 +49,11 @@ export function MonthView({
   date,
   selectedDate,
   onSelectDate,
-  readOnly = false,
   fetchFeedFn = fetchFeed,
 }: MonthViewProps) {
   const [year, month] = date.split("-").map(Number)
   const { start, end } = getMonthRange(date)
   const today = localToday()
-  const queryClient = useQueryClient()
-  const [planFormDate, setPlanFormDate] = useState<string | null>(null)
 
   const { data: feed, isLoading } = useQuery({
     queryKey: ["feed", athleteId, start, end],
@@ -70,11 +63,6 @@ export function MonthView({
   const feedMap = new Map<string, FeedDay>()
   for (const day of feed ?? []) {
     feedMap.set(day.date, day)
-  }
-
-  function closePlanForm() {
-    queryClient.invalidateQueries({ queryKey: ["feed", athleteId] })
-    setPlanFormDate(null)
   }
 
   const cells = buildCalendarGrid(year, month, feedMap)
@@ -99,28 +87,10 @@ export function MonthView({
               isToday={cellDate === today}
               isSelected={cellDate === selectedDate}
               onClick={() => onSelectDate(cellDate)}
-              onAddPlan={readOnly ? undefined : () => setPlanFormDate(cellDate)}
             />
           </div>
         ))}
       </div>
-      {!readOnly && (
-        <Dialog open={!!planFormDate} onOpenChange={(open) => !open && setPlanFormDate(null)}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Add plan — {planFormDate}</DialogTitle>
-            </DialogHeader>
-            {planFormDate && (
-              <PlanForm
-                athleteId={athleteId}
-                date={planFormDate}
-                onSaved={closePlanForm}
-                onDeleted={closePlanForm}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   )
 }

@@ -16,8 +16,7 @@ from analysis.models import (
     HeartRateDrift, LapAnalysis, ERGAnalysis
 )
 from analysis.calculations import (
-    Zone, normalized_power, intensity_factor, training_stress_score,
-    series_stats, compute_zone_durations, compute_heart_rate_drift
+    Zone, normalized_power, series_stats, compute_heart_rate_drift
 )
 
 __all__ = [
@@ -41,9 +40,6 @@ __all__ = [
     # Calculation functions
     'Zone',
     'normalized_power',
-    'intensity_factor',
-    'training_stress_score',
     'series_stats',
-    'compute_zone_durations',
     'compute_heart_rate_drift',
 ]

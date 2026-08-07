@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 import pandas as pd
-import numpy as np
 
 from models.athlete import ZoneDefinition
 
@@ -48,18 +47,6 @@ def normalized_power(power: pd.Series, window: int = 30) -> float | None:
 
     np_value = (rolling_mean.pow(4).mean()) ** 0.25
     return float(np_value)
-
-
-def intensity_factor(np_value: float, ftp: float) -> float:
-    """Calculate Intensity Factor (IF)."""
-    if ftp <= 0:
-        raise ValueError("FTP must be > 0.")
-    return np_value / ftp
-
-
-def training_stress_score(duration_sec: float, np_value: float, if_value: float, ftp: float) -> float:
-    """Calculate Training Stress Score (TSS)."""
-    return (duration_sec * np_value * if_value) / (ftp * 3600) * 100
 
 
 def series_stats(series: pd.Series, drop_nulls: bool | None = False) -> dict[str, float | None]:
@@ -125,58 +112,6 @@ def parse_range(range_spec: str) -> tuple[float | None, float | None]:
     low = float(low_str) if low_str else None
     high = float(high_str) if high_str else None
     return low, high
-
-
-def compute_zone_durations(
-    series: pd.Series,
-    zones: list[Zone],
-    sample_interval: float | None = None,
-) -> dict[str, object]:
-    """Compute time spent in each zone."""
-    if not zones:
-        return {"total_seconds": 0.0, "sample_interval": 0.0, "zones": []}
-
-    if sample_interval is None or sample_interval <= 0:
-        if isinstance(series.index, pd.DatetimeIndex):
-            sample_interval = infer_sample_interval(series.index)
-        else:
-            sample_interval = 1.0
-        if sample_interval <= 0:
-            sample_interval = 1.0  # Fallback
-
-    valid_mask = series.notna()
-    total_samples = int(valid_mask.sum())
-    total_seconds = total_samples * sample_interval
-
-    results = []
-    for i, zone in enumerate(zones):
-        low = zone.low if zone.low is not None else float("-inf")
-        high = zone.high if zone.high is not None else float("inf")
-
-        if zone.high is None or i == len(zones) - 1:
-            mask = (series >= low) & (series <= high)
-        else:
-            mask = (series >= low) & (series < high)
-
-        mask = mask & valid_mask
-        zone_seconds = float(mask.sum() * sample_interval)
-        percent = (zone_seconds / total_seconds * 100.0) if total_seconds else 0.0
-
-        results.append(
-            {
-                "name": zone.name,
-                "lower": zone.low,
-                "upper": zone.high,
-                "seconds": zone_seconds,
-                "percent": percent,
-            }
-        )
-
-    return {
-        "total_seconds": total_seconds,
-        "sample_interval": sample_interval,
-        "zones": results,
-    }
 
 
 # ---------------------------------------------------------------------------

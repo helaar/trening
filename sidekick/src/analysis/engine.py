@@ -10,17 +10,24 @@ import pandas as pd
 
 from clients.strava.client import StravaDataParser, StravaActivity
 from models.athlete import AthleteSettings
+from models.intervals_activity import IntervalsActivityRaw
+from analysis.intervals_mapping import map_athlete_ftp, map_power_metrics, map_zone_analysis
 from analysis.models import (
-    ZoneInfo, WorkoutAnalysis, SessionInfo, WorkoutMetrics, StatsSummary, ZoneAnalysis,
-    ZoneDistribution, HeartRateDrift, LapAnalysis, ERGAnalysis, PowerHistogram
+    WorkoutAnalysis, SessionInfo, WorkoutMetrics, StatsSummary,
+    HeartRateDrift, LapAnalysis, ERGAnalysis, PowerHistogram
 )
 
 from analysis.calculations import (
-    Zone, normalized_power, intensity_factor, training_stress_score,
-    series_stats, parse_zone_definitions, compute_zone_durations,
+    Zone, series_stats, parse_zone_definitions,
     compute_heart_rate_drift, infer_sample_interval,
-    compute_segment_stats,  split_into_autolaps
+    compute_segment_stats, split_into_autolaps
 )
+
+# Bump whenever engine logic changes meaningfully — forces cached WorkoutAnalysis
+# documents (whose stored analysis_engine_version won't match) to recompute
+# rather than serving stale locally-computed values forever, since the
+# settings_hash cache-staleness field is advisory-only and never compared.
+ANALYSIS_ENGINE_VERSION = 1
 
 
 def _is_virtual_activity(activity: StravaActivity) -> bool:
@@ -159,13 +166,6 @@ class AnalysisSettings:
         if not self._settings or not self._settings.heart_rate:
             return None
         return self._settings.heart_rate.lt
-    
-    @property
-    def hr_zones(self) -> list[Zone] | None:
-        """Get heart rate zones."""
-        if not self._settings or not self._settings.heart_rate:
-            return None
-        return parse_zone_definitions(self._settings.heart_rate.hr_zones)
 
 
 def _create_session_info(parser: StravaDataParser, duration_sec: float, data_points: int, sample_interval: float) -> SessionInfo:
@@ -205,90 +205,6 @@ def _create_session_info(parser: StravaDataParser, duration_sec: float, data_poi
         commute=commute_status,
         tags=derived_tags,
     )
-
-
-def _compute_power_metrics(df: pd.DataFrame, settings: AnalysisSettings, window: int, has_power: bool) -> tuple[StatsSummary | None, float | None, float | None, float | None, float | None]:
-    """
-    Compute all power-related metrics in one pass.
-    
-    Returns:
-        Tuple of (power_stats, np_value, if_value, tss_value, vi_value)
-    """
-    if not has_power:
-        return None, None, None, None, None
-    
-    power_stats_dict = series_stats(df["power"], drop_nulls=True)
-    power_stats = _create_stats_summary(power_stats_dict)
-    
-    try:
-        np_value = normalized_power(df["power"], window=window)
-        if_value = None
-        tss_value = None
-        
-        if np_value and settings.ftp:
-            if_value = intensity_factor(np_value, settings.ftp)
-            sample_interval = infer_sample_interval(df.index) if isinstance(df.index, pd.DatetimeIndex) else 1.0
-            duration_sec = len(df) * sample_interval
-            tss_value = training_stress_score(duration_sec, np_value, if_value, settings.ftp)
-        
-        vi_value = None
-        avg_power = df["power"].dropna().mean()
-        if np_value and avg_power and avg_power > 0:
-            vi_value = np_value / avg_power
-            
-        return power_stats, np_value, if_value, tss_value, vi_value
-    except Exception:
-        return power_stats, None, None, None, None
-
-
-def _compute_zone_analysis(df: pd.DataFrame, settings: AnalysisSettings,
-                          sample_interval: float, has_power: bool, has_hr: bool) -> ZoneAnalysis:
-    """Compute zone distributions for power and heart rate."""   
-    zones = ZoneAnalysis()
-    
-    if settings.power_zones and has_power:
-        power_summary = compute_zone_durations(df["power"], settings.power_zones, sample_interval)
-        power_dist = ZoneDistribution()
-        power_dist.total_seconds = _safe_float(power_summary.get("total_seconds", 0.0)) or 0.0
-        power_dist.sample_interval = _safe_float(power_summary.get("sample_interval", 1.0)) or 1.0
-        
-        # Extract zone data from the zones list
-        zone_data = power_summary.get("zones", [])
-        if isinstance(zone_data, list):
-            for zone_num, zone_info in enumerate(zone_data, start=1):
-                if zone_num <= 7 and isinstance(zone_info, dict):
-                    zone_obj = ZoneInfo(
-                        name=zone_info.get("name", f"Zone {zone_num}"),
-                        lower=zone_info.get("lower"),
-                        upper=zone_info.get("upper"),
-                        seconds=_safe_float(zone_info.get("seconds", 0.0)) or 0.0,
-                        percent=_safe_float(zone_info.get("percent", 0.0)) or 0.0
-                    )
-                    power_dist.set_zone_info(zone_num, zone_obj)
-        zones.power_zones = power_dist
-    
-    if settings.hr_zones and has_hr:
-        hr_summary = compute_zone_durations(df["heart_rate"], settings.hr_zones, sample_interval)
-        hr_dist = ZoneDistribution()
-        hr_dist.total_seconds = _safe_float(hr_summary.get("total_seconds", 0.0)) or 0.0
-        hr_dist.sample_interval = _safe_float(hr_summary.get("sample_interval", 1.0)) or 1.0
-        
-        # Extract zone data from the zones list
-        zone_data = hr_summary.get("zones", [])
-        if isinstance(zone_data, list):
-            for zone_num, zone_info in enumerate(zone_data, start=1):
-                if zone_num <= 7 and isinstance(zone_info, dict):
-                    zone_obj = ZoneInfo(
-                        name=zone_info.get("name", f"Zone {zone_num}"),
-                        lower=zone_info.get("lower"),
-                        upper=zone_info.get("upper"),
-                        seconds=_safe_float(zone_info.get("seconds", 0.0)) or 0.0,
-                        percent=_safe_float(zone_info.get("percent", 0.0)) or 0.0
-                    )
-                    hr_dist.set_zone_info(zone_num, zone_obj)
-        zones.heart_rate_zones = hr_dist
-    
-    return zones
 
 
 def _compute_power_histogram(power_series: pd.Series, sample_interval: float,
@@ -462,7 +378,8 @@ def _compute_erg_analysis(lap_analyses: list[LapAnalysis], parser: StravaDataPar
 def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: AthleteSettings | None,
                             window: int = 30, drift_start: float | None = None,
                             drift_duration: float | None = None, force_autolap: bool = False,
-                            histogram_bucket_watts: float = 5.0) -> WorkoutAnalysis:
+                            histogram_bucket_watts: float = 5.0,
+                            intervals_activity: IntervalsActivityRaw | None = None) -> WorkoutAnalysis:
     """
     Analyze endurance workout data and return structured analysis results.
     
@@ -482,18 +399,28 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     workout = parser.workout
     
     if df.empty:
-        # Limited analysis without detailed stream data
+        # No local stream data — Intervals.icu-sourced metrics/zones can still
+        # be shown if a match exists, since those don't depend on the raw stream.
         session = _create_session_info(parser, 0.0, 0, 1.0)
-        metrics = WorkoutMetrics()
+        power_stats, np_value, vi_value, if_value, tss_value = map_power_metrics(intervals_activity)
+        metrics = WorkoutMetrics(
+            power=power_stats,
+            normalized_power=np_value,
+            variability_index=vi_value,
+            intensity_factor=if_value,
+            training_stress_score=tss_value,
+            athlete_ftp=map_athlete_ftp(intervals_activity),
+        )
         return WorkoutAnalysis(
             analysis_type="endurance",
             session=session,
             metrics=metrics,
+            zones=map_zone_analysis(intervals_activity),
             has_power_data=False,
             has_heart_rate_data=False,
             has_cadence_data=False,
         )
-    
+
     # Create settings wrapper
     analysis_settings = AnalysisSettings(athlete_settings, workout.category)
     
@@ -511,15 +438,17 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     # Create session info
     session = _create_session_info(parser, duration_sec, len(df), sample_interval)
     
-    # Compute power metrics (single pass)
-    power_stats, np_value, if_value, tss_value, vi_value = _compute_power_metrics(
-        df, analysis_settings, window, has_power
-    )
-    
+    # Whole-workout power metrics: Intervals.icu-sourced, no local fallback
+    # (see analysis/intervals_mapping.py). athlete_ftp is sourced from
+    # Intervals.icu too when available, so it stays consistent with the IF/TSS
+    # shown alongside it rather than the locally-configured FTP.
+    power_stats, np_value, vi_value, if_value, tss_value = map_power_metrics(intervals_activity)
+    athlete_ftp = map_athlete_ftp(intervals_activity) or analysis_settings.ftp
+
     # Compute other basic stats
     hr_stats = _create_stats_summary(series_stats(df["heart_rate"], drop_nulls=True)) if has_hr else None
     cad_stats = _create_stats_summary(series_stats(df["cadence"], drop_nulls=True)) if has_cadence else None
-    
+
     # Create metrics object
     metrics = WorkoutMetrics(
         power=power_stats,
@@ -529,13 +458,13 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
         training_stress_score=tss_value,
         heart_rate=hr_stats,
         cadence=cad_stats,
-        athlete_ftp=analysis_settings.ftp,
+        athlete_ftp=athlete_ftp,
         athlete_max_hr=analysis_settings.max_hr,
         athlete_lt_hr=analysis_settings.lt_hr
     )
-    
-    # Compute zone analysis (single pass)
-    zones = _compute_zone_analysis(df, analysis_settings, sample_interval, has_power, has_hr)
+
+    # Zone distribution: Intervals.icu-sourced, no local fallback
+    zones = map_zone_analysis(intervals_activity)
 
     # Fine-grained power histogram (FTP-agnostic) for sub-zone intensity analysis
     power_histogram = (
@@ -573,23 +502,23 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     )
 
 
-def analyze_strength_workout(parser: StravaDataParser, athlete_settings: AthleteSettings | None) -> WorkoutAnalysis:
+def analyze_strength_workout(parser: StravaDataParser, athlete_settings: AthleteSettings | None,
+                            intervals_activity: IntervalsActivityRaw | None = None) -> WorkoutAnalysis:
     """
     Analyze strength training workout data and return structured analysis results.
-    
+
     Args:
         parser: StravaDataParser with workout data
         athlete_settings: AthleteSettings from database
-        
+
     Returns:
         WorkoutAnalysis object with strength-specific metrics
     """
     df = parser.data_frame
-    workout = parser.workout
-    
+
     # Create settings wrapper (mainly heart rate for strength training)
     analysis_settings = AnalysisSettings(athlete_settings, "heart-rate")
-    
+
     if df.empty:
         # Limited analysis without detailed stream data
         elapsed_time = _safe_float(parser.activity.elapsed_time) or 0.0
@@ -599,57 +528,38 @@ def analyze_strength_workout(parser: StravaDataParser, athlete_settings: Athlete
             analysis_type="strength",
             session=session,
             metrics=metrics,
+            zones=map_zone_analysis(intervals_activity),
             has_power_data=False,
             has_heart_rate_data=False,
             has_cadence_data=False,
         )
-    
+
     # Calculate sample interval and duration
     sample_interval = infer_sample_interval(df.index) if isinstance(df.index, pd.DatetimeIndex) else 1.0
     if sample_interval <= 0:
         sample_interval = 1.0
-    
+
     # Use elapsed_time for total duration (includes rest periods)
     duration_sec = _safe_float(parser.activity.elapsed_time) or (sample_interval * len(df))
-    
+
     # Check available data
     has_hr = "heart_rate" in df.columns and not df["heart_rate"].isna().all()
-    
+
     # Create session info
     session = _create_session_info(parser, duration_sec, len(df), sample_interval)
-    
+
     # Compute heart rate stats
     hr_stats = _create_stats_summary(series_stats(df["heart_rate"])) if has_hr else None
-    
+
     # Create metrics object (strength training typically doesn't have power)
     metrics = WorkoutMetrics(
         heart_rate=hr_stats,
         athlete_max_hr=analysis_settings.max_hr,
         athlete_lt_hr=analysis_settings.lt_hr
     )
-    
-    # Compute heart rate zones if available
-    zones = None
-    if has_hr and analysis_settings.hr_zones:
-        hr_summary = compute_zone_durations(df["heart_rate"], analysis_settings.hr_zones, sample_interval)
-        hr_dist = ZoneDistribution()
-        hr_dist.total_seconds = _safe_float(hr_summary.get("total_seconds", 0.0)) or 0.0
-        hr_dist.sample_interval = _safe_float(hr_summary.get("sample_interval", 1.0)) or 1.0
-        
-        # Extract zone data from the zones list
-        zone_data = hr_summary.get("zones", [])
-        if isinstance(zone_data, list):
-            for zone_num, zone_info in enumerate(zone_data, start=1):
-                if zone_num <= 7 and isinstance(zone_info, dict):
-                    zone_obj = ZoneInfo(
-                        name=zone_info.get("name", f"Zone {zone_num}"),
-                        lower=zone_info.get("lower"),
-                        upper=zone_info.get("upper"),
-                        seconds=_safe_float(zone_info.get("seconds", 0.0)) or 0.0,
-                        percent=_safe_float(zone_info.get("percent", 0.0)) or 0.0
-                    )
-                    hr_dist.set_zone_info(zone_num, zone_obj)
-        zones = ZoneAnalysis(heart_rate_zones=hr_dist)
+
+    # Heart rate zone distribution: Intervals.icu-sourced, no local fallback
+    zones = map_zone_analysis(intervals_activity)
     
     return WorkoutAnalysis(
         analysis_type="strength",
@@ -665,12 +575,13 @@ def analyze_strength_workout(parser: StravaDataParser, athlete_settings: Athlete
 def analyze_workout(parser: StravaDataParser, athlete_settings: AthleteSettings | None,
                    window: int = 30, drift_start: float | None = None,
                    drift_duration: float | None = None, force_autolap: bool = False,
-                   histogram_bucket_watts: float = 5.0) -> WorkoutAnalysis:
+                   histogram_bucket_watts: float = 5.0,
+                   intervals_activity: IntervalsActivityRaw | None = None) -> WorkoutAnalysis:
     """
     Main dispatcher function for workout analysis.
-    
+
     Routes to appropriate analysis function based on workout category.
-    
+
     Args:
         parser: StravaDataParser with workout data
         athlete_settings: AthleteSettings from database
@@ -678,15 +589,17 @@ def analyze_workout(parser: StravaDataParser, athlete_settings: AthleteSettings 
         drift_start: Start point for heart rate drift analysis (seconds)
         drift_duration: Duration for heart rate drift analysis (seconds)
         force_autolap: Force autolap generation even if laps exist
-        
+        intervals_activity: Matched Intervals.icu activity, if any — sources
+            whole-workout NP/IF/TSS/zone-distribution (no local fallback)
+
     Returns:
         WorkoutAnalysis object with computed metrics
     """
     match parser.workout.category:
         case "running" | "cycling" | "skiing":
-            return analyze_endurance_workout(parser, athlete_settings, window, drift_start, drift_duration, force_autolap, histogram_bucket_watts)
+            return analyze_endurance_workout(parser, athlete_settings, window, drift_start, drift_duration, force_autolap, histogram_bucket_watts, intervals_activity)
         case "strength":
-            return analyze_strength_workout(parser, athlete_settings)
+            return analyze_strength_workout(parser, athlete_settings, intervals_activity)
         case _:
             # Default to endurance analysis for unknown categories
-            return analyze_endurance_workout(parser, athlete_settings, window, drift_start, drift_duration, force_autolap, histogram_bucket_watts)
+            return analyze_endurance_workout(parser, athlete_settings, window, drift_start, drift_duration, force_autolap, histogram_bucket_watts, intervals_activity)

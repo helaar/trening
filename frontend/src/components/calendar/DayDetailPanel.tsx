@@ -10,7 +10,6 @@ import {
   Brain,
   StickyNote,
   Trash2,
-  Plus,
 } from "lucide-react"
 import { Button } from "../ui/button"
 import { RestitutionForm } from "../RestitutionForm"
@@ -26,8 +25,7 @@ import {
 } from "../../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../../api/dailyEntry"
-import { fetchPlansForDate, fetchPlansForRange, fetchTPPlans } from "../../api/plans"
-import type { PlannedActivity, PlannedActivityRequest, TPPlannedWorkout } from "../../api/plans"
+import { fetchPlansForDate, fetchPlansForRange } from "../../api/plans"
 import {
   createDailyAnalysisTask,
   fetchStoredAnalysis,
@@ -36,8 +34,6 @@ import {
   getTaskStatus,
 } from "../../api/tasks"
 import { PlanCard } from "../PlanCard"
-import { PlanForm } from "../PlanForm"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { localToday } from "../../lib/utils"
 
 function daysBetween(from: string, to: string): number {
@@ -100,18 +96,12 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   const [analysisTaskId, setAnalysisTaskId] = useState<string | null>(null)
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [noteText, setNoteText] = useState("Day off")
-  const [planFormOpen, setPlanFormOpen] = useState(false)
-  const [editingPlan, setEditingPlan] = useState<PlannedActivity | null>(null)
-  const [tpPrefill, setTpPrefill] = useState<Partial<PlannedActivityRequest> | undefined>()
 
   useEffect(() => {
     setRestitution({})
     setAssessments({})
     setSaved(false)
     setAnalysisTaskId(null)
-    setPlanFormOpen(false)
-    setEditingPlan(null)
-    setTpPrefill(undefined)
 
     // Reconnect to an analysis task started for this date before navigating away
     let cancelled = false
@@ -177,14 +167,6 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   const nextRace = upcomingPlans?.find((p) => p.labels.includes("race"))
   const showNextRaceSeparately = !!nextRace && nextRace.id !== goalRace?.id
 
-  const { data: tpPlans } = useQuery<TPPlannedWorkout[]>({
-    queryKey: ["tp-plans", athleteId, selectedDate],
-    queryFn: () => fetchTPPlans(athleteId, selectedDate, selectedDate),
-    // silently ignore errors (e.g. no URL configured)
-    retry: false,
-    throwOnError: false,
-  })
-
   const { data: storedAnalysis } = useQuery({
     queryKey: ["daily-analysis", athleteId, selectedDate],
     queryFn: () => fetchStoredAnalysis(athleteId, selectedDate),
@@ -239,7 +221,10 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         if (w.session.commute !== "no") return
         const key = workoutKey(w, i)
         if (!(key in next)) {
-          next[key] = { tags: w.session.tags?.length ? [...w.session.tags] : undefined }
+          next[key] = {
+            tags: w.session.tags?.length ? [...w.session.tags] : undefined,
+            rpe: w.intervals_rpe ?? undefined,
+          }
         }
       })
       return next
@@ -380,86 +365,14 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
 
         <RestitutionForm value={restitution} onChange={setRestitution} />
 
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
+        {plans && plans.length > 0 && (
+          <section className="space-y-4">
             <h2 className="font-semibold text-muted-foreground">Plan</h2>
-            <button
-              className="ml-auto p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Add plan"
-              title="Add a plan for this day"
-              onClick={() => { setEditingPlan(null); setTpPrefill(undefined); setPlanFormOpen(true) }}
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-          {plans?.map((plan) => (
-            <button
-              key={plan.id}
-              className="w-full text-left"
-              onClick={() => { setTpPrefill(undefined); setEditingPlan(plan); setPlanFormOpen(true) }}
-            >
-              <PlanCard plan={plan} />
-            </button>
-          ))}
-          {(() => {
-            const importedRefs = new Set(plans?.map((p) => p.external_reference).filter(Boolean))
-            const unimported = tpPlans?.filter((tp) => !importedRefs.has(tp.uid)) ?? []
-            return unimported.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                From TrainingPeaks
-              </p>
-              {unimported.map((tp) => (
-                <div
-                  key={tp.uid}
-                  className="flex items-center justify-between rounded-md border border-dashed px-3 py-2 text-sm"
-                >
-                  <div className="min-w-0">
-                    <span className="font-medium truncate">{tp.name}</span>
-                    {tp.duration_min && (
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {tp.duration_min} min
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    className="ml-3 shrink-0 rounded px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                    onClick={() => {
-                      setEditingPlan(null)
-                      setTpPrefill({
-                        sport: tp.sport_type,
-                        name: tp.name,
-                        description: tp.description ?? undefined,
-                        estimated_duration_min: tp.duration_min ?? undefined,
-                        external_reference: tp.uid,
-                      })
-                      setPlanFormOpen(true)
-                    }}
-                  >
-                    Add to plan
-                  </button>
-                </div>
-              ))}
-            </div>
-            ) : null
-          })()}
-        </section>
-
-        <Dialog open={planFormOpen} onOpenChange={(open) => { if (!open) { setPlanFormOpen(false); setEditingPlan(null); setTpPrefill(undefined) } }}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingPlan ? "Edit plan" : "Add plan"}</DialogTitle>
-            </DialogHeader>
-            <PlanForm
-              athleteId={athleteId}
-              date={selectedDate}
-              existing={editingPlan ?? undefined}
-              prefill={tpPrefill}
-              onSaved={() => { setPlanFormOpen(false); setEditingPlan(null); setTpPrefill(undefined); queryClient.invalidateQueries({ queryKey: ["plans", athleteId, selectedDate] }) }}
-              onDeleted={() => { setPlanFormOpen(false); setEditingPlan(null); setTpPrefill(undefined); queryClient.invalidateQueries({ queryKey: ["plans", athleteId, selectedDate] }) }}
-            />
-          </DialogContent>
-        </Dialog>
+            {plans.map((plan) => (
+              <PlanCard key={plan.id} plan={plan} />
+            ))}
+          </section>
+        )}
 
         <section className="space-y-4">
           <div className="flex items-center gap-2">

@@ -10,7 +10,7 @@ from auth.dependencies import get_current_athlete_id
 from database.athlete_repository import AthleteRepository
 from database.memory_repository import MemoryRepository
 from database.mongodb import get_db
-from models.athlete import AthleteSettings, HeartRateSettings, SportSettings
+from models.athlete import AthleteSettings, HeartRateSettings, IntervalsIcuSettings, SportSettings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/athlete", tags=["athlete"])
@@ -23,6 +23,7 @@ class AthleteSettingsPatch(AthleteSettings):
     running: SportSettings | None = None
     heart_rate: HeartRateSettings | None = None
     autolap: str | None = None
+    intervals_icu: IntervalsIcuSettings | None = None
 
 
 async def get_athlete_repository(
@@ -79,8 +80,8 @@ async def patch_settings(
         "running",
         "heart_rate",
         "autolap",
-        "trainingpeaks_ical_url",
         "training_philosophy",
+        "intervals_icu",
     }
     fields: dict = {}
     for field in patch.model_fields_set & settable:

@@ -41,6 +41,23 @@ _RESTITUTION_WINDOW_DAYS = 14
 # philosophies get no weekly classification.
 _POLARIZED_SLUG = "polarized_80_20"
 
+# Fields from a serialized WorkoutAnalysis that workout_analysis_task/
+# WorkoutOutput actually consume. laps/power_histogram/heart_rate_drift/zones
+# are computed but never referenced by name in the prompt or output schema —
+# zones specifically is superseded by the derived intensity_distribution
+# _enrich_workout already adds below.
+_WORKOUT_PAYLOAD_KEYS = (
+    "activity_id",
+    "analysis_type",
+    "session",
+    "metrics",
+    "erg_analysis",
+    "has_power_data",
+    "has_heart_rate_data",
+    "has_cadence_data",
+    "intervals_sync_status",
+)
+
 
 @dataclass
 class DailyAnalysisInput:
@@ -111,7 +128,7 @@ def _compute_intensity_distribution(analysis: dict[str, Any]) -> dict[str, Any]:
         if dist:
             return {**dist, "basis": "power"}
 
-    hr_zones = (zones_data.get("hr_zones") or {}).get("zones") if zones_data else None
+    hr_zones = (zones_data.get("heart_rate_zones") or {}).get("zones") if zones_data else None
     if hr_zones:
         dist = _extract(hr_zones)
         if dist:
@@ -599,13 +616,15 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         session_tags = w.get("session", {}).get("tags", [])
         all_tags = list(dict.fromkeys(session_tags + user_tags))
 
-        enriched = dict(w)
+        enriched = {k: w[k] for k in _WORKOUT_PAYLOAD_KEYS if k in w}
         if all_tags:
             enriched["tags"] = all_tags
         if assessment:
             enriched["athlete_rpe"] = assessment.rpe
             if assessment.notes:
                 enriched["athlete_notes"] = assessment.notes
+        elif w.get("intervals_rpe") is not None:
+            enriched["athlete_rpe"] = w["intervals_rpe"]
         enriched["intensity_distribution"] = _compute_intensity_distribution(w)
         return enriched
 

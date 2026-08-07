@@ -13,14 +13,7 @@ from typing import Any
 
 import pandas as pd
 
-from models.workout import (
-    Workout, 
-    Device,
-    ActivitySummary,
-    DailySummary,
-    WeeklySummary,
-    TrainingLoadAnalysis
-)
+from models.workout import Workout, Device
 
 
 logger = logging.getLogger(__name__)
@@ -291,91 +284,6 @@ class StravaClient:
         self._save_activities_cache(cache_path, activities)
         
         return activities
-
-    def get_training_load_analysis(
-        self,
-        end_date: datetime,
-        days: int = 28,
-        cycling_ftp: float | None = None,
-        running_ftp: float | None = None,
-        threshold_hr: float | None = None,
-        cache_dir: Path | None = None
-    ) -> TrainingLoadAnalysis:
-        """
-        Get comprehensive training load analysis for a specified period.
-        Uses only activity summary data for efficient API usage.
-        
-        Args:
-            end_date: End date for analysis period
-            days: Number of days to analyze (default 28)
-            ftp: Functional Threshold Power for TSS calculations
-            threshold_hr: Lactate threshold heart rate for HRSS calculations
-            
-        Returns:
-            TrainingLoadAnalysis with complete 28-day overview
-        """
-        start_date = end_date - timedelta(days=days-1)
-        
-        logger.info(f"Fetching training load data from {start_date} to {end_date}")
-        logger.info(f"This will require approximately {days} API calls...")
-        if cycling_ftp:
-            logger.info(f"Using cycling FTP: {cycling_ftp}W")
-        if running_ftp:
-            logger.info(f"Using running FTP: {running_ftp}W")
-        
-        # Fetch activities for each day (efficient: 1 API call per day)
-        daily_summaries = []
-        
-        for i in range(days):
-            current_date = start_date + timedelta(days=i)
-            activities = self.get_activities_for_date_cached(current_date, cache_dir)
-            
-            # Convert to activity summaries and calculate training load
-            activity_summaries = []
-            for activity in activities:
-                summary = ActivitySummary.from_strava_activity(activity)
-                summary.calculate_training_load(cycling_ftp=cycling_ftp, running_ftp=running_ftp, threshold_hr=threshold_hr)
-                activity_summaries.append(summary)
-            
-            daily_summary = DailySummary(
-                date=current_date,
-                activities=activity_summaries
-            )
-            daily_summaries.append(daily_summary)
-            
-            if activity_summaries:
-                logger.debug(f"{current_date}: {len(activity_summaries)} activities")
-        
-        # Create weekly summaries (rolling 7-day windows)
-        weekly_summaries = []
-        weeks = days // 7
-        
-        for week in range(weeks):
-            week_start = week * 7
-            week_end = min(week_start + 7, len(daily_summaries))
-            week_days = daily_summaries[week_start:week_end]
-            
-            if week_days:
-                weekly_summary = WeeklySummary(
-                    start_date=week_days[0].date,
-                    end_date=week_days[-1].date,
-                    days=week_days
-                )
-                weekly_summaries.append(weekly_summary)
-        
-        # Create complete analysis
-        analysis = TrainingLoadAnalysis(
-            period_start=start_date,
-            period_end=end_date,
-            daily_summaries=daily_summaries,
-            weekly_summaries=weekly_summaries
-        )
-        
-        logger.info(f"Analysis complete: {analysis.total_activities} activities, "
-                    f"{analysis.total_time/3600:.1f} hours, "
-                    f"TSS: {analysis.total_tss:.1f}")
-        
-        return analysis
 
     def get_activities_for_period(self, start_date: datetime, end_date: datetime) -> list[StravaActivity]:
         """

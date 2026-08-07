@@ -17,6 +17,7 @@ import {
   type SportSettings,
   type HeartRateSettings,
   type AthleteSettings,
+  type IntervalsIcuSettings,
 } from "../api/athleteSettings"
 import { fetchCurrentAthlete } from "../api/auth"
 import { fetchPrompts } from "../api/prompts"
@@ -394,25 +395,33 @@ function AutolapSectionContent({ initial, athleteId }: AutolapSectionProps) {
   )
 }
 
-// ── trainingpeaks section ─────────────────────────────────────────────────────
 
-interface TrainingPeaksSectionProps {
-  initial: string | null
+// ── intervals.icu section ─────────────────────────────────────────────────────
+
+interface IntervalsIcuSectionProps {
+  initial: IntervalsIcuSettings | null
   athleteId: number
 }
 
-function TrainingPeaksSectionContent({ initial, athleteId }: TrainingPeaksSectionProps) {
+function IntervalsIcuSectionContent({ initial, athleteId }: IntervalsIcuSectionProps) {
   const queryClient = useQueryClient()
-  const [url, setUrl] = useState(initial ?? "")
+  const [apiKey, setApiKey] = useState(initial?.api_key ?? "")
+  const [intervalsAthleteId, setIntervalsAthleteId] = useState(initial?.intervals_athlete_id ?? "")
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    setUrl(initial ?? "")
+    setApiKey(initial?.api_key ?? "")
+    setIntervalsAthleteId(initial?.intervals_athlete_id ?? "")
   }, [initial])
 
   const mutation = useMutation({
     mutationFn: () =>
-      patchAthleteSettings(athleteId, { trainingpeaks_ical_url: url.trim() || null }),
+      patchAthleteSettings(athleteId, {
+        intervals_icu: {
+          api_key: apiKey.trim() || null,
+          intervals_athlete_id: intervalsAthleteId.trim() || null,
+        },
+      }),
     onSuccess: (data) => {
       queryClient.setQueryData(["athlete-settings", athleteId], data)
       setSaved(true)
@@ -423,17 +432,28 @@ function TrainingPeaksSectionContent({ initial, athleteId }: TrainingPeaksSectio
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="tp-ical-url">Calendar sync URL</Label>
+        <Label htmlFor="intervals-athlete-id">Athlete ID</Label>
         <Input
-          id="tp-ical-url"
-          type="url"
-          placeholder="https://www.trainingpeaks.com/api/calendar/ical/..."
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          id="intervals-athlete-id"
+          type="text"
+          placeholder="i123456"
+          value={intervalsAthleteId}
+          onChange={(e) => setIntervalsAthleteId(e.target.value)}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="intervals-api-key">API key</Label>
+        <Input
+          id="intervals-api-key"
+          type="password"
+          placeholder="Your Intervals.icu API key"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
         />
         <p className="text-xs text-muted-foreground">
-          Find this in TrainingPeaks → Settings → Connect → Calendar Sync (requires Premium).
-          Paste the full .ics URL here.
+          Find both in Intervals.icu → Settings → Developer Settings. Used for workout
+          analytics and your planned-workout calendar (read-only — create and edit plans
+          directly in Intervals.icu).
         </p>
       </div>
       <SaveRow
@@ -821,11 +841,11 @@ export function AthleteConfig() {
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="trainingpeaks">
-          <AccordionTrigger>TrainingPeaks</AccordionTrigger>
+        <AccordionItem value="intervals-icu">
+          <AccordionTrigger>Intervals.icu</AccordionTrigger>
           <AccordionContent>
-            <TrainingPeaksSectionContent
-              initial={settings?.trainingpeaks_ical_url ?? null}
+            <IntervalsIcuSectionContent
+              initial={settings?.intervals_icu ?? null}
               athleteId={athlete!.athlete_id}
             />
           </AccordionContent>

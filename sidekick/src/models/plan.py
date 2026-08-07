@@ -8,6 +8,11 @@ from utils.datetime_utils import ensure_utc
 
 
 class PlannedActivity(BaseModel):
+    """A planned workout. Read-only: sourced live from the athlete's Intervals.icu
+    calendar (see services/intervals_calendar.py) — sidekick has no storage or
+    authoring UI of its own for these.
+    """
+
     id: str = Field(default_factory=lambda: str(uuid4()))
     athlete_id: int
     date: str  # YYYY-MM-DD
@@ -19,6 +24,7 @@ class PlannedActivity(BaseModel):
     estimated_duration_min: int | None = None
     estimated_tss: int | None = None
     external_reference: str | None = None
+    race_priority: Literal["A", "B", "C"] | None = None
     created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -26,15 +32,3 @@ class PlannedActivity(BaseModel):
     @classmethod
     def _utc(cls, v):
         return ensure_utc(v)
-
-
-class PlannedActivityRequest(BaseModel):
-    date: str  # YYYY-MM-DD
-    sport: Literal["cycling", "running", "strength", "skiing_cross", "skiing_alpine", "day_off", "other"]
-    name: str
-    description: str | None = None
-    purpose: str | None = None
-    labels: list[str] = Field(default_factory=list)
-    estimated_duration_min: int | None = None
-    estimated_tss: int | None = None
-    external_reference: str | None = None

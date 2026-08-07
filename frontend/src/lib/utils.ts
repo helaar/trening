@@ -14,3 +14,13 @@ export function localToday(): string {
   const day = String(d.getDate()).padStart(2, "0")
   return `${year}-${month}-${day}`
 }
+
+// Monday of the ISO week containing the given YYYY-MM-DD date — matches the
+// `w=` param Intervals.icu's calendar view expects.
+export function mondayOf(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z")
+  const day = d.getUTCDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setUTCDate(d.getUTCDate() + diff)
+  return d.toISOString().split("T")[0]
+}

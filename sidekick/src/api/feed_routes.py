@@ -8,13 +8,15 @@ from pydantic import BaseModel
 from pymongo.asynchronous.database import AsyncDatabase
 
 from auth.dependencies import get_current_athlete_id
+from database.athlete_repository import AthleteRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
 from database.mongodb import get_db
-from database.plan_repository import PlanRepository
 from database.workout_repository import WorkoutRepository
+from models.athlete import AthleteSettings
 from models.daily_entry import ActivityAssessment, Restitution
 from models.plan import PlannedActivity
+from services import intervals_calendar
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/athlete", tags=["feed"])
@@ -56,12 +58,13 @@ async def build_feed(db: AsyncDatabase, athlete_id: int, start: str, end: str) -
     end_dt = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
     workout_repo = WorkoutRepository(db)
-    plan_repo = PlanRepository(db)
+    athlete_repo = AthleteRepository(db)
     entry_repo = DailyEntryRepository(db)
     analysis_repo = DailyAnalysisRepository(db)
 
+    settings = await athlete_repo.get_athlete_settings(athlete_id)
     workouts, plans, entries = await _fetch_all(
-        workout_repo, plan_repo, entry_repo, athlete_id, start, end, start_dt, end_dt
+        workout_repo, settings, entry_repo, athlete_id, start, end, start_dt, end_dt
     )
 
     workouts_by_date: dict[str, list[dict]] = defaultdict(list)
@@ -100,7 +103,7 @@ async def build_feed(db: AsyncDatabase, athlete_id: int, start: str, end: str) -
 
 async def _fetch_all(
     workout_repo: WorkoutRepository,
-    plan_repo: PlanRepository,
+    settings: AthleteSettings | None,
     entry_repo: DailyEntryRepository,
     athlete_id: int,
     start: str,
@@ -110,6 +113,6 @@ async def _fetch_all(
 ) -> tuple:
     return await asyncio.gather(
         workout_repo.get_analyses_for_range(athlete_id, start_dt, end_dt),
-        plan_repo.get_for_range(athlete_id, start, end),
+        intervals_calendar.get_for_range(athlete_id, settings, start, end),
         entry_repo.get_range(athlete_id, start, end),
     )

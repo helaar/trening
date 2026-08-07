@@ -1,4 +1,4 @@
-import { Brain, AlertTriangle, Plus } from "lucide-react"
+import { Brain, AlertTriangle } from "lucide-react"
 import { cn, localToday } from "../../lib/utils"
 import type { FeedDay } from "../../api/feed"
 import { SPORT_COLORS, SPORT_COLORS_MUTED } from "./sportColors"
@@ -35,7 +35,6 @@ interface CalendarDayCellProps {
   isToday: boolean
   isSelected: boolean
   onClick: () => void
-  onAddPlan?: (e: React.MouseEvent) => void
 }
 
 const TSS_SCALE = 500 // a long race fills the bar
@@ -56,7 +55,6 @@ export function CalendarDayCell({
   isToday,
   isSelected,
   onClick,
-  onAddPlan,
 }: CalendarDayCellProps) {
   const today = localToday()
   const dayNum = parseInt(date.split("-")[2], 10)
@@ -111,16 +109,6 @@ export function CalendarDayCell({
           {day?.has_analysis && (
             <Brain className="h-3 w-3 text-muted-foreground" aria-label="AI analysis available" />
           )}
-          {onAddPlan && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onAddPlan(e) }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-              aria-label="Add plan"
-              title="Add plan"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-          )}
         </div>
       </div>
 
@@ -143,7 +131,9 @@ export function CalendarDayCell({
                     <span title="Season goal race" aria-label="Season goal race">🎯</span>
                   )}
                   {isRace && !isSeasonGoal && (
-                    <span title="Race" aria-label="Race">🏆</span>
+                    <span title={`Race${plan.race_priority ? ` (${plan.race_priority})` : ""}`} aria-label="Race">
+                      🏆{plan.race_priority ? plan.race_priority : ""}
+                    </span>
                   )}
                   <span
                     className={cn(
