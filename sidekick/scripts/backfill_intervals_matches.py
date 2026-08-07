@@ -1,10 +1,17 @@
-"""One-off backfill: cross-reference existing strava_activities to Intervals.icu.
+"""Backfill/repair: cross-reference existing strava_activities to Intervals.icu.
 
 Populates the `intervals_activities` collection for activities that already
 exist in `strava_activities`, so historical activities don't have to wait on
 an organic re-fetch to get an Intervals.icu cross-reference. Additive only —
 does not touch strava_activities or workout_analyses, and is safe to re-run
 (store_activity upserts on athlete_id + intervals_activity_id).
+
+Ongoing maintenance tool, not a one-time script: this is also the fix-up
+step after any bug in the matching pipeline (e.g. a period where
+get_activities_for_date fed fuzzy-matching an empty candidate pool and
+downgraded good matches to "ambiguous") — re-running it for the affected
+date range re-derives the correct cross-references once the underlying bug
+is fixed.
 
 Run:
   cd sidekick

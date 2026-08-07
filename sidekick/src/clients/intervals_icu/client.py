@@ -95,8 +95,8 @@ class IntervalsIcuClient:
         """Activities in [oldest, newest], each activity's raw JSON as returned by the API.
 
         Used by the identity-matching service to find a Strava-id back-reference
-        (exact field name TBD, see module docstring) or, failing that, to fuzzy-match
-        on start time/duration/route.
+        (the `strava_id` field, confirmed — see services/intervals_matching.py) or,
+        failing that, to fuzzy-match on start time/duration/distance.
         """
         response = await self._get(
             f"{self._athlete_path}/activities",

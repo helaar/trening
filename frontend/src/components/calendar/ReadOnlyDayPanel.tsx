@@ -71,12 +71,32 @@ export function ReadOnlyDayPanel({ athleteId, selectedDate }: ReadOnlyDayPanelPr
         {!loadingFeed && (day?.plans?.length ?? 0) > 0 && (
           <section className="space-y-2">
             <h2 className="font-semibold text-muted-foreground">Plan</h2>
-            {day!.plans.map((plan) => (
-              <div key={plan.id} className="rounded-md border px-3 py-2 text-sm">
-                <span className="font-medium">{plan.name}</span>
-                {plan.estimated_duration_min ? ` · ${plan.estimated_duration_min}m` : ""}
-              </div>
-            ))}
+            {day!.plans.map((plan) => {
+              const isSeasonGoal = plan.labels.includes("seasongoal")
+              const isRace = plan.labels.includes("race")
+              return (
+                <div key={plan.id} className="rounded-md border px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{plan.name}</span>
+                    {plan.estimated_duration_min ? ` · ${plan.estimated_duration_min}m` : ""}
+                  </div>
+                  {(isSeasonGoal || isRace) && (
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {isSeasonGoal && (
+                        <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-purple-100 text-purple-700 border-purple-300">
+                          🎯 Season goal
+                        </span>
+                      )}
+                      {isRace && (
+                        <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-amber-100 text-amber-700 border-amber-300">
+                          🏆 Race{plan.race_priority ? ` (${plan.race_priority})` : ""}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </section>
         )}
 
