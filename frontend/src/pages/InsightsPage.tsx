@@ -35,8 +35,7 @@ export function InsightsPage() {
       )}
 
       <p className="text-sm text-muted-foreground">
-        AI coaching feedback, weekly TSS trends, and zone distribution charts will appear
-        here.
+        AI coaching feedback will appear here.
       </p>
     </div>
   )

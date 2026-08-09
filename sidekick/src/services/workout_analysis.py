@@ -419,11 +419,8 @@ class WorkoutAnalysisService:
         Returns:
             List of WorkoutAnalysis objects
         """
-        # Get athlete settings
-        settings = await self.athlete_repo.get_athlete_settings(athlete_id)
-        
         activities = []
-        
+
         if not refresh:
             # Try to load from database first
             stored_activities = await self.workout_repo.get_activities_for_date(
