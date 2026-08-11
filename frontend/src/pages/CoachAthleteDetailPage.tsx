@@ -5,7 +5,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import { MonthView } from "../components/calendar/MonthView"
 import { ReadOnlyDayPanel } from "../components/calendar/ReadOnlyDayPanel"
 import { Button } from "../components/ui/button"
-import { fetchCoachAthleteFeed, fetchCoachRoster } from "../api/coach"
+import { fetchCoachAthleteFeed, fetchCoachAthleteWeekCategories, fetchCoachRoster } from "../api/coach"
 import type { RiskCounts } from "../api/coach"
 import { recoveryQualityTextStyle, severityBadgeStyle, severityFor } from "../lib/risk"
 import { cn, localToday } from "../lib/utils"
@@ -98,6 +98,7 @@ export function CoachAthleteDetailPage() {
             selectedDate={today}
             onSelectDate={setSelectedDate}
             fetchFeedFn={fetchCoachAthleteFeed}
+            fetchWeekCategoryFn={fetchCoachAthleteWeekCategories}
           />
         )}
       </div>

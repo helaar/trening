@@ -32,6 +32,8 @@ from analysis.memory_relevance import (
 from models.memory import Memory
 from models.daily_entry import DailyEntry
 from models.plan import PlannedActivity
+from models.week_category import WeekCategoryEntry
+from utils.datetime_utils import monday_of
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,7 @@ class DailyAnalysisInput:
     recent_workout_analyses: list[dict[str, Any]] = field(default_factory=list)
     active_memories: list[Memory] = field(default_factory=list)
     upcoming_races: list[PlannedActivity] = field(default_factory=list)
+    week_categories: list[WeekCategoryEntry] = field(default_factory=list)
     agents: dict[str, AgentDoc] = field(default_factory=dict)
     tasks: dict[str, TaskDoc] = field(default_factory=dict)
     philosophy: PhilosophyDoc | None = None
@@ -83,6 +86,38 @@ def _philosophy_payload(philosophy: PhilosophyDoc | None) -> dict[str, str] | No
         "intensity_targets": philosophy.intensity_targets,
         "coach_guidance": philosophy.coach_guidance,
         "analyst_guidance": philosophy.analyst_guidance,
+    }
+
+
+def _week_category_entry_payload(entry: WeekCategoryEntry) -> dict[str, Any]:
+    return {
+        "week_start": entry.week_start,
+        "category": entry.category.value,
+        "set_at": entry.created_at,
+        "updated_at": entry.updated_at,
+    }
+
+
+def _week_category_payload(
+    week_categories: list[WeekCategoryEntry], analysis_date: str
+) -> dict[str, Any] | None:
+    """Athlete/coach-declared category for the current and previous week.
+
+    Datetimes are left as-is here; convert_datetimes_in_obj() applied to the
+    surrounding payload dict handles the athlete-local-timezone conversion.
+    """
+    if not week_categories:
+        return None
+    this_monday = monday_of(analysis_date)
+    prev_monday = monday_of((date.fromisoformat(this_monday) - timedelta(days=7)).isoformat())
+    by_week = {e.week_start: e for e in week_categories}
+    current = by_week.get(this_monday)
+    previous = by_week.get(prev_monday)
+    if current is None and previous is None:
+        return None
+    return {
+        "current": _week_category_entry_payload(current) if current else None,
+        "previous": _week_category_entry_payload(previous) if previous else None,
     }
 
 
@@ -279,8 +314,10 @@ class _WorkoutDataTool(BaseTool):
         "Retrieve workout analyses and athlete threshold/zone settings for today. "
         "Returns JSON with 'athlete_settings' and 'workouts' keys, plus "
         "'training_philosophy' and a precomputed 'weekly_philosophy_assessment' "
-        "(status/description + weekly intensity distribution) when a philosophy is set. "
-        "Call this first."
+        "(status/description + weekly intensity distribution) when a philosophy is set, "
+        "and 'week_category' (current/previous week's declared build/maintain/taper/race/"
+        "restitution/recovering intent, each with set_at/updated_at) when the athlete or "
+        "coach has set one. Call this first."
     )
     _payload: str = ""
 
@@ -301,7 +338,10 @@ class _PlansDataTool(BaseTool):
         "Retrieve today's planned activities and athlete settings. "
         "Returns JSON with 'planned_activities' and 'athlete_settings' keys, plus "
         "'training_philosophy' and a precomputed 'weekly_philosophy_assessment' "
-        "(status/description + weekly intensity distribution) when a philosophy is set."
+        "(status/description + weekly intensity distribution) when a philosophy is set, "
+        "and 'week_category' (current/previous week's declared build/maintain/taper/race/"
+        "restitution/recovering intent, each with set_at/updated_at) when the athlete or "
+        "coach has set one."
     )
     _payload: str = ""
 
@@ -389,16 +429,19 @@ class _RecoveryMemoryTool(BaseTool):
 class _RestitutionDataTool(BaseTool):
     name: str = "get_restitution_data"
     description: str = (
-        "Retrieve the daily recovery and training load timeline for the analysis period. "
-        "Returns a JSON array with one entry per calendar day, each containing 'date', "
-        "'restitution' (HRV, resting HR, sleep, readiness — null if not recorded), and "
-        "'training' (TSS, IF, duration — null if no workouts that day). The most recent "
-        "day's 'restitution' may also include a 'comment' field — the athlete's free-text "
-        "note about today's readiness/recovery (present only for today). Each entry also "
-        "includes precomputed 'rolling_tss_2d' and 'rolling_tss_3d' — the summed total_tss "
-        "for that day plus the preceding 1-2 days (null if the window extends before the "
-        "data range). Use these directly when citing 2-3 day cumulative load; do not sum "
-        "per-day TSS values yourself. Call this first."
+        "Retrieve the daily recovery/training-load timeline plus the declared week category "
+        "for the analysis period. Returns a JSON object with 'timeline' (a JSON array with one "
+        "entry per calendar day, each containing 'date', 'restitution' (HRV, resting HR, sleep, "
+        "readiness — null if not recorded), and 'training' (TSS, IF, duration — null if no "
+        "workouts that day). The most recent day's 'restitution' may also include a 'comment' "
+        "field — the athlete's free-text note about today's readiness/recovery (present only "
+        "for today). Each entry also includes precomputed 'rolling_tss_2d' and 'rolling_tss_3d' "
+        "— the summed total_tss for that day plus the preceding 1-2 days (null if the window "
+        "extends before the data range). Use these directly when citing 2-3 day cumulative "
+        "load; do not sum per-day TSS values yourself. 'week_category' (null if never set) has "
+        "'current' and 'previous' — each with 'category' (build/maintain/taper/race/"
+        "restitution/recovering), 'set_at', and 'updated_at' — the athlete/coach's declared "
+        "intent for that week. Call this first."
     )
     _payload: str = ""
 
@@ -645,6 +688,15 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     )
 
     athlete_tz = input.athlete.settings.timezone
+    week_category_payload = _week_category_payload(input.week_categories, input.date)
+    # workout_payload_data is converted as a whole below; plans/restitution payloads are not,
+    # so week_category needs its own local-tz conversion before being embedded in those.
+    week_category_payload_local = (
+        convert_datetimes_in_obj(week_category_payload, athlete_tz)
+        if week_category_payload
+        else None
+    )
+
     workout_payload_data: dict[str, Any] = {
         "athlete_settings": athlete_settings,
         "workouts": [_enrich_workout(w) for w in input.workout_analyses],
@@ -653,6 +705,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         workout_payload_data["training_philosophy"] = philosophy
     if weekly_assessment_for_prompt:
         workout_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_prompt
+    if week_category_payload:
+        workout_payload_data["week_category"] = week_category_payload
     workout_payload = json.dumps(
         convert_datetimes_in_obj(workout_payload_data, athlete_tz), default=str
     )
@@ -665,6 +719,8 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         plans_payload_data["training_philosophy"] = philosophy
     if weekly_assessment_for_prompt:
         plans_payload_data["weekly_philosophy_assessment"] = weekly_assessment_for_prompt
+    if week_category_payload_local:
+        plans_payload_data["week_category"] = week_category_payload_local
     plans_payload = json.dumps(plans_payload_data, default=str)
 
     def _race_entry(activity: PlannedActivity) -> dict[str, Any]:
@@ -698,7 +754,9 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         input.daily_entries,
         input.recent_workout_analyses,
     )
-    restitution_payload = json.dumps(timeline, default=str)
+    restitution_payload = json.dumps(
+        {"timeline": timeline, "week_category": week_category_payload_local}, default=str
+    )
 
     day_context = _build_day_context(
         timeline, input.planned_activities, input.upcoming_races, input.date

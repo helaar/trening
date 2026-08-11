@@ -53,6 +53,10 @@ daily_coaching_task:
     pulls the other way, resolve it using today's actual evidence: a plan-compliant session
     executed well outweighs a memory-based caution that today's data does not support. Do not let
     a standing risk memory override what actually happened in today's session.
+
+    If week_category is present in the tool data, use it to frame the week's demand in the
+    athlete_message: lighter training during a deliberate taper, restitution, or recovering week is
+    going to plan — frame it positively, not as something to fix or apologize for.
   expected_output: |
     A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
     coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
@@ -311,6 +315,17 @@ restitution_analysis_task:
     per-day total_tss values yourself, and do not reuse one day's total_tss for another day.
     For any other multi-day total, state the individual per-day total_tss values for the
     dates involved rather than computing a new sum.
+
+    If week_category data is present, treat a 'recovering' category as a direct, authoritative
+    signal that any illness/injury-driven suppression in HRV, resting HR, sleep, or readiness is
+    expected — this takes precedence over inferring the same thing from memory content, and should
+    not be raised as a risk_flag. A 'restitution' or 'taper' category similarly explains reduced
+    training load; low TSS during those weeks is not itself concerning. If the category's set_at or
+    updated_at shows it was set or changed after the week began, note the transition in
+    trend_analysis (e.g. illness recorded mid-week). Conversely, if the week is marked 'build' or
+    'race' but recovery metrics show accumulating fatigue the category does not explain, that
+    mismatch is itself a genuine risk_flag — a deliberately hard week does not exempt it from
+    fatigue monitoring.
   expected_output: |
     A JSON object with the recovery analysis. recovery_baseline captures the athlete's typical
     metrics computed from the window. trend_analysis and load_recovery_correlation must each be
@@ -358,7 +373,13 @@ workout_analysis_task:
     \ (a weekly verdict), never on per-session classification, and do not recompute\
     \ or reclassify anything yourself. Raise a philosophy risk_flag only when analyst_guidance\
     \ calls for one given the current status, and make no philosophy claim at all\
-    \ when the assessment reflects insufficient data. "
+    \ when the assessment reflects insufficient data.\n\nIf week_category is present\
+    \ in the tool data, use it to calibrate expectations before flagging\nload: higher\
+    \ training stress during a declared build or race week is deliberate, not a risk_flag\n\
+    on its own. Low or zero volume during a declared taper, restitution, or recovering\
+    \ week is the\nplan, not a data gap — do not flag it as missing training. Only\
+    \ raise a risk_flag when the day's\nactual execution runs counter to what the\
+    \ declared category predicts."
   expected_output: |
     A JSON object with the workout analysis. If no workouts: no_data=true, workouts=[].
     daily_summary captures the key highlight and primary recommendation for the whole day.

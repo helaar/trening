@@ -13,6 +13,7 @@ from database.memory_repository import MemoryRepository
 from database.mongodb import get_db
 from database.prompt_log_repository import PromptLogRepository
 from database.task_repository import TaskRepository
+from database.week_category_repository import WeekCategoryRepository
 from database.workout_repository import WorkoutRepository
 from models.task import TaskCreateRequest, TaskResponse, TaskStatus, TaskType
 from services.task_processor import TaskProcessor, create_task
@@ -62,6 +63,11 @@ def get_prompt_log_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> 
     return PromptLogRepository(db)
 
 
+def get_week_category_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> WeekCategoryRepository:
+    """Dependency to get week category repository."""
+    return WeekCategoryRepository(db)
+
+
 def get_task_processor(
     task_repo: Annotated[TaskRepository, Depends(get_task_repository)],
     athlete_repo: Annotated[AthleteRepository, Depends(get_athlete_repository)],
@@ -70,10 +76,11 @@ def get_task_processor(
     daily_entry_repo: Annotated[DailyEntryRepository, Depends(get_daily_entry_repository)],
     memory_repo: Annotated[MemoryRepository, Depends(get_memory_repository)],
     crew_def_repo: Annotated[CrewDefinitionRepository, Depends(get_crew_definition_repository)],
+    week_category_repo: Annotated[WeekCategoryRepository, Depends(get_week_category_repository)],
     prompt_log_repo: Annotated[PromptLogRepository, Depends(get_prompt_log_repository)],
 ) -> TaskProcessor:
     """Dependency to get task processor."""
-    return TaskProcessor(task_repo, athlete_repo, workout_repo, daily_analysis_repo, daily_entry_repo, memory_repo, crew_def_repo, prompt_log_repo)
+    return TaskProcessor(task_repo, athlete_repo, workout_repo, daily_analysis_repo, daily_entry_repo, memory_repo, crew_def_repo, week_category_repo, prompt_log_repo)
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)

@@ -1,7 +1,13 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { fetchFeed, type FeedDay } from "../../api/feed"
+import {
+  fetchWeekCategories,
+  type WeekCategory,
+  type WeekCategoryEntry,
+} from "../../api/weekCategory"
 import { CalendarDayCell } from "./CalendarDayCell"
+import { WeekCategorySelect } from "./WeekCategorySelect"
 import { cn, localToday } from "../../lib/utils"
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -35,6 +41,15 @@ function buildCalendarGrid(
   return cells
 }
 
+// Splits the flat cell grid (always a multiple of 7, Monday-first) into per-week rows
+// so each row can carry its own leading week-category cell.
+function chunkIntoWeeks<T>(cells: T[]): T[][] {
+  const weeks: T[][] = []
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7))
+  }
+  return weeks
+}
 
 interface MonthViewProps {
   athleteId: number
@@ -42,6 +57,16 @@ interface MonthViewProps {
   selectedDate: string
   onSelectDate: (date: string) => void
   fetchFeedFn?: (athleteId: number, start: string, end: string) => Promise<FeedDay[]>
+  fetchWeekCategoryFn?: (
+    athleteId: number,
+    start: string,
+    end: string
+  ) => Promise<WeekCategoryEntry[]>
+  onSetWeekCategory?: (
+    athleteId: number,
+    weekStart: string,
+    category: WeekCategory
+  ) => Promise<WeekCategoryEntry>
 }
 
 export function MonthView({
@@ -50,15 +75,42 @@ export function MonthView({
   selectedDate,
   onSelectDate,
   fetchFeedFn = fetchFeed,
+  fetchWeekCategoryFn = fetchWeekCategories,
+  onSetWeekCategory,
 }: MonthViewProps) {
   const [year, month] = date.split("-").map(Number)
   const { start, end } = getMonthRange(date)
   const today = localToday()
+  const queryClient = useQueryClient()
 
   const { data: feed, isLoading } = useQuery({
     queryKey: ["feed", athleteId, start, end],
     queryFn: () => fetchFeedFn(athleteId, start, end),
   })
+
+  const weekCategoryQueryKey = ["week-category", athleteId, start, end] as const
+  const { data: weekCategories } = useQuery({
+    queryKey: weekCategoryQueryKey,
+    queryFn: () => fetchWeekCategoryFn(athleteId, start, end),
+  })
+
+  const setCategoryMutation = useMutation({
+    mutationFn: ({ weekStart, category }: { weekStart: string; category: WeekCategory }) => {
+      if (!onSetWeekCategory) throw new Error("Week category is read-only in this view")
+      return onSetWeekCategory(athleteId, weekStart, category)
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<WeekCategoryEntry[]>(weekCategoryQueryKey, (old) => {
+        const others = (old ?? []).filter((e) => e.week_start !== updated.week_start)
+        return [...others, updated].sort((a, b) => a.week_start.localeCompare(b.week_start))
+      })
+    },
+  })
+
+  const categoryByWeek = new Map<string, WeekCategory>()
+  for (const entry of weekCategories ?? []) {
+    categoryByWeek.set(entry.week_start, entry.category)
+  }
 
   const feedMap = new Map<string, FeedDay>()
   for (const day of feed ?? []) {
@@ -66,6 +118,8 @@ export function MonthView({
   }
 
   const cells = buildCalendarGrid(year, month, feedMap)
+  const weeks = chunkIntoWeeks(cells)
+
   return (
     <div className="relative">
       {isLoading && (
@@ -73,23 +127,40 @@ export function MonthView({
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-8 gap-1">
+        <div />
         {WEEKDAYS.map((d) => (
           <div key={d} className="py-1 text-center text-xs font-medium text-muted-foreground">
             {d}
           </div>
         ))}
-        {cells.map(({ date: cellDate, inMonth, feedDay }) => (
-          <div key={cellDate} className={cn("h-full", inMonth ? "" : "opacity-30")}>
-            <CalendarDayCell
-              day={feedDay}
-              date={cellDate}
-              isToday={cellDate === today}
-              isSelected={cellDate === selectedDate}
-              onClick={() => onSelectDate(cellDate)}
-            />
-          </div>
-        ))}
+        {weeks.map((week) => {
+          const weekStart = week[0].date
+          return (
+            <div key={weekStart} className="contents">
+              <WeekCategorySelect
+                weekStart={weekStart}
+                value={categoryByWeek.get(weekStart) ?? null}
+                onChange={
+                  onSetWeekCategory
+                    ? (category) => setCategoryMutation.mutate({ weekStart, category })
+                    : undefined
+                }
+              />
+              {week.map(({ date: cellDate, inMonth, feedDay }) => (
+                <div key={cellDate} className={cn("h-full", inMonth ? "" : "opacity-30")}>
+                  <CalendarDayCell
+                    day={feedDay}
+                    date={cellDate}
+                    isToday={cellDate === today}
+                    isSelected={cellDate === selectedDate}
+                    onClick={() => onSelectDate(cellDate)}
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

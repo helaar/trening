@@ -15,6 +15,7 @@ from crew.prompt_logging import register_prompt_log_listener
 from database.crew_definition_repository import CrewDefinitionRepository
 from database.mongodb import db_manager
 from database.prompt_log_repository import PromptLogRepository
+from database.week_category_repository import WeekCategoryRepository
 from services.task_processor import TaskProcessor
 
 # Configure logging from logging.yaml (per-area levels, consistent format).
@@ -83,6 +84,7 @@ async def lifespan(app: FastAPI):
     await db_manager.connect()
     await PromptLogRepository(db_manager.db).ensure_indexes()
     await CrewDefinitionRepository(db_manager.db).ensure_indexes()
+    await WeekCategoryRepository(db_manager.db).ensure_indexes()
     register_prompt_log_listener()
     logging.getLogger(__name__).info(
         "Startup complete: LLM token-usage capture active (prompt_logs doc_type=usage)"

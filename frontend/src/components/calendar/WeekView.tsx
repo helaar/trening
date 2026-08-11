@@ -1,7 +1,13 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { fetchFeed, type FeedDay } from "../../api/feed"
+import {
+  fetchWeekCategories,
+  type WeekCategory,
+  type WeekCategoryEntry,
+} from "../../api/weekCategory"
 import { CalendarDayCell } from "./CalendarDayCell"
+import { WeekCategorySelect } from "./WeekCategorySelect"
 import { localToday } from "../../lib/utils"
 
 function getWeekRange(date: string): { start: string; end: string; dates: string[] } {
@@ -26,16 +32,57 @@ interface WeekViewProps {
   date: string
   selectedDate: string
   onSelectDate: (date: string) => void
+  fetchFeedFn?: (athleteId: number, start: string, end: string) => Promise<FeedDay[]>
+  fetchWeekCategoryFn?: (
+    athleteId: number,
+    start: string,
+    end: string
+  ) => Promise<WeekCategoryEntry[]>
+  onSetWeekCategory?: (
+    athleteId: number,
+    weekStart: string,
+    category: WeekCategory
+  ) => Promise<WeekCategoryEntry>
 }
 
-export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekViewProps) {
+export function WeekView({
+  athleteId,
+  date,
+  selectedDate,
+  onSelectDate,
+  fetchFeedFn = fetchFeed,
+  fetchWeekCategoryFn = fetchWeekCategories,
+  onSetWeekCategory,
+}: WeekViewProps) {
   const { start, end, dates } = getWeekRange(date)
   const today = localToday()
+  const queryClient = useQueryClient()
 
   const { data: feed, isLoading } = useQuery({
     queryKey: ["feed", athleteId, start, end],
-    queryFn: () => fetchFeed(athleteId, start, end),
+    queryFn: () => fetchFeedFn(athleteId, start, end),
   })
+
+  const weekCategoryQueryKey = ["week-category", athleteId, start, end] as const
+  const { data: weekCategories } = useQuery({
+    queryKey: weekCategoryQueryKey,
+    queryFn: () => fetchWeekCategoryFn(athleteId, start, end),
+  })
+
+  const setCategoryMutation = useMutation({
+    mutationFn: ({ weekStart, category }: { weekStart: string; category: WeekCategory }) => {
+      if (!onSetWeekCategory) throw new Error("Week category is read-only in this view")
+      return onSetWeekCategory(athleteId, weekStart, category)
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<WeekCategoryEntry[]>(weekCategoryQueryKey, (old) => {
+        const others = (old ?? []).filter((e) => e.week_start !== updated.week_start)
+        return [...others, updated].sort((a, b) => a.week_start.localeCompare(b.week_start))
+      })
+    },
+  })
+
+  const currentCategory = weekCategories?.find((e) => e.week_start === start)?.category ?? null
 
   const feedMap = new Map<string, FeedDay>()
   for (const day of feed ?? []) {
@@ -49,7 +96,8 @@ export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekVi
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-8 gap-2">
+        <div />
         {dates.map((d, i) => {
           const dayNum = parseInt(d.split("-")[2], 10)
           return (
@@ -59,6 +107,15 @@ export function WeekView({ athleteId, date, selectedDate, onSelectDate }: WeekVi
             </div>
           )
         })}
+        <WeekCategorySelect
+          weekStart={start}
+          value={currentCategory}
+          onChange={
+            onSetWeekCategory
+              ? (category) => setCategoryMutation.mutate({ weekStart: start, category })
+              : undefined
+          }
+        />
         {dates.map((d) => (
           <CalendarDayCell
             key={d}
