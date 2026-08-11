@@ -1,0 +1,49 @@
+# Auto-merged by a bare `docker compose up` for local development.
+# Production deploys must run with `-f docker-compose.yml` only (see README) so
+# this file — and its dev builds/bind-mounts/published ports — never applies there.
+services:
+  mongodb:
+    ports:
+      - "27010:27017"
+
+  mongo-express:
+    image: mongo-express:latest
+    restart: unless-stopped
+    profiles: ["tools"]
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME:?set MONGO_ROOT_USERNAME in .env}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "8001:8081"
+    depends_on:
+      - mongodb
+    networks:
+      - sidekick-network
+
+  sidekick:
+    build:
+      target: dev
+    volumes:
+      - ./sidekick/src:/app/src
+      - ./sidekick/scripts:/app/scripts
+      - ./sidekick/logging.yaml:/app/logging.yaml
+    ports:
+      - "5175:5175"
+
+  frontend:
+    build:
+      target: dev
+    environment:
+      VITE_BACKEND_URL: http://sidekick:5175
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    # Base file publishes 80/443 for Caddy; dev runs the Vite dev server on
+    # 5173 instead, so replace (not append to) the inherited port list.
+    ports: !override
+      - "5173:5173"
+    # No Caddy in dev; nothing listens on the base file's port-80 healthcheck.
+    healthcheck:
+      disable: true

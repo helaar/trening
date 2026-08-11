@@ -1,0 +1,19 @@
+{$DOMAIN} {
+	tls {$ACME_EMAIL}
+
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy sidekick:5175
+	}
+
+	handle /auth/* {
+		reverse_proxy sidekick:5175
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
