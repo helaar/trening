@@ -18,7 +18,7 @@ export function WeekCategoryBadge({ category }: WeekCategoryBadgeProps) {
         WEEK_CATEGORY_BADGE_STYLES[category]
       )}
     >
-      {WEEK_CATEGORY_EMOJI[category]} Week:{" "}
+      {WEEK_CATEGORY_EMOJI[category]}{" "}
       <span className="font-medium">{WEEK_CATEGORY_LABELS[category]}</span>
     </span>
   )
