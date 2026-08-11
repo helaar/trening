@@ -26,6 +26,7 @@ import {
 import { fetchDailyEntry, saveDailyEntry } from "../../api/dailyEntry"
 import type { Restitution, ActivityAssessment } from "../../api/dailyEntry"
 import { fetchPlansForDate, fetchPlansForRange } from "../../api/plans"
+import { fetchWeekCategories } from "../../api/weekCategory"
 import {
   createDailyAnalysisTask,
   fetchStoredAnalysis,
@@ -34,7 +35,8 @@ import {
   getTaskStatus,
 } from "../../api/tasks"
 import { PlanCard } from "../PlanCard"
-import { localToday } from "../../lib/utils"
+import { WeekCategoryBadge } from "./WeekCategoryBadge"
+import { localToday, mondayOf } from "../../lib/utils"
 
 function daysBetween(from: string, to: string): number {
   const fromMs = new Date(from + "T00:00:00Z").getTime()
@@ -166,6 +168,13 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   const goalRace = upcomingPlans?.find((p) => p.labels.includes("seasongoal"))
   const nextRace = upcomingPlans?.find((p) => p.labels.includes("race"))
   const showNextRaceSeparately = !!nextRace && nextRace.id !== goalRace?.id
+
+  const weekStart = mondayOf(selectedDate)
+  const { data: weekCategories } = useQuery({
+    queryKey: ["week-category", athleteId, weekStart, weekStart],
+    queryFn: () => fetchWeekCategories(athleteId, weekStart, weekStart),
+  })
+  const weekCategory = weekCategories?.find((e) => e.week_start === weekStart)?.category
 
   const { data: storedAnalysis } = useQuery({
     queryKey: ["daily-analysis", athleteId, selectedDate],
@@ -344,8 +353,9 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
           </div>
         </div>
 
-        {(goalRace || nextRace) && (
+        {(goalRace || nextRace || weekCategory) && (
           <div className="flex flex-wrap gap-2 text-sm">
+            {weekCategory && <WeekCategoryBadge category={weekCategory} />}
             {goalRace && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-100 px-3 py-1 text-purple-700">
                 🎯 Goal race: <span className="font-medium">{goalRace.name}</span>{" "}

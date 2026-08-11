@@ -1,7 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
-import { fetchCoachAthleteFeed, fetchCoachAthleteDailyAnalysis } from "../../api/coach"
+import {
+  fetchCoachAthleteFeed,
+  fetchCoachAthleteDailyAnalysis,
+  fetchCoachAthleteWeekCategories,
+} from "../../api/coach"
 import { AnalysisPanel } from "../AnalysisPanel"
+import { WeekCategoryBadge } from "./WeekCategoryBadge"
+import { mondayOf } from "../../lib/utils"
 
 function formatDate(iso: string): string {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
@@ -28,6 +34,13 @@ export function ReadOnlyDayPanel({ athleteId, selectedDate }: ReadOnlyDayPanelPr
     queryFn: () => fetchCoachAthleteDailyAnalysis(athleteId, selectedDate),
   })
 
+  const weekStart = mondayOf(selectedDate)
+  const { data: weekCategories } = useQuery({
+    queryKey: ["coach-week-category", athleteId, weekStart, weekStart],
+    queryFn: () => fetchCoachAthleteWeekCategories(athleteId, weekStart, weekStart),
+  })
+  const weekCategory = weekCategories?.find((e) => e.week_start === weekStart)?.category
+
   const day = feed?.[0]
 
   return (
@@ -37,6 +50,12 @@ export function ReadOnlyDayPanel({ athleteId, selectedDate }: ReadOnlyDayPanelPr
           <h1 className="text-2xl font-bold">Training</h1>
           <p className="text-sm text-muted-foreground">{formatDate(selectedDate)}</p>
         </div>
+
+        {weekCategory && (
+          <div className="flex flex-wrap gap-2 text-sm">
+            <WeekCategoryBadge category={weekCategory} />
+          </div>
+        )}
 
         {loadingFeed && (
           <div className="flex items-center justify-center py-8">
