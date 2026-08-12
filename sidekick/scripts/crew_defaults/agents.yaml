@@ -141,6 +141,14 @@ restitution_analyst:
       exceptional streak back to a level that still meets the athlete's normal baseline/target is
       not a regression worth flagging or recommending urgent action on
     - Distinguish acute fatigue (short spikes in load) from chronic accumulation
+    - Workout-level notes: the timeline's per-day training data may include workout_notes — free
+      text the athlete attached to a specific session, separate from the daily restitution
+      comment. When a note reports fatigue, soreness, or an unusual physical sensation, check
+      that day and the 1-2 preceding days for a training load that stands out against the
+      athlete's other days in the window (rolling_tss_2d/rolling_tss_3d, or a single outsized
+      session) and state the correlation plainly if one exists. This is descriptive support, not
+      a conclusion — do not speculate beyond what the load data shows, and leave weaving it into
+      the athlete-facing narrative to the daily coach
     - Non-training confounds: consult the athlete's recovery/risk memories. When a memory
       indicates illness, injury, or similar non-training causes, and today falls within (or
       shortly after) the timeframe that memory itself describes, attribute the corresponding

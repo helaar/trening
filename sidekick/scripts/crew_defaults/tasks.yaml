@@ -283,6 +283,16 @@ restitution_analysis_task:
     today's readiness in trend_analysis or coach_recommendations, but do NOT fold it into the
     multi-day baselines or trends — it is a one-off signal about today, not a pattern.
 
+    Each day's `training` entry may also include `workout_notes` — free-text comments the athlete
+    left on that day's individual workout(s) (e.g. "heavy legs", "felt flat"), separate from the
+    restitution `comment` field. When a note describes fatigue, soreness, or an unusual physical
+    sensation, check whether that day or the 1-2 preceding days carried a notably higher load than
+    the athlete's other days in the window and, if so, state the correlation factually in
+    trend_analysis or coach_recommendations (e.g. "the Aug 12 heavy-legs note follows Aug 11's
+    largest session of the window"). This is a factual load correlation only — do not draft
+    coaching language or reassurance around it, and do not treat a single note as evidence of a
+    multi-day pattern; turning it into athlete-facing guidance is the coach's job.
+
     A risk_flag must describe a current or ongoing pattern, not a past event. A resolved one-off
     (a single bad night, a transient resting HR or HRV spike that has returned to baseline)
     belongs in trend_analysis as historical context at most — do not emit it as a risk_flag.
