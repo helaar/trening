@@ -37,6 +37,7 @@ import {
 import { PlanCard } from "../PlanCard"
 import { WeekCategoryBadge } from "./WeekCategoryBadge"
 import { localToday, mondayOf } from "../../lib/utils"
+import { RACE_PRIORITY_EMOJI } from "../../lib/racePriority"
 
 function daysBetween(from: string, to: string): number {
   const fromMs = new Date(from + "T00:00:00Z").getTime()
@@ -61,12 +62,6 @@ function formatCountdown(days: number): string {
   if (days === 0) return "Today"
   if (days === 1) return "Tomorrow"
   return `in ${days} days`
-}
-
-const RACE_PRIORITY_EMOJI: Record<"A" | "B" | "C", string> = {
-  A: "🥇",
-  B: "🥈",
-  C: "🥉",
 }
 
 function nearestRace<T extends { date: string }>(races: T[]): T | undefined {
@@ -381,7 +376,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
                 className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-amber-700"
               >
                 {RACE_PRIORITY_EMOJI[race.race_priority ?? "C"]}{" "}
-                <span className="font-medium">{race.name}</span> ({race.race_priority}){" "}
+                <span className="font-medium">{race.name}</span>{" "}
                 {formatCountdown(daysBetween(todayStr, race.date))} ({formatRaceDate(race.date)})
               </span>
             ))}
