@@ -63,6 +63,19 @@ function formatCountdown(days: number): string {
   return `in ${days} days`
 }
 
+const RACE_PRIORITY_EMOJI: Record<"A" | "B" | "C", string> = {
+  A: "🥇",
+  B: "🥈",
+  C: "🥉",
+}
+
+function nearestRace<T extends { date: string }>(races: T[]): T | undefined {
+  return races.reduce<T | undefined>(
+    (nearest, race) => (!nearest || race.date < nearest.date ? race : nearest),
+    undefined
+  )
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     weekday: "long",
@@ -165,9 +178,15 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     queryFn: () => fetchPlansForRange(athleteId, todayStr, addYears(todayStr, 1)),
   })
 
-  const goalRace = upcomingPlans?.find((p) => p.labels.includes("seasongoal"))
-  const nextRace = upcomingPlans?.find((p) => p.labels.includes("race"))
-  const showNextRaceSeparately = !!nextRace && nextRace.id !== goalRace?.id
+  const upcomingRaces = upcomingPlans?.filter((p) => p.labels.includes("race")) ?? []
+  const nearestABRace = nearestRace(
+    upcomingRaces.filter((p) => p.race_priority === "A" || p.race_priority === "B")
+  )
+  const nearestCRace = nearestRace(upcomingRaces.filter((p) => p.race_priority === "C"))
+  const showCRace = !!nearestCRace && (!nearestABRace || nearestCRace.date < nearestABRace.date)
+  const lookaheadRaces = [showCRace ? nearestCRace : null, nearestABRace]
+    .filter((r): r is NonNullable<typeof r> => !!r)
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   const weekStart = mondayOf(selectedDate)
   const { data: weekCategories } = useQuery({
@@ -353,21 +372,19 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
           </div>
         </div>
 
-        {(goalRace || nextRace || weekCategory) && (
+        {(lookaheadRaces.length > 0 || weekCategory) && (
           <div className="flex flex-wrap gap-2 text-sm">
             {weekCategory && <WeekCategoryBadge category={weekCategory} />}
-            {goalRace && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-100 px-3 py-1 text-purple-700">
-                🎯 Goal race: <span className="font-medium">{goalRace.name}</span>{" "}
-                {formatCountdown(daysBetween(todayStr, goalRace.date))} ({formatRaceDate(goalRace.date)})
+            {lookaheadRaces.map((race) => (
+              <span
+                key={race.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-amber-700"
+              >
+                {RACE_PRIORITY_EMOJI[race.race_priority ?? "C"]}{" "}
+                <span className="font-medium">{race.name}</span> ({race.race_priority}){" "}
+                {formatCountdown(daysBetween(todayStr, race.date))} ({formatRaceDate(race.date)})
               </span>
-            )}
-            {showNextRaceSeparately && nextRace && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-amber-700">
-                🏆 Next race: <span className="font-medium">{nextRace.name}</span>{" "}
-                {formatCountdown(daysBetween(todayStr, nextRace.date))} ({formatRaceDate(nextRace.date)})
-              </span>
-            )}
+            ))}
           </div>
         )}
 
