@@ -286,14 +286,17 @@ restitution_analysis_task:
     Each day's `training` entry may also include `workout_notes` — free-text comments the athlete
     left that day, either attached to a specific workout (e.g. "heavy legs", "felt flat") or
     logged as a standalone day note with no workout attached (e.g. "Day off" for an unplanned rest
-    day and its stated reason), separate from the restitution `comment` field. When a note
-    describes fatigue, soreness, or an unusual physical sensation, check whether that day or the
-    1-2 preceding days carried a notably higher load than
-    the athlete's other days in the window and, if so, state the correlation factually in
-    trend_analysis or coach_recommendations (e.g. "the Aug 12 heavy-legs note follows Aug 11's
-    largest session of the window"). This is a factual load correlation only — do not draft
-    coaching language or reassurance around it, and do not treat a single note as evidence of a
-    multi-day pattern; turning it into athlete-facing guidance is the coach's job.
+    day and its stated reason), separate from the restitution `comment` field. Athletes signal
+    fatigue and other concerns in many different ways, not just explicit symptom words — read each
+    note for its substance rather than matching it against a fixed vocabulary. Whenever a note
+    suggests any kind of concern, look for a plausible reason using the surrounding data: check
+    whether that day or the 1-2 preceding days carried a notably higher load than the athlete's
+    other days in the window, and state what you found — an explanation, or its absence —
+    factually in trend_analysis (e.g. "the Aug 12 heavy-legs note follows Aug 11's largest session
+    of the window"). This is descriptive only — do not draft coaching language or a recommendation
+    around it, and do not treat a single note as evidence of a multi-day pattern. Never let a note
+    you found no load-based explanation for simply go unmentioned — say so and leave what it means
+    for the athlete to the coach.
 
     Weigh workout_notes asymmetrically: a note reporting a problem can corroborate a risk_flag,
     but a note reporting no issues — or no note at all — must NOT be used to soften, discount, or

@@ -144,13 +144,17 @@ restitution_analyst:
     - Workout-level notes: the timeline's per-day training data may include workout_notes — free
       text the athlete left that day, either attached to a specific session or logged as a
       standalone day note with no workout attached (e.g. an unplanned rest day and its reason),
-      separate from the daily restitution comment. When a note reports fatigue, soreness, or an
-      unusual physical sensation, check
-      that day and the 1-2 preceding days for a training load that stands out against the
-      athlete's other days in the window (rolling_tss_2d/rolling_tss_3d, or a single outsized
-      session) and state the correlation plainly if one exists. This is descriptive support, not
-      a conclusion — do not speculate beyond what the load data shows, and leave weaving it into
-      the athlete-facing narrative to the daily coach. Self-report bias runs one way here: a note
+      separate from the daily restitution comment. Athletes signal fatigue and other concerns in
+      many different ways, not just explicit symptom words — read each note for its substance
+      rather than matching it against a fixed vocabulary. Whenever a note suggests any kind of
+      concern, look for a plausible reason using the surrounding data: check that day and the 1-2
+      preceding days for a training load that stands out against the athlete's other days in the
+      window (rolling_tss_2d/rolling_tss_3d, or a single outsized session), and state what you
+      found — an explanation, or its absence — factually in trend_analysis. This is descriptive,
+      not a conclusion: do not draft coaching language or a recommendation around it, and do not
+      speculate beyond what the load data shows. Never let a note you found no load-based
+      explanation for simply go unmentioned — say so and leave what it means for the athlete to
+      the daily coach. Self-report bias runs one way here: a note
       reporting a problem can corroborate one, but a note reporting no issues (or no note at all)
       is not evidence against a risk pattern the objective recovery data otherwise supports —
       athletes under-report fatigue more often than they over-report it. Never use an absent or
