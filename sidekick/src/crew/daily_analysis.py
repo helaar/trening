@@ -364,7 +364,9 @@ class _RacesDataTool(BaseTool):
         "race tagged 'seasongoal', or null if none is planned) and "
         "'upcoming_races' (a list of races tagged 'race', sorted by date, each "
         "with 'date', 'name', 'sport', and 'days_until' — the number of days "
-        "from the day being analyzed to the race)."
+        "from the day being analyzed to the race). A/B races are prioritized: "
+        "C races are omitted from 'upcoming_races' whenever an A or B race "
+        "falls within the next 3 months."
     )
     _payload: str = ""
 
@@ -477,6 +479,26 @@ class _MemoryDataTool(BaseTool):
 
 _TAPER_WINDOW_DAYS = 10
 _HARD_TSS_THRESHOLD = 80
+# C races are only surfaced to the coach when no A/B race falls within this
+# many days — otherwise they'd compete with the athlete's actual season
+# goals for the coach's attention.
+_RACE_PRIORITY_WINDOW_DAYS = 90
+
+
+def _prioritize_races(races: list[PlannedActivity], from_date: date) -> list[PlannedActivity]:
+    """Drop C races when an A/B race falls within the next 3 months.
+
+    A and B races always take priority; a C race is only worth mentioning
+    when it's the nearest thing on the calendar.
+    """
+    has_near_ab_race = any(
+        race.race_priority in ("A", "B")
+        and 0 <= (date.fromisoformat(race.date) - from_date).days <= _RACE_PRIORITY_WINDOW_DAYS
+        for race in races
+    )
+    if not has_near_ab_race:
+        return races
+    return [race for race in races if race.race_priority != "C"]
 
 
 def _build_day_context(
@@ -737,10 +759,11 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         }
 
     season_goal = next((a for a in input.upcoming_races if "seasongoal" in a.labels), None)
+    prioritized_races = _prioritize_races(input.upcoming_races, date.fromisoformat(input.date))
     races_payload = json.dumps(
         {
             "season_goal": _race_entry(season_goal) if season_goal else None,
-            "upcoming_races": [_race_entry(a) for a in input.upcoming_races if "race" in a.labels],
+            "upcoming_races": [_race_entry(a) for a in prioritized_races if "race" in a.labels],
         },
         default=str,
     )

@@ -1,5 +1,6 @@
 import { Brain, AlertTriangle } from "lucide-react"
 import { cn, localToday } from "../../lib/utils"
+import { RACE_PRIORITY_EMOJI } from "../../lib/racePriority"
 import type { FeedDay } from "../../api/feed"
 import { SPORT_COLORS, SPORT_COLORS_MUTED } from "./sportColors"
 
@@ -117,7 +118,6 @@ export function CalendarDayCell({
           {/* Activity labels */}
           <div className="mt-1 space-y-0.5">
             {day.plans.map((plan, i) => {
-              const isSeasonGoal = plan.labels?.includes("seasongoal")
               const isRace = plan.labels?.includes("race")
               return (
                 <div key={`plan-label-${i}`} className="flex items-center gap-1">
@@ -127,20 +127,15 @@ export function CalendarDayCell({
                       SPORT_COLORS_MUTED[plan.sport] ?? "bg-gray-300"
                     )}
                   />
-                  {isSeasonGoal && (
-                    <span title="Season goal race" aria-label="Season goal race">🎯</span>
-                  )}
-                  {isRace && !isSeasonGoal && (
-                    <span title={`Race${plan.race_priority ? ` (${plan.race_priority})` : ""}`} aria-label="Race">
-                      🏆{plan.race_priority ? plan.race_priority : ""}
+                  {isRace && (
+                    <span title={`Race (${plan.race_priority})`} aria-label="Race">
+                      {RACE_PRIORITY_EMOJI[plan.race_priority ?? "C"]}
                     </span>
                   )}
                   <span
                     className={cn(
                       "truncate text-xs",
-                      isSeasonGoal || isRace
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground"
+                      isRace ? "font-medium text-foreground" : "text-muted-foreground"
                     )}
                   >
                     {plan.name}
