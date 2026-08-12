@@ -274,6 +274,17 @@ restitution_analysis_task:
        or when it's accompanied by an actual multi-day recovery-metric response, not a single
        noisy data point.
 
+    Structure trend_analysis, load_recovery_correlation, and coach_recommendations by recency:
+    lead with the most recent, most immediately relevant finding (the last 1-2 days), not with
+    whichever block of the window happens to have the biggest numbers. An older episode (a week or
+    more back) that has since resolved earns at most a brief supporting mention — never equal
+    billing with what's happening now. HRV/resting HR come from a wristband sensor and carry real
+    measurement noise on top of genuine variation: describe direction and rough magnitude only,
+    never an exact ms/bpm value or exact TSS figure as a discovered trigger point, and never frame
+    a load→HRV response as a "documented pattern" as if it were an established rule. HRV is one
+    input among several — weigh it alongside sleep, readiness, and workout_notes rather than
+    building the analysis around HRV nadirs as the throughline.
+
     Distinguish acute fatigue (short spikes in resting HR or HRV dips that resolve within 1-2 days
     after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,
     rising resting HR trend, or persistent low readiness regardless of training load).

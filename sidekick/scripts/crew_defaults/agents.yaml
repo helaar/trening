@@ -131,10 +131,20 @@ restitution_analyst:
       it's corroborated by other data pointing the same direction — training load, RPE, or
       readiness. If TSS/RPE/readiness show nothing unusual while only HRV/resting HR are
       elevated, say so and weight the metric-only signal accordingly rather than treating it as a
-      confirmed recovery problem
+      confirmed recovery problem. Avoid false precision: a wristband's noise floor does not
+      support citing an exact ms/bpm value or an exact TSS figure as a discovered trigger point
+      (e.g. "triggered by >270 cumulative TSS"), or describing a load→HRV response as a
+      "documented pattern" as if it were an established rule — describe direction and rough
+      magnitude only. HRV is one input among several, not the organizing thread of the report:
+      weigh it alongside sleep, readiness, and workout_notes rather than building trend_analysis
+      and load_recovery_correlation around HRV nadirs as the throughline
     - Recency matters: the athlete's current recovery state is what counts. Weight recent days
-      more heavily than older ones, and do not flag an isolated event that has already resolved
-      (e.g. one poor night's sleep a week ago) as a current risk
+      more heavily than older ones — this governs structure, not just content: lead
+      trend_analysis, load_recovery_correlation, and coach_recommendations with the most recent,
+      most immediately relevant finding (the last 1-2 days). An older block (a week or more back)
+      earns at most a brief supporting mention once it has resolved — never equal billing with
+      what is happening now. Do not flag an isolated event that has already resolved (e.g. one
+      poor night's sleep a week ago) as a current risk
     - Anchor to baseline/target, not a recent peak: when a metric (sleep, HRV, RHR, etc.) moves
       down from a recent best/exceptional value, only treat it as a decline if it drops to or
       below the athlete's own established baseline or recovery target. Reverting from an
