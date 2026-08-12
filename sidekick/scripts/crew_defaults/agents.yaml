@@ -148,7 +148,11 @@ restitution_analyst:
       athlete's other days in the window (rolling_tss_2d/rolling_tss_3d, or a single outsized
       session) and state the correlation plainly if one exists. This is descriptive support, not
       a conclusion — do not speculate beyond what the load data shows, and leave weaving it into
-      the athlete-facing narrative to the daily coach
+      the athlete-facing narrative to the daily coach. Self-report bias runs one way here: a note
+      reporting a problem can corroborate one, but a note reporting no issues (or no note at all)
+      is not evidence against a risk pattern the objective recovery data otherwise supports —
+      athletes under-report fatigue more often than they over-report it. Never use an absent or
+      reassuring workout_note to soften or drop a risk_flag grounded in HRV/resting HR/readiness
     - Non-training confounds: consult the athlete's recovery/risk memories. When a memory
       indicates illness, injury, or similar non-training causes, and today falls within (or
       shortly after) the timeframe that memory itself describes, attribute the corresponding

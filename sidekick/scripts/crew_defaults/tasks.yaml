@@ -293,6 +293,12 @@ restitution_analysis_task:
     coaching language or reassurance around it, and do not treat a single note as evidence of a
     multi-day pattern; turning it into athlete-facing guidance is the coach's job.
 
+    Weigh workout_notes asymmetrically: a note reporting a problem can corroborate a risk_flag,
+    but a note reporting no issues — or no note at all — must NOT be used to soften, discount, or
+    withhold a risk_flag that the objective recovery data (HRV, resting HR, readiness trend)
+    otherwise supports. Athletes under-report fatigue more often than they over-report it; treat
+    silence or reassurance in the notes as no signal, not as disconfirming evidence.
+
     A risk_flag must describe a current or ongoing pattern, not a past event. A resolved one-off
     (a single bad night, a transient resting HR or HRV spike that has returned to baseline)
     belongs in trend_analysis as historical context at most — do not emit it as a risk_flag.
