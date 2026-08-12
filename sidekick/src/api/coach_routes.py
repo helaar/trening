@@ -16,7 +16,9 @@ from database.coach_repository import CoachRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
 from database.mongodb import get_db
+from database.week_category_repository import WeekCategoryRepository
 from models.daily_analysis import DailyAnalysisResult
+from models.week_category import WeekCategoryEntry
 
 router = APIRouter(prefix="/coach", tags=["coach"])
 
@@ -172,3 +174,15 @@ async def get_athlete_daily_analysis(
 ) -> DailyAnalysisResult | None:
     analysis_repo = DailyAnalysisRepository(db)
     return await analysis_repo.get(athlete_id, date)
+
+
+@router.get("/athletes/{athlete_id}/week-category", response_model=list[WeekCategoryEntry])
+async def get_athlete_week_categories(
+    start: str = Query(..., description="Start week_start (YYYY-MM-DD, Monday), inclusive"),
+    end: str = Query(..., description="End week_start (YYYY-MM-DD, Monday), inclusive"),
+    athlete_id: int = Depends(verify_coach_athlete_access),
+    db: AsyncDatabase = Depends(get_db),
+) -> list[WeekCategoryEntry]:
+    """Read-only: the athlete's declared week categories. Coaches cannot set these."""
+    week_category_repo = WeekCategoryRepository(db)
+    return await week_category_repo.get_range(athlete_id, start, end)

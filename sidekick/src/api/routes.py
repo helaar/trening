@@ -9,6 +9,7 @@ from api.prompt_log_routes import router as prompt_log_router
 from api.prompt_routes import router as prompt_router
 from api.workout_routes import router as workout_router
 from api.task_routes import router as task_router
+from api.week_category_routes import router as week_category_router
 
 router = APIRouter()
 
@@ -22,6 +23,7 @@ router.include_router(feed_router, prefix="/api/v1")
 router.include_router(prompt_router, prefix="/api/v1")
 router.include_router(prompt_log_router, prefix="/api/v1")
 router.include_router(coach_router, prefix="/api/v1")
+router.include_router(week_category_router, prefix="/api/v1")
 
 
 @router.get("/api/v1/status")

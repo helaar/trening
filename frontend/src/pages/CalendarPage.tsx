@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Loader2, ChevronLeft, ChevronRight, CalendarDays, ArrowLeft } from "lucide-react"
 import { useSearch, useNavigate, useRouter } from "@tanstack/react-router"
 import { fetchCurrentAthlete } from "../api/auth"
+import { setWeekCategory } from "../api/weekCategory"
 import { DayDetailPanel } from "../components/calendar/DayDetailPanel"
 import { MonthView } from "../components/calendar/MonthView"
 import { WeekView } from "../components/calendar/WeekView"
@@ -226,6 +227,7 @@ export function CalendarPage() {
             date={selectedDate}
             selectedDate={selectedDate}
             onSelectDate={handleSelectDate}
+            onSetWeekCategory={setWeekCategory}
           />
         )}
         {view === "week" && (
@@ -234,6 +236,7 @@ export function CalendarPage() {
             date={selectedDate}
             selectedDate={selectedDate}
             onSelectDate={handleSelectDate}
+            onSetWeekCategory={setWeekCategory}
           />
         )}
         {view === "day" && (

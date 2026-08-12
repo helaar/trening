@@ -12,11 +12,13 @@ from database.daily_entry_repository import DailyEntryRepository
 from database.memory_repository import MemoryRepository
 from database.prompt_log_repository import PromptLogRepository
 from database.task_repository import TaskRepository
+from database.week_category_repository import WeekCategoryRepository
 from database.workout_repository import WorkoutRepository
 from models.daily_analysis import DailyAnalysisResult
 from models.memory import Memory, MemoryScope, clamp_memory_content
 from services import intervals_calendar, intervals_wellness
 from services.handlers.base import TaskHandler
+from utils.datetime_utils import monday_of
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,7 @@ class DailyAnalysisHandler(TaskHandler):
         daily_entry_repo: DailyEntryRepository,
         memory_repo: MemoryRepository,
         crew_def_repo: CrewDefinitionRepository,
+        week_category_repo: WeekCategoryRepository,
         prompt_log_repo: PromptLogRepository | None = None,
     ):
         self.task_repo = task_repo
@@ -44,6 +47,7 @@ class DailyAnalysisHandler(TaskHandler):
         self.daily_entry_repo = daily_entry_repo
         self.memory_repo = memory_repo
         self.crew_def_repo = crew_def_repo
+        self.week_category_repo = week_category_repo
         self.prompt_log_repo = prompt_log_repo
 
     async def execute(
@@ -74,6 +78,9 @@ class DailyAnalysisHandler(TaskHandler):
         if athlete.settings.training_philosophy:
             philosophy = await self.crew_def_repo.get_philosophy(athlete.settings.training_philosophy)
 
+        this_monday = monday_of(date_str)
+        prev_monday = monday_of((date.fromisoformat(this_monday) - timedelta(days=7)).isoformat())
+
         (
             workout_analyses,
             planned_activities,
@@ -82,6 +89,7 @@ class DailyAnalysisHandler(TaskHandler):
             active_memories,
             upcoming_races,
             restitution_sync_series,
+            week_categories,
         ) = await asyncio.gather(
             self.workout_repo.get_analyses_for_date(athlete_id, activity_date),
             intervals_calendar.get_for_date(athlete_id, athlete.settings, date_str),
@@ -94,6 +102,7 @@ class DailyAnalysisHandler(TaskHandler):
             self.memory_repo.get_active(athlete_id),
             intervals_calendar.get_races_from(athlete_id, athlete.settings, date_str),
             intervals_wellness.get_restitution_sync_series(athlete.settings, restitution_start, date_str),
+            self.week_category_repo.get_range(athlete_id, prev_monday, this_monday),
         )
         logger.info(
             "Retrieved %d workout analyses, %d plans, %d daily entries, "
@@ -127,6 +136,7 @@ class DailyAnalysisHandler(TaskHandler):
             recent_workout_analyses=recent_workout_analyses,
             active_memories=active_memories,
             upcoming_races=upcoming_races,
+            week_categories=week_categories,
             agents=agents,
             tasks=tasks,
             philosophy=philosophy,

@@ -1,6 +1,7 @@
 import { apiFetch } from "./client"
 import type { FeedDay } from "./feed"
 import type { StoredAnalysis } from "./tasks"
+import type { WeekCategoryEntry } from "./weekCategory"
 
 export interface RosterAthlete {
   athlete_id: number
@@ -56,5 +57,15 @@ export function fetchCoachAthleteDailyAnalysis(
 ): Promise<StoredAnalysis | null> {
   return apiFetch<StoredAnalysis | null>(
     `/api/v1/coach/athletes/${athleteId}/daily-analysis?date=${date}`
+  )
+}
+
+export function fetchCoachAthleteWeekCategories(
+  athleteId: number,
+  start: string,
+  end: string
+): Promise<WeekCategoryEntry[]> {
+  return apiFetch<WeekCategoryEntry[]>(
+    `/api/v1/coach/athletes/${athleteId}/week-category?start=${start}&end=${end}`
   )
 }

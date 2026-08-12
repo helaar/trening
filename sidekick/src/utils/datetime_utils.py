@@ -1,6 +1,12 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
+
+
+def monday_of(date_str: str) -> str:
+    """Return the Monday (YYYY-MM-DD) of the ISO week containing date_str."""
+    d = date.fromisoformat(date_str)
+    return (d - timedelta(days=d.weekday())).isoformat()
 
 
 def ensure_utc(v: Any) -> Any:
