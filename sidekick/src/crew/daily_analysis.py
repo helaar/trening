@@ -206,6 +206,16 @@ def _build_timeline(
         a.activity_id: a for entry in daily_entries for a in entry.activity_assessments
     }
 
+    def _workout_note_text(a: dict[str, Any]) -> str | None:
+        # Manual day notes (added via the "Add day note" UI, e.g. "Day off") are stored as
+        # their own synthetic WorkoutAnalysis with the text in session.name, not as feedback
+        # on a real activity — see api/workout_routes.py:create_workout_note.
+        if a.get("analysis_type") == "note":
+            return a.get("session", {}).get("name") or None
+        aid = a.get("activity_id")
+        assessment = assessment_by_activity_id.get(aid) if aid is not None else None
+        return assessment.notes if assessment else None
+
     restitution_by_date: dict[str, dict[str, Any]] = {}
     for entry in daily_entries:
         if entry.restitution:
@@ -265,12 +275,7 @@ def _build_timeline(
             moderate_min += duration_min * (dist.get("moderate_pct") or 0) / 100
             high_min += duration_min * (dist.get("high_pct") or 0) / 100
 
-        workout_notes = [
-            assessment_by_activity_id[aid].notes
-            for a in analyses
-            if (aid := a.get("activity_id")) in assessment_by_activity_id
-            and assessment_by_activity_id[aid].notes
-        ]
+        workout_notes = [text for a in analyses if (text := _workout_note_text(a))]
 
         result = {
             "activity_count": len(analyses),
@@ -452,8 +457,10 @@ class _RestitutionDataTool(BaseTool):
         "workouts that day). The most recent day's 'restitution' may also include a 'comment' "
         "field — the athlete's free-text note about today's readiness/recovery (present only "
         "for today). A day's 'training' may separately include 'workout_notes' — a list of "
-        "free-text comments the athlete left on that day's individual workout(s) (e.g. 'heavy "
-        "legs', 'felt flat'), present on any day in the window, not just today. Each entry also "
+        "free-text comments the athlete left on that day, whether attached to a specific workout "
+        "(e.g. 'heavy legs', 'felt flat') or logged as a standalone day note with no workout "
+        "attached (e.g. 'Day off', 'Travel'); present on any day in the window, not just today. "
+        "Each entry also "
         "includes precomputed 'rolling_tss_2d' and 'rolling_tss_3d' "
         "— the summed total_tss for that day plus the preceding 1-2 days (null if the window "
         "extends before the data range). Use these directly when citing 2-3 day cumulative "

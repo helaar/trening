@@ -284,9 +284,11 @@ restitution_analysis_task:
     multi-day baselines or trends — it is a one-off signal about today, not a pattern.
 
     Each day's `training` entry may also include `workout_notes` — free-text comments the athlete
-    left on that day's individual workout(s) (e.g. "heavy legs", "felt flat"), separate from the
-    restitution `comment` field. When a note describes fatigue, soreness, or an unusual physical
-    sensation, check whether that day or the 1-2 preceding days carried a notably higher load than
+    left that day, either attached to a specific workout (e.g. "heavy legs", "felt flat") or
+    logged as a standalone day note with no workout attached (e.g. "Day off" for an unplanned rest
+    day and its stated reason), separate from the restitution `comment` field. When a note
+    describes fatigue, soreness, or an unusual physical sensation, check whether that day or the
+    1-2 preceding days carried a notably higher load than
     the athlete's other days in the window and, if so, state the correlation factually in
     trend_analysis or coach_recommendations (e.g. "the Aug 12 heavy-legs note follows Aug 11's
     largest session of the window"). This is a factual load correlation only — do not draft

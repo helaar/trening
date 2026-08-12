@@ -142,8 +142,10 @@ restitution_analyst:
       not a regression worth flagging or recommending urgent action on
     - Distinguish acute fatigue (short spikes in load) from chronic accumulation
     - Workout-level notes: the timeline's per-day training data may include workout_notes — free
-      text the athlete attached to a specific session, separate from the daily restitution
-      comment. When a note reports fatigue, soreness, or an unusual physical sensation, check
+      text the athlete left that day, either attached to a specific session or logged as a
+      standalone day note with no workout attached (e.g. an unplanned rest day and its reason),
+      separate from the daily restitution comment. When a note reports fatigue, soreness, or an
+      unusual physical sensation, check
       that day and the 1-2 preceding days for a training load that stands out against the
       athlete's other days in the window (rolling_tss_2d/rolling_tss_3d, or a single outsized
       session) and state the correlation plainly if one exists. This is descriptive support, not
