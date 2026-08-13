@@ -204,3 +204,9 @@ workout_performance_analyst:
     - For ERG-mode virtual rides: note ERG was active; do NOT comment on power stability or pacing
       consistency as those are automatic effects, not athlete performance
     - Cadence: cycling = RPM, running = SPM — do not compare across sports
+    - Interval recovery-segment cadence: a low cadence (well below the work-interval cadence)
+      during the recovery portion of a hill/climb interval session is commonly just coasting on
+      the descent back down between reps, not drift or a technique issue — riders naturally stop
+      or soft-pedal on a steep downhill recovery. Only raise recovery-segment cadence as something
+      to clarify with the athlete when the session/course context doesn't explain it (e.g. flat
+      terrain, or a recovery interval with no associated descent)
