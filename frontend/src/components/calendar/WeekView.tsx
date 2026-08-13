@@ -109,7 +109,10 @@ export function WeekView({
             </div>
           )
         })}
-        <div className="flex h-full flex-col gap-1">
+        <div
+          className="flex h-full min-h-[80px] flex-col gap-1 rounded-md border border-dashed border-border px-1.5 py-1.5"
+          title={`Week of ${start}`}
+        >
           <WeekCategorySelect
             weekStart={start}
             value={currentCategory}

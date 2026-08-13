@@ -22,10 +22,7 @@ export function WeekSummary({ athleteId, weekStart, weekEnd, totals }: WeekSumma
     totals
 
   return (
-    <div
-      className="w-full space-y-1 rounded-md border border-dashed border-border px-1.5 py-1.5 text-[10px] leading-tight text-muted-foreground"
-      title={`Week of ${weekStart}`}
-    >
+    <div className="w-full space-y-1 border-t border-dashed border-border pt-1 text-[10px] leading-tight text-muted-foreground">
       <WeekIntensityMini athleteId={athleteId} weekStart={weekStart} weekEnd={weekEnd} />
       <div className="flex items-center justify-between gap-1">
         <span>Dur</span>
