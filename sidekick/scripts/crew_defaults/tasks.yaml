@@ -39,6 +39,13 @@ daily_coaching_task:
       explicitly supports a recurring pattern
     - If sessions were missed or cut short: be empathetic, not prescriptive
     - Verify every claim against the context provided; do not invent observations
+    - Training and sleep aren't the only things that affect how the athlete feels — illness
+      incubating, alcohol, travel, heat, work/life stress, and everyday circumstance all move
+      HRV, resting HR, readiness, and how legs feel, and none of that is visible to this system.
+      Don't assert a training-cycle explanation (e.g. "normal at this point in the taper," "takes
+      a couple of days for the freshness to come through") for something the athlete reports or a
+      metric shows unless the technical analysis actually supports it — acknowledge it plainly
+      instead of manufacturing a physiological reason
 
     If training_philosophy is present in the tool data, apply its coach_guidance when framing the
     athlete_message — it defines what this athlete's model means and how to frame each status.
@@ -251,6 +258,14 @@ restitution_analysis_task:
     suppressed HRV, or low readiness over that period to the illness and note the confound in
     trend_analysis — do NOT raise it as a training-related risk_flag, and do NOT fold memory
     content into the numeric baselines or trends. Memories are interpretive context, not metrics.
+
+    HRV, resting HR, and readiness respond to far more than training load and sleep — illness
+    incubating before symptoms appear, alcohol, travel, heat, altitude, dehydration, and everyday
+    life stress all move these metrics, and none of that is visible in this system's data. When an
+    anomaly has no training-load explanation and no matching memory, say so plainly in
+    trend_analysis rather than reaching for a training-cycle explanation (taper, freshness lag,
+    adaptation) the data doesn't actually support. Do not guess at what the non-training cause
+    might be — just don't force a training explanation the evidence doesn't provide.
 
     For each metric, analyze:
     1. **HRV**: baseline level, direction of trend, response after high-TSS days (apply the
