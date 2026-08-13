@@ -20,14 +20,14 @@ from analysis.models import (
 from analysis.calculations import (
     Zone, series_stats, parse_zone_definitions,
     compute_heart_rate_drift, infer_sample_interval,
-    compute_segment_stats, split_into_autolaps
+    compute_segment_stats, split_into_autolaps, calculate_elevation
 )
 
 # Bump whenever engine logic changes meaningfully — forces cached WorkoutAnalysis
 # documents (whose stored analysis_engine_version won't match) to recompute
 # rather than serving stale locally-computed values forever, since the
 # settings_hash cache-staleness field is advisory-only and never compared.
-ANALYSIS_ENGINE_VERSION = 1
+ANALYSIS_ENGINE_VERSION = 2
 
 
 def _is_virtual_activity(activity: StravaActivity) -> bool:
@@ -168,8 +168,18 @@ class AnalysisSettings:
         return self._settings.heart_rate.lt
 
 
-def _create_session_info(parser: StravaDataParser, duration_sec: float, data_points: int, sample_interval: float) -> SessionInfo:
+def _create_session_info(
+    parser: StravaDataParser,
+    duration_sec: float,
+    data_points: int,
+    sample_interval: float,
+    df: pd.DataFrame | None = None,
+) -> SessionInfo:
     """Create SessionInfo object from parser data."""
+    elevation_gain_m = 0.0
+    if df is not None and not df.empty:
+        elevation_gain_m, _, _, _ = calculate_elevation(df)
+
     # Get commute status if available (defaults to "no")
     commute_raw = getattr(parser, 'commute_status', 'no')
     
@@ -196,6 +206,7 @@ def _create_session_info(parser: StravaDataParser, duration_sec: float, data_poi
         category=parser.workout.category,
         start_time=parser.workout.start_time,
         distance_km=parser.workout.distance_km,
+        elevation_gain_m=elevation_gain_m,
         duration_sec=duration_sec,
         data_points=data_points,
         sample_interval=sample_interval,
@@ -436,8 +447,8 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     has_cadence = "cadence" in df.columns and not df["cadence"].isna().all()
     
     # Create session info
-    session = _create_session_info(parser, duration_sec, len(df), sample_interval)
-    
+    session = _create_session_info(parser, duration_sec, len(df), sample_interval, df)
+
     # Whole-workout power metrics: Intervals.icu-sourced, no local fallback
     # (see analysis/intervals_mapping.py). athlete_ftp is sourced from
     # Intervals.icu too when available, so it stays consistent with the IF/TSS
@@ -546,7 +557,7 @@ def analyze_strength_workout(parser: StravaDataParser, athlete_settings: Athlete
     has_hr = "heart_rate" in df.columns and not df["heart_rate"].isna().all()
 
     # Create session info
-    session = _create_session_info(parser, duration_sec, len(df), sample_interval)
+    session = _create_session_info(parser, duration_sec, len(df), sample_interval, df)
 
     # Compute heart rate stats
     hr_stats = _create_stats_summary(series_stats(df["heart_rate"])) if has_hr else None

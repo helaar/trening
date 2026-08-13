@@ -8,6 +8,8 @@ import {
 } from "../../api/weekCategory"
 import { CalendarDayCell } from "./CalendarDayCell"
 import { WeekCategorySelect } from "./WeekCategorySelect"
+import { WeekSummary } from "./WeekSummary"
+import { computeWeekTotals } from "./weekTotals"
 import { cn, localToday } from "../../lib/utils"
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -136,17 +138,26 @@ export function MonthView({
         ))}
         {weeks.map((week) => {
           const weekStart = week[0].date
+          const weekEnd = week[6].date
           return (
             <div key={weekStart} className="contents">
-              <WeekCategorySelect
-                weekStart={weekStart}
-                value={categoryByWeek.get(weekStart) ?? null}
-                onChange={
-                  onSetWeekCategory
-                    ? (category) => setCategoryMutation.mutate({ weekStart, category })
-                    : undefined
-                }
-              />
+              <div className="flex h-full flex-col gap-1">
+                <WeekCategorySelect
+                  weekStart={weekStart}
+                  value={categoryByWeek.get(weekStart) ?? null}
+                  onChange={
+                    onSetWeekCategory
+                      ? (category) => setCategoryMutation.mutate({ weekStart, category })
+                      : undefined
+                  }
+                />
+                <WeekSummary
+                  athleteId={athleteId}
+                  weekStart={weekStart}
+                  weekEnd={weekEnd}
+                  totals={computeWeekTotals(week.map((c) => c.feedDay))}
+                />
+              </div>
               {week.map(({ date: cellDate, inMonth, feedDay }) => (
                 <div key={cellDate} className={cn("h-full", inMonth ? "" : "opacity-30")}>
                   <CalendarDayCell
