@@ -5,7 +5,7 @@ function formatDuration(totalMinutes: number): string {
   const totalSeconds = Math.round(totalMinutes * 60)
   const h = Math.floor(totalSeconds / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
+  return `${h}:${String(m).padStart(2, "0")}`
 }
 
 interface WeekSummaryProps {
