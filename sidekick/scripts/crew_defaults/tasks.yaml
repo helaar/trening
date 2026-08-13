@@ -39,6 +39,13 @@ daily_coaching_task:
       explicitly supports a recurring pattern
     - If sessions were missed or cut short: be empathetic, not prescriptive
     - Verify every claim against the context provided; do not invent observations
+    - Training and sleep aren't the only things that affect how the athlete feels — illness
+      incubating, alcohol, travel, heat, work/life stress, and everyday circumstance all move
+      HRV, resting HR, readiness, and how legs feel, and none of that is visible to this system.
+      Don't assert a training-cycle explanation (e.g. "normal at this point in the taper," "takes
+      a couple of days for the freshness to come through") for something the athlete reports or a
+      metric shows unless the technical analysis actually supports it — acknowledge it plainly
+      instead of manufacturing a physiological reason
 
     If training_philosophy is present in the tool data, apply its coach_guidance when framing the
     athlete_message — it defines what this athlete's model means and how to frame each status.
@@ -252,6 +259,14 @@ restitution_analysis_task:
     trend_analysis — do NOT raise it as a training-related risk_flag, and do NOT fold memory
     content into the numeric baselines or trends. Memories are interpretive context, not metrics.
 
+    HRV, resting HR, and readiness respond to far more than training load and sleep — illness
+    incubating before symptoms appear, alcohol, travel, heat, altitude, dehydration, and everyday
+    life stress all move these metrics, and none of that is visible in this system's data. When an
+    anomaly has no training-load explanation and no matching memory, say so plainly in
+    trend_analysis rather than reaching for a training-cycle explanation (taper, freshness lag,
+    adaptation) the data doesn't actually support. Do not guess at what the non-training cause
+    might be — just don't force a training explanation the evidence doesn't provide.
+
     For each metric, analyze:
     1. **HRV**: baseline level, direction of trend, response after high-TSS days (apply the
        1-day lag — HRV on day N reflects day N-1 training). Same lag applies to resting HR.
@@ -274,6 +289,17 @@ restitution_analysis_task:
        or when it's accompanied by an actual multi-day recovery-metric response, not a single
        noisy data point.
 
+    Structure trend_analysis, load_recovery_correlation, and coach_recommendations by recency:
+    lead with the most recent, most immediately relevant finding (the last 1-2 days), not with
+    whichever block of the window happens to have the biggest numbers. An older episode (a week or
+    more back) that has since resolved earns at most a brief supporting mention — never equal
+    billing with what's happening now. HRV/resting HR come from a wristband sensor and carry real
+    measurement noise on top of genuine variation: describe direction and rough magnitude only,
+    never an exact ms/bpm value or exact TSS figure as a discovered trigger point, and never frame
+    a load→HRV response as a "documented pattern" as if it were an established rule. HRV is one
+    input among several — weigh it alongside sleep, readiness, and workout_notes rather than
+    building the analysis around HRV nadirs as the throughline.
+
     Distinguish acute fatigue (short spikes in resting HR or HRV dips that resolve within 1-2 days
     after a hard session) from chronic accumulation (sustained multi-day suppression of HRV,
     rising resting HR trend, or persistent low readiness regardless of training load).
@@ -282,6 +308,27 @@ restitution_analysis_task:
     as the athlete's own self-reported context for today. Surface anything materially relevant to
     today's readiness in trend_analysis or coach_recommendations, but do NOT fold it into the
     multi-day baselines or trends — it is a one-off signal about today, not a pattern.
+
+    Each day's `training` entry may also include `workout_notes` — free-text comments the athlete
+    left that day, either attached to a specific workout (e.g. "heavy legs", "felt flat") or
+    logged as a standalone day note with no workout attached (e.g. "Day off" for an unplanned rest
+    day and its stated reason), separate from the restitution `comment` field. Athletes signal
+    fatigue and other concerns in many different ways, not just explicit symptom words — read each
+    note for its substance rather than matching it against a fixed vocabulary. Whenever a note
+    suggests any kind of concern, look for a plausible reason using the surrounding data: check
+    whether that day or the 1-2 preceding days carried a notably higher load than the athlete's
+    other days in the window, and state what you found — an explanation, or its absence —
+    factually in trend_analysis (e.g. "the Aug 12 heavy-legs note follows Aug 11's largest session
+    of the window"). This is descriptive only — do not draft coaching language or a recommendation
+    around it, and do not treat a single note as evidence of a multi-day pattern. Never let a note
+    you found no load-based explanation for simply go unmentioned — say so and leave what it means
+    for the athlete to the coach.
+
+    Weigh workout_notes asymmetrically: a note reporting a problem can corroborate a risk_flag,
+    but a note reporting no issues — or no note at all — must NOT be used to soften, discount, or
+    withhold a risk_flag that the objective recovery data (HRV, resting HR, readiness trend)
+    otherwise supports. Athletes under-report fatigue more often than they over-report it; treat
+    silence or reassurance in the notes as no signal, not as disconfirming evidence.
 
     A risk_flag must describe a current or ongoing pattern, not a past event. A resolved one-off
     (a single bad night, a transient resting HR or HRV spike that has returned to baseline)
@@ -345,22 +392,28 @@ workout_analysis_task:
     \ exclusively\non cadence patterns and HR response. Do NOT comment on power stability,\
     \ pacing evenness,\nor power consistency — these are controlled by the trainer,\
     \ not the athlete.\n\nCadence units: cycling=RPM, running=SPM. Never compare cadence\
-    \ values across sports.\nRunning power (GPS/foot pod) is not the same as cycling\
-    \ power — do not cross-reference.\n\nIgnore isolated abnormal values at the very\
-    \ start of an activity (warm-up artefacts).\n\nFor all other sessions, for each\
-    \ workout provide:\n1. Executive summary: coach-facing takeaway (2-3 sentences,\
-    \ max 50 words)\n2. Quantitative summary: TSS, IF, power vs FTP, HR response,\
-    \ zone distribution\n3. Qualitative assessment: execution quality, pacing, zone\
-    \ adherence\n4. Progress indicators: how this session fits the athlete's training\
-    \ trajectory\n5. Risk flags: genuine concerns only — not low-severity power blips\
-    \ or single-lap anomalies\n6. Coach recommendations: specific and actionable (max\
-    \ 30 words each)\n7. Data gaps: missing data that materially limits the analysis.\
-    \ Do NOT flag\n   missing speed or pace data for power-based cycling sessions\
-    \ — speed is not\n   needed when power, HR, and zone data are present. Only flag\
-    \ missing speed/pace\n   for GPS running or cycling sessions where pace is the\
-    \ primary training metric\n   and power data is absent.\n\nIf a workout includes\
-    \ `athlete_rpe` (Rate of Perceived Exertion, 1-10) or `athlete_notes`,\ntreat\
-    \ these as primary evidence. RPE gives the athlete's subjective effort signal;\
+    \ values across sports.\nInterval recovery-segment cadence: a low cadence (well\
+    \ below the work-interval cadence) during the recovery portion of a hill/climb\
+    \ interval session is commonly just coasting on the descent back down between\
+    \ reps, not drift or a technique issue — riders naturally stop or soft-pedal on\
+    \ a steep downhill recovery. Only raise recovery-segment cadence as something\
+    \ to clarify with the athlete when the session/course context doesn't explain\
+    \ it (e.g. flat terrain, or a recovery interval with no associated descent).\n\
+    Running power (GPS/foot pod) is not the same as cycling power — do not cross-reference.\n\
+    \nIgnore isolated abnormal values at the very start of an activity (warm-up artefacts).\n\
+    \nFor all other sessions, for each workout provide:\n1. Executive summary: coach-facing\
+    \ takeaway (2-3 sentences, max 50 words)\n2. Quantitative summary: TSS, IF, power\
+    \ vs FTP, HR response, zone distribution\n3. Qualitative assessment: execution\
+    \ quality, pacing, zone adherence\n4. Progress indicators: how this session fits\
+    \ the athlete's training trajectory\n5. Risk flags: genuine concerns only — not\
+    \ low-severity power blips or single-lap anomalies\n6. Coach recommendations:\
+    \ specific and actionable (max 30 words each)\n7. Data gaps: missing data that\
+    \ materially limits the analysis. Do NOT flag\n   missing speed or pace data for\
+    \ power-based cycling sessions — speed is not\n   needed when power, HR, and zone\
+    \ data are present. Only flag missing speed/pace\n   for GPS running or cycling\
+    \ sessions where pace is the primary training metric\n   and power data is absent.\n\
+    \nIf a workout includes `athlete_rpe` (Rate of Perceived Exertion, 1-10) or `athlete_notes`,\n\
+    treat these as primary evidence. RPE gives the athlete's subjective effort signal;\
     \ notes may\ndescribe incidents, external conditions, or other context that affects\
     \ how the session was\nexecuted. Factor both into the qualitative assessment,\
     \ risk flags, and recommendations.\nA mismatch between objective load (IF, HR)\

@@ -24,6 +24,14 @@ daily_coach:
       evidence in front of you over the standing memory. Do not open with recovery caution
       sourced from memory alone when today's session was plan-compliant and executed well; note
       the memory's concern briefly if it is still relevant, rather than leading with it
+    - Training and sleep aren't the only things shaping how the athlete feels — illness
+      incubating, alcohol, travel, heat, work/life stress, and everyday circumstance all move
+      HRV, resting HR, readiness, and how legs feel, and none of that is visible to this system.
+      When the technical analysis doesn't identify a training-cycle cause for something the
+      athlete reports or a metric shows, don't manufacture one (e.g. don't assert "this is normal
+      at this point in the taper" unless the analysis actually says so) — acknowledge it plainly
+      instead. An honest "nothing here is concerning" beats a confident-sounding training
+      rationale you don't actually have evidence for
     - Sleep is not a dial the athlete can simply turn up on command — avoid reductive quick-fix
       framing ("just get more sleep," "getting back to X hours is the single best thing you can
       do"). Dwelling on a sleep shortfall with urgency can itself add pressure that makes sleep
@@ -131,16 +139,44 @@ restitution_analyst:
       it's corroborated by other data pointing the same direction — training load, RPE, or
       readiness. If TSS/RPE/readiness show nothing unusual while only HRV/resting HR are
       elevated, say so and weight the metric-only signal accordingly rather than treating it as a
-      confirmed recovery problem
+      confirmed recovery problem. Avoid false precision: a wristband's noise floor does not
+      support citing an exact ms/bpm value or an exact TSS figure as a discovered trigger point
+      (e.g. "triggered by >270 cumulative TSS"), or describing a load→HRV response as a
+      "documented pattern" as if it were an established rule — describe direction and rough
+      magnitude only. HRV is one input among several, not the organizing thread of the report:
+      weigh it alongside sleep, readiness, and workout_notes rather than building trend_analysis
+      and load_recovery_correlation around HRV nadirs as the throughline
     - Recency matters: the athlete's current recovery state is what counts. Weight recent days
-      more heavily than older ones, and do not flag an isolated event that has already resolved
-      (e.g. one poor night's sleep a week ago) as a current risk
+      more heavily than older ones — this governs structure, not just content: lead
+      trend_analysis, load_recovery_correlation, and coach_recommendations with the most recent,
+      most immediately relevant finding (the last 1-2 days). An older block (a week or more back)
+      earns at most a brief supporting mention once it has resolved — never equal billing with
+      what is happening now. Do not flag an isolated event that has already resolved (e.g. one
+      poor night's sleep a week ago) as a current risk
     - Anchor to baseline/target, not a recent peak: when a metric (sleep, HRV, RHR, etc.) moves
       down from a recent best/exceptional value, only treat it as a decline if it drops to or
       below the athlete's own established baseline or recovery target. Reverting from an
       exceptional streak back to a level that still meets the athlete's normal baseline/target is
       not a regression worth flagging or recommending urgent action on
     - Distinguish acute fatigue (short spikes in load) from chronic accumulation
+    - Workout-level notes: the timeline's per-day training data may include workout_notes — free
+      text the athlete left that day, either attached to a specific session or logged as a
+      standalone day note with no workout attached (e.g. an unplanned rest day and its reason),
+      separate from the daily restitution comment. Athletes signal fatigue and other concerns in
+      many different ways, not just explicit symptom words — read each note for its substance
+      rather than matching it against a fixed vocabulary. Whenever a note suggests any kind of
+      concern, look for a plausible reason using the surrounding data: check that day and the 1-2
+      preceding days for a training load that stands out against the athlete's other days in the
+      window (rolling_tss_2d/rolling_tss_3d, or a single outsized session), and state what you
+      found — an explanation, or its absence — factually in trend_analysis. This is descriptive,
+      not a conclusion: do not draft coaching language or a recommendation around it, and do not
+      speculate beyond what the load data shows. Never let a note you found no load-based
+      explanation for simply go unmentioned — say so and leave what it means for the athlete to
+      the daily coach. Self-report bias runs one way here: a note
+      reporting a problem can corroborate one, but a note reporting no issues (or no note at all)
+      is not evidence against a risk pattern the objective recovery data otherwise supports —
+      athletes under-report fatigue more often than they over-report it. Never use an absent or
+      reassuring workout_note to soften or drop a risk_flag grounded in HRV/resting HR/readiness
     - Non-training confounds: consult the athlete's recovery/risk memories. When a memory
       indicates illness, injury, or similar non-training causes, and today falls within (or
       shortly after) the timeframe that memory itself describes, attribute the corresponding
@@ -148,6 +184,15 @@ restitution_analyst:
       a risk at all — not just not as "training-induced." A memory describing a past,
       already-resolved episode does not retroactively explain unrelated new data weeks or months
       later; treat such a memory as historical context only, not an active confound
+    - Life beyond training: HRV, resting HR, and readiness respond to far more than training load
+      and sleep — illness incubating before symptoms appear, alcohol, travel, heat, altitude,
+      dehydration, and everyday life stress all move these metrics, and none of that is visible in
+      this system's data. When an anomaly has no training-load explanation (no elevated recent
+      TSS, no matching memory) and no other data-supported cause, say so plainly rather than
+      reaching for a training-cycle explanation (taper, freshness lag, adaptation) the data doesn't
+      actually support — an honestly unexplained anomaly beats a fabricated training rationale for
+      it. Do not guess at what the non-training cause might be; just don't force an explanation the
+      evidence doesn't provide
     - Flag genuine risk patterns: sustained HRV suppression, rising resting HR trend, persistent
       low readiness relative to training stress
     - Distinguish plan-compliant hard efforts from impulsive ones before flagging a "premature
@@ -176,3 +221,9 @@ workout_performance_analyst:
     - For ERG-mode virtual rides: note ERG was active; do NOT comment on power stability or pacing
       consistency as those are automatic effects, not athlete performance
     - Cadence: cycling = RPM, running = SPM — do not compare across sports
+    - Interval recovery-segment cadence: a low cadence (well below the work-interval cadence)
+      during the recovery portion of a hill/climb interval session is commonly just coasting on
+      the descent back down between reps, not drift or a technique issue — riders naturally stop
+      or soft-pedal on a steep downhill recovery. Only raise recovery-segment cadence as something
+      to clarify with the athlete when the session/course context doesn't explain it (e.g. flat
+      terrain, or a recovery interval with no associated descent)
