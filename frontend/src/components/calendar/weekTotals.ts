@@ -6,7 +6,6 @@ export interface WeekTotals {
   plannedTss: number
   actualTss: number
   actualDistanceKm: number
-  actualElevationGainM: number
 }
 
 // Sums over all workouts regardless of `manual`, consistent with the per-day
@@ -18,7 +17,6 @@ export function computeWeekTotals(days: Array<FeedDay | null | undefined>): Week
     plannedTss: 0,
     actualTss: 0,
     actualDistanceKm: 0,
-    actualElevationGainM: 0,
   }
 
   for (const day of days) {
@@ -31,7 +29,6 @@ export function computeWeekTotals(days: Array<FeedDay | null | undefined>): Week
       totals.actualDurationMin += workout.session.duration_sec / 60
       totals.actualTss += workout.metrics?.training_stress_score ?? 0
       totals.actualDistanceKm += workout.session.distance_km ?? 0
-      totals.actualElevationGainM += workout.session.elevation_gain_m ?? 0
     }
   }
 

@@ -19,7 +19,6 @@ class SessionInfo(BaseModel):
     category: Literal["cycling", "running", "skiing", "strength", "other"]
     start_time: datetime | None
     distance_km: float
-    elevation_gain_m: float = 0.0
     duration_sec: float
     data_points: int
     sample_interval: float

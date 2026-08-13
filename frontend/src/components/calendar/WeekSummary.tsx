@@ -16,16 +16,10 @@ interface WeekSummaryProps {
 }
 
 // Sits below WeekCategorySelect in the calendar's leftmost column: a compact
-// intensity bar plus planned-vs-actual duration/load and actual distance/elevation.
+// intensity bar plus planned-vs-actual duration/load and actual distance.
 export function WeekSummary({ athleteId, weekStart, weekEnd, totals }: WeekSummaryProps) {
-  const {
-    plannedDurationMin,
-    actualDurationMin,
-    plannedTss,
-    actualTss,
-    actualDistanceKm,
-    actualElevationGainM,
-  } = totals
+  const { plannedDurationMin, actualDurationMin, plannedTss, actualTss, actualDistanceKm } =
+    totals
 
   return (
     <div
@@ -46,8 +40,8 @@ export function WeekSummary({ athleteId, weekStart, weekEnd, totals }: WeekSumma
         </span>
       </div>
       <div className="flex items-center justify-between gap-1">
+        <span>Dist</span>
         <span className="text-foreground">{actualDistanceKm.toFixed(1)}km</span>
-        <span className="text-foreground">{Math.round(actualElevationGainM)}m</span>
       </div>
     </div>
   )

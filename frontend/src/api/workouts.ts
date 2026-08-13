@@ -33,7 +33,6 @@ export interface SessionInfo {
   start_time: string | null
   duration_sec: number
   distance_km: number
-  elevation_gain_m?: number
   commute: "yes, marked by athlete" | "yes, detected" | "no"
   tags: string[]
   manual?: boolean
