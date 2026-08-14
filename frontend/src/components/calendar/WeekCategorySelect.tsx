@@ -57,10 +57,7 @@ interface WeekCategorySelectProps {
 export function WeekCategorySelect({ value, weekStart, onChange }: WeekCategorySelectProps) {
   if (!onChange) {
     return (
-      <div
-        className="flex h-full min-h-[80px] items-center justify-center rounded-md border border-dashed border-border px-1 py-1.5"
-        title={`Week of ${weekStart}`}
-      >
+      <div className="flex items-center justify-center" title={`Week of ${weekStart}`}>
         {value ? (
           <span
             className={cn(
@@ -78,10 +75,7 @@ export function WeekCategorySelect({ value, weekStart, onChange }: WeekCategoryS
   }
 
   return (
-    <div
-      className="flex h-full min-h-[80px] items-center justify-center rounded-md border border-dashed border-border px-1 py-1.5"
-      title={`Week of ${weekStart}`}
-    >
+    <div className="flex items-center justify-center" title={`Week of ${weekStart}`}>
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value as WeekCategory)}

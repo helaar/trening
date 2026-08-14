@@ -8,6 +8,8 @@ import {
 } from "../../api/weekCategory"
 import { CalendarDayCell } from "./CalendarDayCell"
 import { WeekCategorySelect } from "./WeekCategorySelect"
+import { WeekSummary } from "./WeekSummary"
+import { computeWeekTotals } from "./weekTotals"
 import { localToday } from "../../lib/utils"
 
 function getWeekRange(date: string): { start: string; end: string; dates: string[] } {
@@ -107,15 +109,26 @@ export function WeekView({
             </div>
           )
         })}
-        <WeekCategorySelect
-          weekStart={start}
-          value={currentCategory}
-          onChange={
-            onSetWeekCategory
-              ? (category) => setCategoryMutation.mutate({ weekStart: start, category })
-              : undefined
-          }
-        />
+        <div
+          className="flex h-full min-h-[80px] flex-col gap-1 rounded-md border border-dashed border-border px-1.5 py-1.5"
+          title={`Week of ${start}`}
+        >
+          <WeekCategorySelect
+            weekStart={start}
+            value={currentCategory}
+            onChange={
+              onSetWeekCategory
+                ? (category) => setCategoryMutation.mutate({ weekStart: start, category })
+                : undefined
+            }
+          />
+          <WeekSummary
+            athleteId={athleteId}
+            weekStart={start}
+            weekEnd={end}
+            totals={computeWeekTotals(dates.map((d) => feedMap.get(d) ?? null))}
+          />
+        </div>
         {dates.map((d) => (
           <CalendarDayCell
             key={d}

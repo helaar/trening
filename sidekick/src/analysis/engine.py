@@ -437,7 +437,7 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     
     # Create session info
     session = _create_session_info(parser, duration_sec, len(df), sample_interval)
-    
+
     # Whole-workout power metrics: Intervals.icu-sourced, no local fallback
     # (see analysis/intervals_mapping.py). athlete_ftp is sourced from
     # Intervals.icu too when available, so it stays consistent with the IF/TSS
