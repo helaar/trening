@@ -25,6 +25,16 @@ class PlannedActivity(BaseModel):
     estimated_tss: int | None = None
     external_reference: str | None = None
     race_priority: Literal["A", "B", "C"] | None = None
+    matched_activity_id: int | None = Field(
+        default=None,
+        description=(
+            "Strava activity id of the completed workout that fulfilled this "
+            "plan, computed at read time from Intervals.icu's own event/activity "
+            "pairing (see services/plan_matching.py). Not sourced from the "
+            "Intervals.icu event payload itself, so absent whenever the caller "
+            "didn't run the matcher."
+        ),
+    )
     created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

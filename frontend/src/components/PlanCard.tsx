@@ -1,6 +1,7 @@
-import { ExternalLink } from "lucide-react"
+import { CheckCircle2, ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import type { PlannedActivity, Sport } from "../api/plans"
+import type { WorkoutAnalysis } from "../api/workouts"
 import { mondayOf } from "../lib/utils"
 
 function sportLabel(sport: Sport): string {
@@ -18,6 +19,15 @@ function sportLabel(sport: Sport): string {
 
 interface Props {
   plan: PlannedActivity
+  matchedWorkout?: WorkoutAnalysis
+}
+
+function CompletedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium bg-emerald-100 text-emerald-700 border-emerald-300">
+      <CheckCircle2 className="h-3 w-3" /> Completed
+    </span>
+  )
 }
 
 function SeasonGoalBadge() {
@@ -36,10 +46,12 @@ function RaceBadge({ priority }: { priority: "A" | "B" | "C" | null }) {
   )
 }
 
-export function PlanCard({ plan }: Props) {
+export function PlanCard({ plan, matchedWorkout }: Props) {
   const isSeasonGoal = plan.labels.includes("seasongoal")
   const isRace = plan.labels.includes("race")
   const visibleLabels = plan.labels.filter((l) => l !== "seasongoal" && l !== "race")
+  const actualDurationMin = matchedWorkout ? Math.round(matchedWorkout.session.duration_sec / 60) : null
+  const actualTss = matchedWorkout?.metrics.training_stress_score ?? null
 
   return (
     <Card>
@@ -63,16 +75,27 @@ export function PlanCard({ plan }: Props) {
           </div>
         </div>
 
-        {(isSeasonGoal || isRace) && (
+        {(isSeasonGoal || isRace || plan.matched_activity_id) && (
           <div className="flex flex-wrap gap-1.5">
+            {plan.matched_activity_id && <CompletedBadge />}
             {isSeasonGoal && <SeasonGoalBadge />}
             {isRace && <RaceBadge priority={plan.race_priority} />}
           </div>
         )}
 
         <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-          {plan.estimated_duration_min && <span>{plan.estimated_duration_min} min</span>}
-          {plan.estimated_tss && <span>est. TSS {plan.estimated_tss}</span>}
+          {plan.estimated_duration_min && (
+            <span>
+              {plan.estimated_duration_min} min
+              {actualDurationMin !== null && ` (actual: ${actualDurationMin} min)`}
+            </span>
+          )}
+          {plan.estimated_tss && (
+            <span>
+              est. TSS {plan.estimated_tss}
+              {actualTss !== null && ` (actual: ${Math.round(actualTss)})`}
+            </span>
+          )}
         </div>
 
         {visibleLabels.length > 0 && (
