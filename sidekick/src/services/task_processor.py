@@ -7,6 +7,7 @@ from database.athlete_repository import AthleteRepository
 from database.crew_definition_repository import CrewDefinitionRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
+from database.intervals_activity_repository import IntervalsActivityRepository
 from database.memory_repository import MemoryRepository
 from database.prompt_log_repository import PromptLogRepository
 from database.task_repository import TaskRepository
@@ -36,11 +37,23 @@ class TaskProcessor:
         crew_def_repo: CrewDefinitionRepository,
         week_category_repo: WeekCategoryRepository,
         prompt_log_repo: PromptLogRepository | None = None,
+        intervals_activity_repo: IntervalsActivityRepository | None = None,
     ):
         self.task_repo = task_repo
         self._handlers: dict[TaskType, TaskHandler] = {
             TaskType.TRAINING_ANALYSIS: TrainingAnalysisHandler(task_repo, athlete_repo, workout_repo),
-            TaskType.DAILY_LLM_ANALYSIS: DailyAnalysisHandler(task_repo, athlete_repo, workout_repo, daily_analysis_repo, daily_entry_repo, memory_repo, crew_def_repo, week_category_repo, prompt_log_repo),
+            TaskType.DAILY_LLM_ANALYSIS: DailyAnalysisHandler(
+                task_repo,
+                athlete_repo,
+                workout_repo,
+                daily_analysis_repo,
+                daily_entry_repo,
+                memory_repo,
+                crew_def_repo,
+                week_category_repo,
+                prompt_log_repo,
+                intervals_activity_repo,
+            ),
             TaskType.MEMORY_CONSOLIDATION: MemoryConsolidationHandler(task_repo, athlete_repo, memory_repo, daily_analysis_repo, crew_def_repo, prompt_log_repo),
         }
 

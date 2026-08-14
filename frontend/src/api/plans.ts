@@ -15,6 +15,7 @@ export interface PlannedActivity {
   estimated_tss?: number
   external_reference?: string | null
   race_priority: "A" | "B" | "C" | null
+  matched_activity_id: number | null
   created_at: string
   updated_at: string
 }

@@ -11,12 +11,14 @@ from auth.dependencies import get_current_athlete_id
 from database.athlete_repository import AthleteRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
+from database.intervals_activity_repository import IntervalsActivityRepository
 from database.mongodb import get_db
 from database.workout_repository import WorkoutRepository
 from models.athlete import AthleteSettings
 from models.daily_entry import ActivityAssessment, Restitution
 from models.plan import PlannedActivity
 from services import intervals_calendar
+from services.plan_matching import attach_matches_for_range
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/athlete", tags=["feed"])
@@ -61,6 +63,7 @@ async def build_feed(db: AsyncDatabase, athlete_id: int, start: str, end: str) -
     athlete_repo = AthleteRepository(db)
     entry_repo = DailyEntryRepository(db)
     analysis_repo = DailyAnalysisRepository(db)
+    intervals_activity_repo = IntervalsActivityRepository(db)
 
     settings = await athlete_repo.get_athlete_settings(athlete_id)
     workouts, plans, entries = await _fetch_all(
@@ -76,6 +79,10 @@ async def build_feed(db: AsyncDatabase, athlete_id: int, start: str, end: str) -
     plans_by_date: dict[str, list[PlannedActivity]] = defaultdict(list)
     for p in plans:
         plans_by_date[p.date].append(p)
+
+    await attach_matches_for_range(
+        athlete_id, plans_by_date, workouts_by_date, intervals_activity_repo
+    )
 
     entries_by_date = {e.date: e for e in entries}
 

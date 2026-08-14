@@ -391,7 +391,11 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
           <section className="space-y-4">
             <h2 className="font-semibold text-muted-foreground">Plan</h2>
             {plans.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} />
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                matchedWorkout={allWorkouts.find((w) => w.activity_id === plan.matched_activity_id)}
+              />
             ))}
           </section>
         )}

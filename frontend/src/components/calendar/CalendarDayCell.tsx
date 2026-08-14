@@ -1,4 +1,4 @@
-import { Brain, AlertTriangle } from "lucide-react"
+import { Brain, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { cn, localToday } from "../../lib/utils"
 import { RACE_PRIORITY_EMOJI } from "../../lib/racePriority"
 import type { FeedDay } from "../../api/feed"
@@ -121,12 +121,19 @@ export function CalendarDayCell({
               const isRace = plan.labels?.includes("race")
               return (
                 <div key={`plan-label-${i}`} className="flex items-center gap-1">
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 shrink-0 rounded-full opacity-60",
-                      SPORT_COLORS_MUTED[plan.sport] ?? "bg-gray-300"
-                    )}
-                  />
+                  {plan.matched_activity_id ? (
+                    <CheckCircle2
+                      className="h-2.5 w-2.5 shrink-0 text-emerald-600"
+                      aria-label="Completed"
+                    />
+                  ) : (
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 shrink-0 rounded-full opacity-60",
+                        SPORT_COLORS_MUTED[plan.sport] ?? "bg-gray-300"
+                      )}
+                    />
+                  )}
                   {isRace && (
                     <span title={`Race (${plan.race_priority})`} aria-label="Race">
                       {RACE_PRIORITY_EMOJI[plan.race_priority ?? "C"]}

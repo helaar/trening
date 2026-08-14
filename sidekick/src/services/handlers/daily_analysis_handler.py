@@ -9,6 +9,7 @@ from database.athlete_repository import AthleteRepository
 from database.crew_definition_repository import CrewDefinitionRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
 from database.daily_entry_repository import DailyEntryRepository
+from database.intervals_activity_repository import IntervalsActivityRepository
 from database.memory_repository import MemoryRepository
 from database.prompt_log_repository import PromptLogRepository
 from database.task_repository import TaskRepository
@@ -18,6 +19,7 @@ from models.daily_analysis import DailyAnalysisResult
 from models.memory import Memory, MemoryScope, clamp_memory_content
 from services import intervals_calendar, intervals_wellness
 from services.handlers.base import TaskHandler
+from services.plan_matching import attach_matches
 from utils.datetime_utils import monday_of
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,7 @@ class DailyAnalysisHandler(TaskHandler):
         crew_def_repo: CrewDefinitionRepository,
         week_category_repo: WeekCategoryRepository,
         prompt_log_repo: PromptLogRepository | None = None,
+        intervals_activity_repo: IntervalsActivityRepository | None = None,
     ):
         self.task_repo = task_repo
         self.athlete_repo = athlete_repo
@@ -49,6 +52,7 @@ class DailyAnalysisHandler(TaskHandler):
         self.crew_def_repo = crew_def_repo
         self.week_category_repo = week_category_repo
         self.prompt_log_repo = prompt_log_repo
+        self.intervals_activity_repo = intervals_activity_repo
 
     async def execute(
         self,
@@ -126,6 +130,12 @@ class DailyAnalysisHandler(TaskHandler):
             if merged is not None:
                 entries_by_date[d] = merged
         daily_entries = [entries_by_date[d] for d in sorted(entries_by_date)]
+
+        if self.intervals_activity_repo:
+            planned_today = [p for p in planned_activities if p.date == date_str]
+            await attach_matches(
+                athlete_id, planned_today, workout_analyses, self.intervals_activity_repo
+            )
 
         analysis_input = DailyAnalysisInput(
             athlete=athlete,
