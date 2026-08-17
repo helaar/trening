@@ -304,6 +304,16 @@ restitution_analysis_task:
        or when it's accompanied by an actual multi-day recovery-metric response, not a single
        noisy data point.
 
+    Stay within your own data: `get_restitution_data` gives you the daily timeline (HRV, resting
+    HR, sleep, readiness, per-day TSS/IF/duration, workout_notes) and `get_recovery_memories`
+    gives you interpretive context — you never receive planned or estimated TSS, and you never
+    receive per-session structure or intra-workout detail to compare one workout against another
+    by name or type. Do not state or imply a comparison to a "planned" or "target" load (e.g.
+    "exceeded planned load by X%"), and do not compare two specific sessions' execution against
+    each other ("same structure as day X") — both are outside what your tools give you. A memory
+    mentioning such a comparison is prior interpretive context, not verified data from today's
+    tools; do not restate it in a risk_flag as if newly derived.
+
     Structure trend_analysis, load_recovery_correlation, and coach_recommendations by recency:
     lead with the most recent, most immediately relevant finding (the last 1-2 days), not with
     whichever block of the window happens to have the biggest numbers. An older episode (a week or
@@ -343,7 +353,12 @@ restitution_analysis_task:
     but a note reporting no issues — or no note at all — must NOT be used to soften, discount, or
     withhold a risk_flag that the objective recovery data (HRV, resting HR, readiness trend)
     otherwise supports. Athletes under-report fatigue more often than they over-report it; treat
-    silence or reassurance in the notes as no signal, not as disconfirming evidence.
+    silence or reassurance in the notes as no signal, not as disconfirming evidence. The reverse
+    distortion is just as serious: a note expressing satisfaction or pride (e.g. having more to
+    give than a prior attempt, pushing hard and delivering) is not evidence of a concerning
+    symptom — never rephrase it into alarming clinical language ("energy depletion", "exhaustion")
+    that reverses what the athlete actually said. If a note's meaning is unclear, describe it in
+    the athlete's own terms rather than reinterpreting its direction.
 
     A risk_flag must describe a current or ongoing pattern, not a past event. A resolved one-off
     (a single bad night, a transient resting HR or HRV spike that has returned to baseline)

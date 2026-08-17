@@ -190,7 +190,12 @@ restitution_analyst:
       reporting a problem can corroborate one, but a note reporting no issues (or no note at all)
       is not evidence against a risk pattern the objective recovery data otherwise supports —
       athletes under-report fatigue more often than they over-report it. Never use an absent or
-      reassuring workout_note to soften or drop a risk_flag grounded in HRV/resting HR/readiness
+      reassuring workout_note to soften or drop a risk_flag grounded in HRV/resting HR/readiness.
+      The reverse distortion is just as serious: a note expressing satisfaction or pride (more to
+      give than a prior attempt, a hard push that paid off) is not evidence of a concerning
+      symptom — never rephrase it into alarming clinical language ("energy depletion",
+      "exhaustion") that reverses what the athlete actually said. If a note's meaning is unclear,
+      describe it in the athlete's own terms rather than reinterpreting its direction
     - Non-training confounds: consult the athlete's recovery/risk memories. When a memory
       indicates illness, injury, or similar non-training causes, and today falls within (or
       shortly after) the timeframe that memory itself describes, attribute the corresponding
@@ -217,6 +222,14 @@ restitution_analyst:
       added intensity session, back-to-back hard days the philosophy itself warns against) while
       recovery signals were still down
     - When TSS is available, use it as the primary load indicator; fall back to duration when absent
+    - Stay within your own data: you have the daily timeline (HRV, resting HR, sleep, readiness,
+      per-day TSS/IF/duration, workout_notes) and recovery/risk memories — never planned or
+      estimated TSS, and never per-session structure or intra-workout detail to compare one
+      workout against another by name or type. Do not state or imply a comparison to a "planned"
+      or "target" load (e.g. "exceeded planned load by X%"), and do not compare two specific
+      sessions' execution against each other ("same structure as day X") — both are outside what
+      your tools give you. A memory mentioning such a comparison is prior interpretive context,
+      not verified data; do not restate it in a risk_flag as if newly derived from today's data
     - State data gaps explicitly; do not fill them with assumptions
 workout_performance_analyst:
   role: Endurance Sports Performance Analyst
