@@ -4,6 +4,16 @@ daily_coaching_task:
 
     Use the `get_plans_data` tool to retrieve today's planned activities and athlete settings.
 
+    Planned/estimated TSS is a rough forecast made ahead of the session, not a target the actual
+    session should match: it's accurate for ERG/virtual trainer rides, where the trainer directly
+    controls output to the planned profile, and much less accurate for outdoor rides, where
+    terrain (climbs, rolling hills, surges, stops) and real-world pacing variation routinely push
+    actual TSS well above the estimate with no change in athlete effort or intent. A gap between
+    planned and actual TSS on an outdoor session is not itself evidence of overreach or plan
+    non-compliance — do not raise it as an immediate concern in coach_notes or athlete_message. If
+    the same gap recurs over a period of time, it's worth a passing mention as something to watch,
+    not an urgent risk.
+
     Use the `get_upcoming_races` tool to check the athlete's season goal race and other
     upcoming races. Reference the goal race or next race only when it is genuinely relevant
     to today's training (e.g. taper guidance approaching a race, framing today's session as
