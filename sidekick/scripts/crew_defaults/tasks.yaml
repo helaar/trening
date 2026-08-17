@@ -81,15 +81,18 @@ memory_consolidation_task:
        - Update content if the pattern evolved; capture progress or regression in the wording
        - Deactivate if clearly reversed or no longer observed
        - Actively check for disconfirming evidence, not just reasons to leave the memory
-         unchanged: for each risk memory, look for instances (in this window's data, including
-         each day's workout_highlights in recent_analyses, or already cited in the memory's own
-         evidence_dates) where the flagged behaviour recurred but the predicted outcome did not
-         occur (targets held, a new best, no adverse signal). A memory whose cited instances mix
-         confirming and disconfirming ones is not settled evidence — revise it (drop the
-         disconfirmed instance, lower confidence accordingly) or deactivate it. Do this
-         regardless of the memory's current confidence or how long it has stood unchanged — a
-         memory sitting at 95%+ confidence that has never been re-examined against disconfirming
-         evidence is exactly the case this step exists to catch, not a signal it can be skipped
+         unchanged: this applies to every memory, not only ones tagged risk — including a memory
+         whose claim is that some signal or source is unreliable. Look for instances (in this
+         window's data, including each day's workout_highlights in recent_analyses, or already
+         cited in the memory's own evidence_dates) that contradict what the memory claims: a
+         flagged behaviour recurring without its predicted outcome (targets held, a new best, no
+         adverse signal), or a source the memory calls untrustworthy proving accurate. A memory
+         whose cited instances mix confirming and disconfirming ones is not settled evidence —
+         revise it (drop the disconfirmed instance, lower confidence accordingly) or deactivate
+         it. Do this regardless of the memory's current confidence or how long it has stood
+         unchanged — a memory sitting at 95%+ confidence that has never been re-examined against
+         disconfirming evidence is exactly the case this step exists to catch, not a signal it can
+         be skipped
        - Before re-affirming a "premature return to intensity" (or similar plan-override) risk
          memory, re-check each cited instance against plan-adherence: a session preceded by a
          prescribed rest day and matching the athlete's own weekly training-philosophy targets
@@ -154,19 +157,6 @@ memory_consolidation_task:
        including if it was already present in an existing memory's content — rewrite it as a
        plain factual statement with no implied resumption rule before saving. Do not let one
        report's fabricated framing become permanently canonized through compaction or promotion.
-
-    10. Audit for a self-report-distrust bias: a memory that frames the athlete's RPE,
-        self-reported feel, or notes as unreliable because they disagreed with HRV/resting HR must
-        be checked the same way as any other risk memory in step 1 — look at what each cited
-        instance's actual outcome was. If the athlete reported feeling good or performing well and
-        then executed a solid session, that instance disconfirms "self-report is unreliable"; it
-        confirms the wearable metric was the misleading signal that day. A wristband sensor
-        carries real measurement noise the athlete's own reported effort and demonstrated
-        performance don't share. Rewrite or deactivate a memory whose own cited evidence shows the
-        athlete was right despite low HRV/RHR — do not let it stand as-is just because it has been
-        confirmed before. If a genuine pattern remains once mis-cited instances are removed, it is
-        that this athlete's HRV/RHR run noisy or low relative to felt readiness, not that the
-        athlete is wrong about how they feel.
   expected_output: |
     A JSON object with four fields:
     - updates: list of memory updates (may be empty)
@@ -198,11 +188,13 @@ memory_extraction_task:
     high; incidental observations are low. When a pattern is changing (improving or worsening),
     say so in the content so the coach can reinforce progress or flag regression.
 
-    When today's coaching output shows a previously-flagged behaviour recurring, also check its
-    outcome: if the session was executed well with no adverse signal (e.g. targets hit, a new
-    best), that disconfirms the risk pattern rather than reinforcing it — do not raise confidence
-    or importance for it today, and consider whether the memory's content should now reflect that
-    counter-instance.
+    When today's coaching output shows a previously-flagged pattern recurring, also check its
+    outcome against what the memory claims — this applies to a claim that a behaviour is risky,
+    and equally to a claim that some signal or source is unreliable. If the outcome contradicts
+    the claim (a session executed well with no adverse signal; a source the memory calls
+    untrustworthy proving accurate), that disconfirms the memory rather than reinforcing it — do
+    not raise confidence or importance for it today, and consider whether the memory's content
+    should now reflect that counter-instance.
 
     Scope guidance:
     - recent: behaviour observed over days to a few weeks; may still be forming
@@ -223,16 +215,6 @@ memory_extraction_task:
     from this instance; it is compliant execution, not a recovery-signal override. Only unplanned
     or extra intensity sessions, or ones that violate the plan's own spacing rules, count as
     instances of this pattern.
-
-    Before recording or reinforcing a memory that frames the athlete's RPE, self-reported feel, or
-    notes as unreliable because they disagreed with HRV/resting HR, check what actually happened:
-    if the athlete reported feeling good or performing well and then executed a solid session,
-    that disconfirms "self-report is unreliable" — it confirms the wearable metric was the
-    misleading signal that day. A wristband sensor carries real measurement noise the athlete's own
-    reported effort and demonstrated performance don't share. Do not create or extend a memory that
-    concludes the athlete's self-report shouldn't be trusted when today's actual outcome shows the
-    athlete was right; the durable pattern worth recording, if any, is that this athlete's HRV/RHR
-    run noisy or low relative to felt readiness, not that the athlete is wrong about how they feel.
 
     No coach-defined "recovery gates," medical protocols, or deadlines exist in this system. If
     today's coaching output frames a risk in those terms (e.g. a numeric bpm/ms threshold, a
