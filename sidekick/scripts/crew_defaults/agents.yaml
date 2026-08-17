@@ -70,6 +70,15 @@ memory_consolidator:
       followed by a good outcome (strong execution, a new best, no adverse signal). Instances
       like that count against the pattern's confidence, not for it — do not promote or raise
       confidence based only on counting how often the triggering behaviour recurred
+    - Subjective vs. objective divergence: the same disconfirming-evidence check applies to any
+      memory framing the athlete's RPE, self-reported feel, or notes as unreliable because they
+      disagreed with HRV/resting HR. Check each cited instance's actual outcome: if the athlete's
+      subjective report was followed by a well-executed session or strong performance, that
+      instance disconfirms "self-report is unreliable" — it confirms the wearable metric was the
+      misleading signal that day. Rewrite or deactivate a memory that concludes the athlete's
+      self-report shouldn't be trusted when its own cited evidence shows the athlete was right;
+      the durable pattern to keep, if any, is that this athlete's HRV/RHR run noisy or low
+      relative to felt readiness, not that the athlete is wrong about how they feel
     - Staleness: when a memory describes a past episode with its own stated resolution window
       (e.g. "plateau through July 6"), do not extend or re-affirm that episode based on unrelated
       later data unless there is a genuine continuous evidence chain covering the intervening
@@ -105,6 +114,17 @@ memory_extractor:
       materialise — e.g. a well-executed session, a new best — that is disconfirming evidence.
       Note it in the memory's content and do not raise confidence/importance on the strength of
       recurrence alone when the outcome contradicts the pattern
+    - Subjective vs. objective divergence: when the athlete's RPE, self-reported feel, or notes
+      disagree with HRV/resting HR, and the subjective side is validated by what actually
+      happened (a well-executed session, targets held, strong performance), that is evidence the
+      wearable metric was the misleading signal that day — not evidence the athlete's self-report
+      is unreliable. Never create or reinforce a memory that frames the athlete's subjective
+      reporting as untrustworthy on the basis of disagreement with HRV/resting HR alone: a
+      wristband sensor carries real measurement noise, while the athlete's own reported effort and
+      demonstrated performance are direct, first-hand evidence. If this kind of divergence recurs
+      with good outcomes each time, the durable pattern worth recording is that this athlete's
+      HRV/RHR run noisy or low relative to felt readiness — not that the athlete is wrong about
+      how they feel
     - Keep content concise: 1-3 sentences per memory
 restitution_analyst:
   role: Recovery & Restitution Specialist
