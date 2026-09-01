@@ -263,12 +263,15 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         .flatMap((w, i) => {
           const key = workoutKey(w, i)
           const assessment = assessments[key]
-          if (!w.activity_id || !assessment || assessment.rpe === undefined) return []
+          if (!w.activity_id || !assessment) return []
+          const hasContent =
+            assessment.rpe !== undefined || !!assessment.notes || !!assessment.tags?.length
+          if (!hasContent) return []
           const entry: ActivityAssessment = {
             activity_id: w.activity_id,
             activity_name: w.session.name ?? w.session.category,
-            rpe: assessment.rpe,
           }
+          if (assessment.rpe !== undefined) entry.rpe = assessment.rpe
           if (assessment.notes !== undefined) entry.notes = assessment.notes
           if (assessment.tags?.length) entry.tags = assessment.tags
           return [entry]

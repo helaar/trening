@@ -12,7 +12,7 @@ export interface Restitution {
 export interface ActivityAssessment {
   activity_id: number
   activity_name: string
-  rpe: number
+  rpe?: number
   notes?: string
   tags?: string[]
 }

@@ -708,12 +708,12 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         enriched = {k: w[k] for k in _WORKOUT_PAYLOAD_KEYS if k in w}
         if all_tags:
             enriched["tags"] = all_tags
-        if assessment:
+        if assessment and assessment.rpe is not None:
             enriched["athlete_rpe"] = assessment.rpe
-            if assessment.notes:
-                enriched["athlete_notes"] = assessment.notes
         elif w.get("intervals_rpe") is not None:
             enriched["athlete_rpe"] = w["intervals_rpe"]
+        if assessment and assessment.notes:
+            enriched["athlete_notes"] = assessment.notes
         enriched["intensity_distribution"] = _compute_intensity_distribution(w)
         return enriched
 
