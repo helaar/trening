@@ -45,7 +45,9 @@ interface Severity {
 }
 
 function computeSeverity(day: FeedDay, nonCommutes: WorkoutAnalysis[]): Severity {
-  const rpeById = new Map(day.activity_assessments.map((a) => [a.activity_id, a.rpe]))
+  const rpeById = new Map(
+    day.activity_assessments.filter((a) => a.rpe != null).map((a) => [a.activity_id, a.rpe])
+  )
   const missing: string[] = []
   let points = 0
 
@@ -107,7 +109,9 @@ function GapBadge({ points, count }: { points: number; count: number }) {
 export function FeedDayCard({ day }: { day: FeedDay }) {
   const nonCommutes = day.workouts.filter((w) => !isCommute(w))
 
-  const rpeById = new Map(day.activity_assessments.map((a) => [a.activity_id, a.rpe]))
+  const rpeById = new Map(
+    day.activity_assessments.filter((a) => a.rpe != null).map((a) => [a.activity_id, a.rpe])
+  )
 
   const sportSet = new Set(day.workouts.map((w) => w.session.sport))
   const sportEmojis = [...sportSet].map(sportEmoji).join("")
@@ -117,10 +121,10 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
     0
   )
 
-  const maxRpe =
-    day.activity_assessments.length > 0
-      ? Math.max(...day.activity_assessments.map((a) => a.rpe))
-      : null
+  const rpeValues = day.activity_assessments
+    .map((a) => a.rpe)
+    .filter((rpe): rpe is number => rpe != null)
+  const maxRpe = rpeValues.length > 0 ? Math.max(...rpeValues) : null
 
   const { points, missing, emptyDay } = computeSeverity(day, nonCommutes)
   const hasRace = dayHasRace(day)
