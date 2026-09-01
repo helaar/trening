@@ -439,7 +439,23 @@ class WorkoutAnalysisService:
         if not activities or refresh:
             logger.debug(f"Fetching activities from Strava for detailed analysis on {activity_date.date()}")
             activities = self.strava_client.get_activities_for_date(activity_date)
-        
+
+            # Store the whole day's activities up front, before analyzing any of
+            # them individually below. get_detailed_analysis() (per activity)
+            # triggers an Intervals.icu resync that fuzzy-matches against
+            # workout_repo.get_activities_for_date() — if activities were only
+            # stored one at a time inside that per-activity call, activities
+            # later in this loop wouldn't be in the candidate pool yet when an
+            # earlier activity's resync runs, silently degrading its match.
+            for activity in activities:
+                raw_activity = StravaActivityRaw(
+                    athlete_id=athlete_id,
+                    activity_id=activity.id,
+                    activity_date=activity_date,
+                    raw_data=activity.data
+                )
+                await self.workout_repo.store_activity(raw_activity)
+
         # Analyze each activity using the detailed analysis method
         # This will use cached data where available
         analyses = []
