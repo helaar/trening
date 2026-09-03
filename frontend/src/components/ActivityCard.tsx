@@ -97,7 +97,14 @@ function sportLabel(category: string): string {
 export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
   const { session, metrics, zones, intervals_sync_status } = workout
   const isNote = session.manual === true
-  const isCommute = session.commute !== "no"
+  const tags = value.tags ?? []
+  // A workout the athlete manually tagged "commute" (e.g. Strava/route
+  // detection missed it) gets the same minimal commute view as a detected
+  // one. Only this case gets a remove control on the badge below — a
+  // Strava/route-detected commute isn't tag-driven, so there's nothing to
+  // unset.
+  const isManualCommute = session.commute === "no" && tags.includes("commute")
+  const isCommute = session.commute !== "no" || isManualCommute
   const zoneDistribution = zones?.power_zones ?? zones?.heart_rate_zones ?? null
   const zoneUnit = zones?.power_zones ? "W" : "bpm"
 
@@ -148,8 +155,6 @@ export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
     )
   }
 
-  const tags = value.tags ?? []
-
   function addTag(raw: string) {
     const trimmed = raw.trim().replace(/,+$/, "").trim()
     if (trimmed && !tags.includes(trimmed)) {
@@ -179,8 +184,18 @@ export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
           <CardTitle className="text-base">{session.name ?? sportLabel(session.category)}</CardTitle>
           <div className="flex shrink-0 gap-1.5">
             {isCommute && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 Commute
+                {isManualCommute && (
+                  <button
+                    type="button"
+                    onClick={() => removeTag("commute")}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Remove commute tag"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </span>
             )}
             <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">

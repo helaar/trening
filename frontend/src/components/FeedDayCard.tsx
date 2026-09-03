@@ -20,8 +20,10 @@ function sportEmoji(sport: string): string {
   return SPORT_EMOJI[sport] ?? "🏋️"
 }
 
-function isCommute(workout: WorkoutAnalysis): boolean {
-  return workout.session.commute !== "no"
+function isCommute(workout: WorkoutAnalysis, assessments: ActivityAssessment[]): boolean {
+  if (workout.session.commute !== "no") return true
+  const assessment = assessments.find((a) => a.activity_id === workout.activity_id)
+  return assessment?.tags?.includes("commute") ?? false
 }
 
 function formatDuration(sec: number): string {
@@ -107,7 +109,7 @@ function GapBadge({ points, count }: { points: number; count: number }) {
 }
 
 export function FeedDayCard({ day }: { day: FeedDay }) {
-  const nonCommutes = day.workouts.filter((w) => !isCommute(w))
+  const nonCommutes = day.workouts.filter((w) => !isCommute(w, day.activity_assessments))
 
   const rpeById = new Map(
     day.activity_assessments.filter((a) => a.rpe != null).map((a) => [a.activity_id, a.rpe])
@@ -174,7 +176,7 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
                   </span>
                   <span className="flex-1 flex items-center gap-1 min-w-0">
                     <span className="truncate">{w.session.name ?? "Workout"}</span>
-                    {isCommute(w) && <span className="shrink-0">🏷️</span>}
+                    {isCommute(w, day.activity_assessments) && <span className="shrink-0">🏷️</span>}
                   </span>
                   <span className="text-muted-foreground shrink-0 text-xs">
                     {formatDuration(w.session.duration_sec)}
