@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
@@ -636,6 +637,7 @@ def _make_task(
     context: list[Task] | None = None,
     async_execution: bool = False,
     output_pydantic: type[BaseModel] | None = None,
+    callback: Callable[[Any], None] | None = None,
 ) -> Task:
     expected_output = task_def["expected_output"].strip()
     if output_pydantic is not None:
@@ -647,6 +649,7 @@ def _make_task(
         context=context or [],
         async_execution=async_execution,
         output_pydantic=output_pydantic,
+        callback=callback,
     )
 
 
@@ -669,11 +672,22 @@ def _parse_memory_extraction(raw: str) -> MemoryExtractionOutput | None:
     return None
 
 
-def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
-    """Build and run the three-agent daily analysis crew (synchronous — use asyncio.to_thread).
+def run_daily_analysis_main(
+    input: DailyAnalysisInput,
+    on_step: Callable[[str, str], None] | None = None,
+) -> dict[str, Any]:
+    """Build and run the workout/restitution/coaching crew (synchronous — use asyncio.to_thread).
 
     The workout performance analyst and restitution analyst run in parallel; their
-    outputs are both passed as context to the daily coach.
+    outputs are both passed as context to the daily coach. Memory extraction is a
+    separate, later phase (see `run_memory_extraction`) so it doesn't delay the
+    user-visible result.
+
+    `on_step`, if given, is called as `on_step(step_key, status)` — where step_key is
+    one of "workout_analysis", "restitution_analysis", "daily_coaching" and status is
+    one of "in_progress"/"completed" — as each crew task starts or finishes, so the
+    caller can surface granular progress. It's called synchronously from whatever
+    thread the crew runs on.
     """
     if settings.anthropic_api_key:
         os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
@@ -865,7 +879,24 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     workout_task_def = require_definition(input.tasks, "workout_analysis_task", "task")
     restitution_task_def = require_definition(input.tasks, "restitution_analysis_task", "task")
     coaching_task_def = require_definition(input.tasks, "daily_coaching_task", "task")
-    extraction_task_def = require_definition(input.tasks, "memory_extraction_task", "task")
+
+    # Both parallel tasks feed daily_coaching_task; report it "in_progress" only once
+    # both have finished, since CrewAI has no "task started" hook to key off directly.
+    _parallel_done = {"count": 0}
+
+    def _parallel_task_done(step_key: str) -> Callable[[Any], None]:
+        def _cb(_output: Any) -> None:
+            if on_step:
+                on_step(step_key, "completed")
+            _parallel_done["count"] += 1
+            if _parallel_done["count"] == 2 and on_step:
+                on_step("daily_coaching", "in_progress")
+
+        return _cb
+
+    def _coaching_done(_output: Any) -> None:
+        if on_step:
+            on_step("daily_coaching", "completed")
 
     analysis_task = _make_task(
         {
@@ -875,6 +906,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         agent=analyst,
         async_execution=True,
         output_pydantic=WorkoutAnalysisOutput,
+        callback=_parallel_task_done("workout_analysis"),
     )
     restitution_task = _make_task(
         {
@@ -884,6 +916,7 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         agent=restitution_analyst,
         async_execution=True,
         output_pydantic=RestitutionAnalysisOutput,
+        callback=_parallel_task_done("restitution_analysis"),
     )
     coaching_task = _make_task(
         {
@@ -893,27 +926,12 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         agent=coach,
         context=[analysis_task, restitution_task],
         output_pydantic=CoachingOutput,
-    )
-
-    memory_tool = _MemoryDataTool(payload=extractor_memory_payload)
-    memory_extractor = _make_agent(
-        require_definition(input.agents, "memory_extractor", "agent"),
-        tools=[memory_tool],
-        default_llm=llm,
-    )
-    memory_task = _make_task(
-        {
-            "description": extraction_task_def.description.format(**shared_inputs),
-            "expected_output": extraction_task_def.expected_output.format(**shared_inputs),
-        },
-        agent=memory_extractor,
-        context=[coaching_task],
-        output_pydantic=None,  # parsed tolerantly post-kickoff so truncation can't abort the crew
+        callback=_coaching_done,
     )
 
     crew = Crew(
-        agents=[analyst, restitution_analyst, coach, memory_extractor],
-        tasks=[analysis_task, restitution_task, coaching_task, memory_task],
+        agents=[analyst, restitution_analyst, coach],
+        tasks=[analysis_task, restitution_task, coaching_task],
         verbose=True,
     )
 
@@ -928,16 +946,14 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
     workout_output: WorkoutAnalysisOutput | None = None
     restitution_output: RestitutionAnalysisOutput | None = None
     coaching_output: CoachingOutput | None = None
-    memory_extraction_output: MemoryExtractionOutput | None = None
 
-    if result.tasks_output and len(result.tasks_output) >= 4:
-        t0, t1, t2, t3 = result.tasks_output[:4]
+    if result.tasks_output and len(result.tasks_output) >= 3:
+        t0, t1, t2 = result.tasks_output[:3]
         workout_output = t0.pydantic if isinstance(t0.pydantic, WorkoutAnalysisOutput) else None
         restitution_output = (
             t1.pydantic if isinstance(t1.pydantic, RestitutionAnalysisOutput) else None
         )
         coaching_output = t2.pydantic if isinstance(t2.pydantic, CoachingOutput) else None
-        memory_extraction_output = _parse_memory_extraction(t3.raw)
         if workout_output is None:
             logger.warning("workout_analysis_task pydantic output missing, raw=%r", t0.raw[:200])
         if restitution_output is None:
@@ -954,6 +970,73 @@ def run_daily_analysis(input: DailyAnalysisInput) -> dict[str, Any]:
         "restitution_analysis": restitution_output,
         "coaching_feedback": coaching_output,
         "weekly_philosophy_assessment": weekly_assessment,
+        "prompt_log_entries": prompt_log_entries,
+        "run_usage": run_usage,
+        "coaching_task": coaching_task if coaching_output is not None else None,
+        "extractor_memory_payload": extractor_memory_payload,
+        "shared_inputs": shared_inputs,
+    }
+
+
+def run_memory_extraction(input: DailyAnalysisInput, main_result: dict[str, Any]) -> dict[str, Any]:
+    """Build and run the memory-extraction crew (synchronous — use asyncio.to_thread).
+
+    Runs after `run_daily_analysis_main` as a separate, later phase so it never delays
+    the user-visible coaching result. `main_result` is the dict returned by
+    `run_daily_analysis_main`; if its coaching task didn't produce usable output, memory
+    extraction is skipped (there's nothing reliable to extract from).
+    """
+    coaching_task: Task | None = main_result.get("coaching_task")
+    if coaching_task is None:
+        logger.warning("Skipping memory extraction: no coaching_task output from main analysis")
+        return {"memory_extraction": None, "prompt_log_entries": [], "run_usage": None}
+
+    if settings.anthropic_api_key:
+        os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
+    if settings.openai_api_key:
+        os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
+
+    llm = settings.llm_model
+    extraction_task_def = require_definition(input.tasks, "memory_extraction_task", "task")
+    shared_inputs = main_result["shared_inputs"]
+
+    memory_tool = _MemoryDataTool(payload=main_result["extractor_memory_payload"])
+    memory_extractor = _make_agent(
+        require_definition(input.agents, "memory_extractor", "agent"),
+        tools=[memory_tool],
+        default_llm=llm,
+    )
+    memory_task = _make_task(
+        {
+            "description": extraction_task_def.description.format(**shared_inputs),
+            "expected_output": extraction_task_def.expected_output.format(**shared_inputs),
+        },
+        agent=memory_extractor,
+        context=[coaching_task],
+        output_pydantic=None,  # parsed tolerantly post-kickoff so truncation can't abort the crew
+    )
+
+    crew = Crew(agents=[memory_extractor], tasks=[memory_task], verbose=True)
+
+    logger.info(
+        "Starting memory extraction crew for %s on %s", input.athlete.athlete_id, input.date
+    )
+    with capture_prompt_log(
+        input.athlete.athlete_id, "daily_analysis_memory", crew
+    ) as prompt_log_run_id:
+        result = crew.kickoff()
+    prompt_log_entries = drain_prompt_log(prompt_log_run_id)
+    run_usage = collect_run_usage(
+        crew, input.athlete.athlete_id, "daily_analysis_memory", prompt_log_run_id
+    )
+
+    memory_extraction_output: MemoryExtractionOutput | None = None
+    if result.tasks_output:
+        memory_extraction_output = _parse_memory_extraction(result.tasks_output[0].raw)
+    else:
+        logger.warning("Memory extraction crew produced no tasks_output")
+
+    return {
         "memory_extraction": memory_extraction_output,
         "prompt_log_entries": prompt_log_entries,
         "run_usage": run_usage,

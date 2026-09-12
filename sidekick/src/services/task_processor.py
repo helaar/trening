@@ -94,6 +94,13 @@ class TaskProcessor:
         task.add_done_callback(lambda _: TaskProcessor._running_tasks.pop(task_id, None))
         logger.info("Task %s started in background", task_id)
 
+    @classmethod
+    def track_background_task(cls, key: str, task: asyncio.Task) -> None:
+        """Track a fire-and-forget follow-up task (e.g. post-completion work) under `key`
+        alongside the main per-task processing tasks, so `shutdown()` still waits for it."""
+        cls._running_tasks[key] = task
+        task.add_done_callback(lambda _: cls._running_tasks.pop(key, None))
+
     @staticmethod
     async def shutdown() -> None:
         """Cancel and await all in-flight background tasks during app shutdown."""

@@ -2,10 +2,19 @@ import { apiFetch } from "./client"
 
 export type TaskStatus = "pending" | "running" | "completed" | "failed"
 
+export type TaskStepStatus = "pending" | "in_progress" | "completed" | "failed"
+
+export interface TaskStep {
+  key: string
+  label: string
+  status: TaskStepStatus
+}
+
 export interface TaskResponse {
   task_id: string
   status: TaskStatus
   progress: number
+  steps?: TaskStep[] | null
   result?: Record<string, unknown>
   error?: string
   created_at: string

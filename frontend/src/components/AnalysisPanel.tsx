@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react"
-import { Brain, ChevronDown, ChevronUp, AlertCircle } from "lucide-react"
+import { Brain, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Circle, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import type {
   TaskStatus,
+  TaskStep,
   CoachingFeedback,
   WorkoutAnalysis,
   WorkoutOutput,
@@ -13,6 +14,7 @@ import type {
 interface Props {
   status: TaskStatus
   progress: number
+  steps?: TaskStep[] | null
   result?: Record<string, unknown>
   error?: string
   analyzedAt?: string
@@ -27,6 +29,30 @@ function ProgressBar({ progress }: { progress: number }) {
         style={{ width: `${pct}%` }}
       />
     </div>
+  )
+}
+
+function StepList({ steps }: { steps: TaskStep[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {steps.map((step) => (
+        <li key={step.key} className="flex items-center gap-2 text-sm">
+          {step.status === "completed" && <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />}
+          {step.status === "in_progress" && (
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-500" />
+          )}
+          {step.status === "pending" && <Circle className="h-4 w-4 shrink-0 text-gray-300" />}
+          {step.status === "failed" && <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />}
+          <span
+            className={
+              step.status === "pending" ? "text-gray-400" : "text-gray-700"
+            }
+          >
+            {step.label}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -155,7 +181,7 @@ function RecoveryContent({ r }: { r: RestitutionAnalysis }) {
   )
 }
 
-export function AnalysisPanel({ status, progress, result, error, analyzedAt }: Props) {
+export function AnalysisPanel({ status, progress, steps, result, error, analyzedAt }: Props) {
   const coachingFeedback = result?.coaching_feedback as CoachingFeedback | null | undefined
   const workoutAnalysis = result?.workout_analysis as WorkoutAnalysis | null | undefined
   const restitutionAnalysis = result?.restitution_analysis as RestitutionAnalysis | null | undefined
@@ -179,11 +205,12 @@ export function AnalysisPanel({ status, progress, result, error, analyzedAt }: P
       </CardHeader>
       <CardContent className="space-y-3">
         {(status === "pending" || status === "running") && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm text-gray-500">
               {status === "pending" ? "Starting analysis…" : "Analysing your training…"}
             </p>
             <ProgressBar progress={progress} />
+            {steps && steps.length > 0 && <StepList steps={steps} />}
           </div>
         )}
 
