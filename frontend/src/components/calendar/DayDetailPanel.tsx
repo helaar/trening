@@ -88,7 +88,6 @@ function workoutKey(workout: { activity_id: number | null }, index: number): num
 type AssessmentMap = Record<number, { rpe?: number; notes?: string; tags?: string[] }>
 
 interface MissingData {
-  commentMissing: boolean
   workoutNames: string[]
 }
 
@@ -319,7 +318,6 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   })
 
   function computeMissingData(): MissingData {
-    const commentMissing = !restitution.comment?.trim()
     const workoutNames = allWorkouts
       .map((w, i) => ({ w, key: workoutKey(w, i) }))
       .filter(({ w }) => !w.session.manual)
@@ -330,7 +328,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
       })
       .map(({ w }) => w.session.name ?? w.session.category)
 
-    return { commentMissing, workoutNames }
+    return { workoutNames }
   }
 
   async function startAnalysis() {
@@ -353,7 +351,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
       }
 
       const missing = computeMissingData()
-      if (missing.commentMissing || missing.workoutNames.length > 0) {
+      if (missing.workoutNames.length > 0) {
         setPendingMissingData(missing)
         return
       }
@@ -606,10 +604,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               This day is missing some details the analysis relies on. Analyze anyway?
             </p>
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-              {pendingMissingData.commentMissing && <li>Morning check-in has no comment</li>}
-              {pendingMissingData.workoutNames.length > 0 && (
-                <li>RPE/notes missing: {pendingMissingData.workoutNames.join(", ")}</li>
-              )}
+              <li>RPE/notes missing: {pendingMissingData.workoutNames.join(", ")}</li>
             </ul>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setPendingMissingData(null)}>
