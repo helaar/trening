@@ -78,18 +78,27 @@ daily_coaching_task:
     A JSON object with five fields: todays_recap, key_takeaway, looking_ahead (all coach-facing),
     coach_notes (internal flags only, may be empty), and athlete_message (casual, no formatting,
     max 150 words).
-memory_consolidation_task:
+memory_triage_task:
   description: |
     Perform a full memory review for {athlete_name} covering the past {window_days} days.
+    This is pass 1 of a two-pass consolidation: you decide what happens to each memory, but you
+    do NOT rewrite any memory's content here — that happens in a later pass. Your output is a
+    short, structured verdict per memory plus flags for brand-new patterns, nothing more.
 
     Use the `get_consolidation_data` tool to retrieve:
     - All active memories for the athlete
     - Daily analysis results from the review window
 
-    Your tasks:
+    You must emit exactly one decision per active memory returned by the tool. Choose one of:
+    keep, update, deactivate, promote, merge. Use `update` whenever the memory's pattern has
+    evolved and its content needs rewriting — the actual rewrite is done downstream from your
+    `reason`, so make the reason specific enough (which evidence changed, what direction) to
+    guide that rewrite without you doing it yourself. Never restate or draft the memory's content
+    in `reason` — keep it to a terse justification citing evidence dates.
+
     1. For each memory: evaluate whether the pattern still holds, has changed, or has reversed
-       - Update content if the pattern evolved; capture progress or regression in the wording
-       - Deactivate if clearly reversed or no longer observed
+       - `update` if the pattern evolved (progress or regression); `deactivate` if clearly
+         reversed or no longer observed; `keep` if still accurate as-is
        - Actively check for disconfirming evidence, not just reasons to leave the memory
          unchanged: this applies to every memory, not only ones tagged risk — including a memory
          whose claim is that some signal or source is unreliable. Look for instances (in this
@@ -98,82 +107,122 @@ memory_consolidation_task:
          flagged behaviour recurring without its predicted outcome (targets held, a new best, no
          adverse signal), or a source the memory calls untrustworthy proving accurate. A memory
          whose cited instances mix confirming and disconfirming ones is not settled evidence —
-         revise it (drop the disconfirmed instance, lower confidence accordingly) or deactivate
-         it. Do this regardless of the memory's current confidence or how long it has stood
-         unchanged — a memory sitting at 95%+ confidence that has never been re-examined against
-         disconfirming evidence is exactly the case this step exists to catch, not a signal it can
-         be skipped
+         `update` it (the rewrite will drop the disconfirmed instance, lower confidence
+         accordingly) or `deactivate` it. Do this regardless of the memory's current confidence
+         or how long it has stood unchanged — a memory sitting at 95%+ confidence that has never
+         been re-examined against disconfirming evidence is exactly the case this step exists to
+         catch, not a signal it can be skipped
        - Before re-affirming a "premature return to intensity" (or similar plan-override) risk
-         memory, re-check each cited instance against plan-adherence: a session preceded by a
-         prescribed rest day and matching the athlete's own weekly training-philosophy targets
-         (intensity type and spacing) is compliant execution, not evidence for this pattern. If a
-         cited instance turns out to be plan-compliant, remove it from the memory's supporting
-         evidence and re-derive confidence from what remains
-    2. Compact the bank: where several memories describe the same pattern, keep the strongest,
-       update its content/evidence_dates to cover the others, and deactivate the redundant ones.
-       Two memories that make the same underlying claim but are dated a few days apart, or differ
-       only by an updated number (e.g. two separate "overreach risk at threshold" risk memories a
-       day apart, or a sleep pattern restated with a new average), are duplicates to merge, not
-       independent observations — even if the wording differs.
-    3. Maintain importance on each memory you update: raise it for patterns repeatedly confirmed
-       as central to coaching, lower it for fading ones. Importance is independent of confidence.
-    4. Review recent-scope memories for promotion:
-       - Promote to long_term only if confirmed across multiple weeks with high confidence
+         memory as `keep`, re-check each cited instance against plan-adherence: a session
+         preceded by a prescribed rest day and matching the athlete's own weekly
+         training-philosophy targets (intensity type and spacing) is compliant execution, not
+         evidence for this pattern. If a cited instance turns out to be plan-compliant, this is an
+         `update` (the rewrite will remove it from supporting evidence and re-derive confidence)
+    2. Compact the bank: where several memories describe the same pattern, mark the strongest
+       `update` (so the rewrite pass can fold the others' evidence into it) and mark the redundant
+       ones `merge` with `merge_into` set to the survivor's memory_id. Two memories that make the
+       same underlying claim but are dated a few days apart, or differ only by an updated number
+       (e.g. two separate "overreach risk at threshold" risk memories a day apart, or a sleep
+       pattern restated with a new average), are duplicates to merge, not independent
+       observations — even if the wording differs.
+    3. Review recent-scope memories for promotion:
+       - `promote` only if confirmed across multiple weeks with high confidence
        - When counting confirming evidence for a risk pattern, exclude instances where the
          flagged behaviour recurred but the predicted outcome did not occur (good execution, no
          adverse signal) — those are disconfirming, not confirming, and must reduce rather than
          support a promotion
-    5. Identify any new long-term patterns across the window not yet captured in memory. Before
-       adding one, check it does not already restate an existing memory with a different date or
-       figure — if it does, that is an update for step 1 or 2, not a new pattern. Also check each
-       new draft against every other draft you are about to include in new_long_term this same
-       run — two drafts making the same underlying claim are duplicates to merge into one, even
-       if you generated them separately while reasoning through the window.
-
-    Be conservative with promotions. A pattern needs consistent evidence over several weeks
-    before earning long_term scope.
-
-    6. Audit memory content for fabricated numeric claims: if a memory states a computed
+       - Be conservative: a pattern needs consistent evidence over several weeks before earning
+         long_term scope
+    4. Flag any new long-term patterns across the window not yet captured in memory, as entries
+       in `new_patterns` (summary only, not full content — the draft is written downstream).
+       Before flagging one, check it does not already restate an existing memory with a different
+       date or figure — if it does, that memory should be `update`, not a new pattern flag. Also
+       check each new pattern you are about to flag against every other one you flag this same
+       run — two that make the same underlying claim are duplicates to merge into one flag, even
+       if you noticed them separately while reasoning through the window.
+    5. Audit memory content for fabricated numeric claims: if a memory states a computed
        aggregate (e.g. a multi-day cumulative TSS total, a rolling average) that cannot be
-       verified against the daily analysis data in the window, remove or correct that specific
-       claim. Replace multi-day TSS totals with the underlying per-day values where possible.
-       Deactivate a memory entirely if its core claim is a fabricated or unverifiable figure
-       with no correctable restatement — do not preserve memories built on bad arithmetic.
-
-    7. Audit "N consecutive/total days" claims: recompute any such duration only from the daily
-       analysis data actually reviewed in this window — do not extend a duration by subtracting
-       an onset date from today's date unless there is continuous evidence across that whole span.
-       If a memory describes an episode with its own stated end date, treat that episode as
-       resolved; do not stretch it forward using unrelated new data (see the staleness principle
-       in your role description) — deactivate it via step 1/2 instead of re-affirming it.
-
-    8. Anchor any "decline"/"fading"/"erosion" wording to the athlete's own baseline or recovery
-       target, not to a recent best/exceptional value. A metric that has dropped from a temporary
-       peak but still sits at or above the athlete's established baseline/target is not a
-       regression — do not create or update a memory framing that as a problem requiring
-       monitoring or intervention.
-
-    9. Audit for fabricated recovery gates or protocols: no coach-defined numeric thresholds
-       (e.g. "HRV ≥38 ms", "RHR ≤50 bpm"), sustained-duration windows (e.g. "48 hrs", "2
-       consecutive days"), deadlines, or named protocols (e.g. a "medical check-in protocol"
-       being "active" or "overdue") exist in this system. This also covers qualitative gate
-       language that names no number — phrasing like "return to higher intensity requires
+       verified against the daily analysis data in the window, mark it `update` (the rewrite will
+       remove or correct that specific claim, preferring per-day values over multi-day totals).
+       Mark it `deactivate` instead if its core claim is a fabricated or unverifiable figure with
+       no correctable restatement — do not preserve memories built on bad arithmetic via `keep`.
+    6. Audit "N consecutive/total days" claims: check whether such a duration holds up when
+       recomputed only from the daily analysis data actually reviewed in this window — do not
+       accept a duration that extends an onset date to today's date without continuous evidence
+       across that whole span. If a memory describes an episode with its own stated end date,
+       treat that episode as resolved; do not let unrelated new data stretch it forward (see the
+       staleness principle in your role description) — `deactivate` it rather than `keep`. If the
+       duration is wrong but the underlying pattern still holds, mark it `update` instead.
+    7. Do not `keep` a memory whose "decline"/"fading"/"erosion" wording is anchored to a recent
+       best/exceptional value rather than the athlete's own baseline or recovery target — a
+       metric that has dropped from a temporary peak but still sits at or above the athlete's
+       established baseline/target is not a regression. Mark such a memory `update` so the
+       framing can be corrected.
+    8. Do not `keep` a memory containing fabricated recovery gates or protocols: no coach-defined
+       numeric thresholds (e.g. "HRV ≥38 ms", "RHR ≤50 bpm"), sustained-duration windows (e.g.
+       "48 hrs", "2 consecutive days"), deadlines, or named protocols (e.g. a "medical check-in
+       protocol" being "active" or "overdue") exist in this system. This also covers qualitative
+       gate language that names no number — phrasing like "return to higher intensity requires
        multiple markers to trend toward baseline" or "recovery confirmation from multiple
-       physiological markers required before intensity resumes" is a fabricated precondition
-       even without a numeric threshold attached: it asserts a specific resumption rule this
-       system does not define. A memory may state factually that markers were suppressed and
-       that intensity resumed anyway — it must not assert what should have been required first.
-       If a memory being updated, compacted, or promoted contains either form of this framing —
-       including if it was already present in an existing memory's content — rewrite it as a
-       plain factual statement with no implied resumption rule before saving. Do not let one
-       report's fabricated framing become permanently canonized through compaction or promotion.
+       physiological markers required before intensity resumes" is a fabricated precondition even
+       without a numeric threshold attached: it asserts a specific resumption rule this system
+       does not define. A memory may state factually that markers were suppressed and that
+       intensity resumed anyway — it must not assert what should have been required first. If a
+       memory being updated, compacted, or promoted contains either form of this framing —
+       including if it was already present in the memory's existing content — mark it `update` (or
+       carry the note into the `merge` survivor's `update`) so it can be rewritten as a plain
+       factual statement with no implied resumption rule. Do not let one report's fabricated
+       framing become permanently canonized through `keep`, compaction, or promotion.
   expected_output: |
-    A JSON object with four fields:
-    - updates: list of memory updates (may be empty)
-    - promotions: list of memory_ids to promote to long_term scope (may be empty)
-    - deactivations: list of memory_ids to deactivate (may be empty)
-    - new_long_term: list of new long-term memory drafts (may be empty)
-    All four fields must be present even if empty.
+    A JSON object with two fields:
+    - decisions: one entry per active memory returned by the tool, each with memory_id, action
+      (keep/update/deactivate/promote/merge), merge_into (only for action=merge), and a terse
+      reason. Every active memory must appear exactly once.
+    - new_patterns: list of new long-term pattern flags (category, scope, summary,
+      evidence_dates), may be empty.
+    Never include rewritten memory content, confidence, or importance values in this output.
+memory_consolidation_detail_task:
+  description: |
+    This is pass 2 of a two-pass consolidation for {athlete_name} (window: past {window_days}
+    days). Pass 1 already decided which memories need their content rewritten and which new
+    patterns are worth drafting. Your only job is to write the content: do not introduce new
+    actions, promotions, or deactivations beyond what pass 1 already handed you.
+
+    Use the `get_consolidation_detail_data` tool to retrieve:
+    - memories_to_update: the memories pass 1 flagged, each with its current content, evidence,
+      pass 1's reason, and any other memories merged into it
+    - new_patterns: new long-term patterns pass 1 flagged, as short summaries to expand
+    - recent_analyses: the daily analysis data for this window, to ground your audits below
+
+    For each memory in memories_to_update:
+    - Rewrite its 1-3 sentence content to reflect the current pattern (progress, regression, or
+      correction), using pass 1's reason as your starting point for what changed
+    - If other memories were merged into this one, fold their supporting evidence_dates in and
+      let the content cover what they described
+    - Maintain importance: raise it for patterns repeatedly confirmed as central to coaching,
+      lower it for fading ones. Importance is independent of confidence
+    - Audit for fabricated numeric claims: if the content states a computed aggregate (e.g. a
+      multi-day cumulative TSS total, a rolling average) that cannot be verified against the
+      supplied daily analysis data, remove or correct that specific claim, preferring per-day
+      values over multi-day totals
+    - Audit "N consecutive/total days" claims: recompute any such duration only from the daily
+      analysis data actually supplied — do not extend a duration by subtracting an onset date
+      from today's date unless there is continuous evidence across that whole span
+    - Anchor any "decline"/"fading"/"erosion" wording to the athlete's own baseline or recovery
+      target, not to a recent best/exceptional value
+    - Rewrite any fabricated recovery gate or protocol language (coach-defined numeric
+      thresholds, sustained-duration windows, deadlines, named protocols, or qualitative gate
+      phrasing asserting a specific resumption rule this system does not define) as a plain
+      factual statement with no implied resumption rule
+
+    For each flagged new pattern: draft a full 1-3 sentence memory (category, scope, content,
+    confidence, importance, evidence_dates) applying the same numeric-fabrication and
+    recovery-gate audits above — a new draft is not exempt from either check.
+  expected_output: |
+    A JSON object with two fields:
+    - updates: list of rewritten memory updates for the flagged subset (may be empty)
+    - new_long_term: list of new long-term memory drafts for the flagged patterns (may be empty)
+    Both fields must be present even if empty.
 memory_extraction_task:
   description: |
     Review the coaching output for {athlete_name} on {date} and update the memory bank.
