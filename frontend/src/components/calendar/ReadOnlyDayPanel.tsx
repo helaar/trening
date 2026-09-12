@@ -142,7 +142,6 @@ export function ReadOnlyDayPanel({ athleteId, selectedDate }: ReadOnlyDayPanelPr
         {analysis && (
           <AnalysisPanel
             status="completed"
-            progress={1}
             result={{
               workout_analysis: analysis.workout_analysis,
               restitution_analysis: analysis.restitution_analysis,

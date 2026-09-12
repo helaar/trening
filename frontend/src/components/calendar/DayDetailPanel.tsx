@@ -88,8 +88,19 @@ function workoutKey(workout: { activity_id: number | null }, index: number): num
 type AssessmentMap = Record<number, { rpe?: number; notes?: string; tags?: string[] }>
 
 interface MissingData {
+  restitutionFields: string[]
   workoutNames: string[]
 }
+
+// The morning check-in's actual data fields — comment is free-text and stays optional,
+// so it's deliberately excluded from this list.
+const RESTITUTION_FIELD_LABELS: [keyof Restitution, string][] = [
+  ["sleep_hours", "Sleep"],
+  ["sleep_quality", "Sleep quality"],
+  ["hrv", "HRV"],
+  ["resting_hr", "Resting HR"],
+  ["readiness", "Readiness"],
+]
 
 // Mirrors ActivityCard's own commute rule: a workout is a commute either because Strava/route
 // detection flagged it, or because the athlete manually tagged it "commute" — either way it
@@ -318,6 +329,10 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   })
 
   function computeMissingData(): MissingData {
+    const restitutionFields = RESTITUTION_FIELD_LABELS.filter(
+      ([field]) => restitution[field] === undefined
+    ).map(([, label]) => label)
+
     const workoutNames = allWorkouts
       .map((w, i) => ({ w, key: workoutKey(w, i) }))
       .filter(({ w }) => !w.session.manual)
@@ -328,7 +343,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
       })
       .map(({ w }) => w.session.name ?? w.session.category)
 
-    return { workoutNames }
+    return { restitutionFields, workoutNames }
   }
 
   async function startAnalysis() {
@@ -351,7 +366,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
       }
 
       const missing = computeMissingData()
-      if (missing.workoutNames.length > 0) {
+      if (missing.restitutionFields.length > 0 || missing.workoutNames.length > 0) {
         setPendingMissingData(missing)
         return
       }
@@ -544,7 +559,6 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         {analysisRunning && analysisTask && (
           <AnalysisPanel
             status={analysisTask.status}
-            progress={analysisTask.progress}
             steps={analysisTask.steps}
             result={analysisTask.result}
             error={analysisTask.error}
@@ -553,7 +567,6 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         {!analysisRunning && storedAnalysis && (
           <AnalysisPanel
             status="completed"
-            progress={1}
             result={{
               workout_analysis: storedAnalysis.workout_analysis,
               restitution_analysis: storedAnalysis.restitution_analysis,
@@ -604,7 +617,12 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               This day is missing some details the analysis relies on. Analyze anyway?
             </p>
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-              <li>RPE/notes missing: {pendingMissingData.workoutNames.join(", ")}</li>
+              {pendingMissingData.restitutionFields.length > 0 && (
+                <li>Morning check-in missing: {pendingMissingData.restitutionFields.join(", ")}</li>
+              )}
+              {pendingMissingData.workoutNames.length > 0 && (
+                <li>RPE/notes missing: {pendingMissingData.workoutNames.join(", ")}</li>
+              )}
             </ul>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setPendingMissingData(null)}>

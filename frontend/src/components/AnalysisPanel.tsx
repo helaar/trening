@@ -13,23 +13,10 @@ import type {
 
 interface Props {
   status: TaskStatus
-  progress: number
   steps?: TaskStep[] | null
   result?: Record<string, unknown>
   error?: string
   analyzedAt?: string
-}
-
-function ProgressBar({ progress }: { progress: number }) {
-  const pct = Math.round(progress * 100)
-  return (
-    <div className="w-full bg-gray-200 rounded-full h-2">
-      <div
-        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  )
 }
 
 function StepList({ steps }: { steps: TaskStep[] }) {
@@ -181,7 +168,7 @@ function RecoveryContent({ r }: { r: RestitutionAnalysis }) {
   )
 }
 
-export function AnalysisPanel({ status, progress, steps, result, error, analyzedAt }: Props) {
+export function AnalysisPanel({ status, steps, result, error, analyzedAt }: Props) {
   const coachingFeedback = result?.coaching_feedback as CoachingFeedback | null | undefined
   const workoutAnalysis = result?.workout_analysis as WorkoutAnalysis | null | undefined
   const restitutionAnalysis = result?.restitution_analysis as RestitutionAnalysis | null | undefined
@@ -209,7 +196,6 @@ export function AnalysisPanel({ status, progress, steps, result, error, analyzed
             <p className="text-sm text-gray-500">
               {status === "pending" ? "Starting analysis…" : "Analysing your training…"}
             </p>
-            <ProgressBar progress={progress} />
             {steps && steps.length > 0 && <StepList steps={steps} />}
           </div>
         )}
