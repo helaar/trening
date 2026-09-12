@@ -4,7 +4,7 @@ from typing import Any
 
 from pymongo.asynchronous.database import AsyncDatabase
 
-from models.task import Task, TaskStatus, TaskType
+from models.task import Task, TaskStatus, TaskStep, TaskStepStatus, TaskType
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,25 @@ class TaskRepository:
             {"$set": {"progress": progress}}
         )
         return result.modified_count > 0
-    
+
+    async def init_task_steps(self, task_id: str, steps: list[TaskStep]) -> bool:
+        """Set the initial list of named sub-steps for a task."""
+        result = await self.collection.update_one(
+            {"task_id": task_id},
+            {"$set": {"steps": [s.model_dump() for s in steps]}}
+        )
+        return result.modified_count > 0
+
+    async def update_task_step_status(
+        self, task_id: str, step_key: str, status: TaskStepStatus
+    ) -> bool:
+        """Update the status of a single named sub-step within a task."""
+        result = await self.collection.update_one(
+            {"task_id": task_id, "steps.key": step_key},
+            {"$set": {"steps.$.status": status.value}}
+        )
+        return result.modified_count > 0
+
     async def update_task_result(self, task_id: str, result: dict[str, Any]) -> bool:
         """Update task result."""
         update_result = await self.collection.update_one(

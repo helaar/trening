@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Loader2,
@@ -24,7 +24,7 @@ import {
   type WorkoutAnalysis,
 } from "../../api/workouts"
 import { fetchDailyEntry, saveDailyEntry } from "../../api/dailyEntry"
-import type { Restitution, ActivityAssessment } from "../../api/dailyEntry"
+import type { Restitution, ActivityAssessment, DailyEntryRequest } from "../../api/dailyEntry"
 import { fetchPlansForDate, fetchPlansForRange } from "../../api/plans"
 import { fetchWeekCategories } from "../../api/weekCategory"
 import {
@@ -87,6 +87,32 @@ function workoutKey(workout: { activity_id: number | null }, index: number): num
 
 type AssessmentMap = Record<number, { rpe?: number; notes?: string; tags?: string[] }>
 
+interface MissingData {
+  restitutionFields: string[]
+  workoutNames: string[]
+}
+
+// The morning check-in's actual data fields — comment is free-text and stays optional,
+// so it's deliberately excluded from this list.
+const RESTITUTION_FIELD_LABELS: [keyof Restitution, string][] = [
+  ["sleep_hours", "Sleep"],
+  ["sleep_quality", "Sleep quality"],
+  ["hrv", "HRV"],
+  ["resting_hr", "Resting HR"],
+  ["readiness", "Readiness"],
+]
+
+// Mirrors ActivityCard's own commute rule: a workout is a commute either because Strava/route
+// detection flagged it, or because the athlete manually tagged it "commute" — either way it
+// never shows RPE/notes fields, so it's never counted as missing data.
+function isCommuteWorkout(
+  w: WorkoutAnalysis,
+  assessment: { tags?: string[] } | undefined
+): boolean {
+  if (w.session.commute !== "no") return true
+  return !!assessment?.tags?.includes("commute")
+}
+
 interface DayDetailPanelProps {
   athleteId: number
   selectedDate: string
@@ -106,12 +132,20 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   const [analysisTaskId, setAnalysisTaskId] = useState<string | null>(null)
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [noteText, setNoteText] = useState("Day off")
+  const [isPreparingAnalysis, setIsPreparingAnalysis] = useState(false)
+  const [pendingMissingData, setPendingMissingData] = useState<MissingData | null>(null)
+
+  // Tracks the payload as of the last successful save, so we can tell whether there are
+  // unsaved edits when "Run AI analysis" is clicked. `null` means "not established yet".
+  const lastSavedPayloadRef = useRef<string | null>(null)
 
   useEffect(() => {
     setRestitution({})
     setAssessments({})
     setSaved(false)
     setAnalysisTaskId(null)
+    setPendingMissingData(null)
+    lastSavedPayloadRef.current = null
 
     // Reconnect to an analysis task started for this date before navigating away
     let cancelled = false
@@ -206,11 +240,6 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
     },
   })
 
-  async function triggerAnalysis() {
-    const task = await createDailyAnalysisTask(athleteId, selectedDate)
-    setAnalysisTaskId(task.task_id)
-  }
-
   const analysisRunning =
     !!analysisTaskId &&
     analysisTask?.status !== "completed" &&
@@ -232,6 +261,11 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         map[a.activity_id] = { rpe: a.rpe, notes: a.notes, tags: a.tags }
       }
       setAssessments(map)
+      lastSavedPayloadRef.current = JSON.stringify({
+        date: selectedDate,
+        restitution: existingEntry.restitution,
+        activity_assessments: existingEntry.activity_assessments,
+      })
     }
   }, [existingEntry])
 
@@ -256,40 +290,92 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
 
   const allWorkouts = workouts ?? []
 
-  const saveMutation = useMutation({
-    mutationFn: () => {
-      const activityAssessments: ActivityAssessment[] = allWorkouts
-        .filter((w) => w.session.commute === "no")
-        .flatMap((w, i) => {
-          const key = workoutKey(w, i)
-          const assessment = assessments[key]
-          if (!w.activity_id || !assessment) return []
-          const hasContent =
-            assessment.rpe !== undefined || !!assessment.notes || !!assessment.tags?.length
-          if (!hasContent) return []
-          const entry: ActivityAssessment = {
-            activity_id: w.activity_id,
-            activity_name: w.session.name ?? w.session.category,
-          }
-          if (assessment.rpe !== undefined) entry.rpe = assessment.rpe
-          if (assessment.notes !== undefined) entry.notes = assessment.notes
-          if (assessment.tags?.length) entry.tags = assessment.tags
-          return [entry]
-        })
-
-      return saveDailyEntry(athleteId, {
-        date: selectedDate,
-        restitution: hasAnyRestitution(restitution) ? restitution : undefined,
-        activity_assessments: activityAssessments,
+  function buildEntryPayload(): DailyEntryRequest {
+    const activityAssessments: ActivityAssessment[] = allWorkouts
+      .filter((w) => w.session.commute === "no")
+      .flatMap((w, i) => {
+        const key = workoutKey(w, i)
+        const assessment = assessments[key]
+        if (!w.activity_id || !assessment) return []
+        const hasContent =
+          assessment.rpe !== undefined || !!assessment.notes || !!assessment.tags?.length
+        if (!hasContent) return []
+        const entry: ActivityAssessment = {
+          activity_id: w.activity_id,
+          activity_name: w.session.name ?? w.session.category,
+        }
+        if (assessment.rpe !== undefined) entry.rpe = assessment.rpe
+        if (assessment.notes !== undefined) entry.notes = assessment.notes
+        if (assessment.tags?.length) entry.tags = assessment.tags
+        return [entry]
       })
-    },
-    onSuccess: () => {
+
+    return {
+      date: selectedDate,
+      restitution: hasAnyRestitution(restitution) ? restitution : undefined,
+      activity_assessments: activityAssessments,
+    }
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: DailyEntryRequest) => saveDailyEntry(athleteId, payload),
+    onSuccess: (_data, variables) => {
+      lastSavedPayloadRef.current = JSON.stringify(variables)
       queryClient.invalidateQueries({ queryKey: ["daily-entry"] })
       queryClient.invalidateQueries({ queryKey: ["daily-analysis", athleteId, selectedDate] })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     },
   })
+
+  function computeMissingData(): MissingData {
+    const restitutionFields = RESTITUTION_FIELD_LABELS.filter(
+      ([field]) => restitution[field] === undefined
+    ).map(([, label]) => label)
+
+    const workoutNames = allWorkouts
+      .map((w, i) => ({ w, key: workoutKey(w, i) }))
+      .filter(({ w }) => !w.session.manual)
+      .filter(({ w, key }) => !isCommuteWorkout(w, assessments[key]))
+      .filter(({ key }) => {
+        const a = assessments[key]
+        return a?.rpe === undefined || !a?.notes?.trim()
+      })
+      .map(({ w }) => w.session.name ?? w.session.category)
+
+    return { restitutionFields, workoutNames }
+  }
+
+  async function startAnalysis() {
+    const task = await createDailyAnalysisTask(athleteId, selectedDate)
+    setAnalysisTaskId(task.task_id)
+  }
+
+  async function triggerAnalysis() {
+    setIsPreparingAnalysis(true)
+    try {
+      const payload = buildEntryPayload()
+      const payloadJson = JSON.stringify(payload)
+      if (lastSavedPayloadRef.current === null || payloadJson !== lastSavedPayloadRef.current) {
+        try {
+          await saveMutation.mutateAsync(payload)
+        } catch {
+          // saveMutation.isError banner already surfaces this — don't analyze stale data.
+          return
+        }
+      }
+
+      const missing = computeMissingData()
+      if (missing.restitutionFields.length > 0 || missing.workoutNames.length > 0) {
+        setPendingMissingData(missing)
+        return
+      }
+
+      await startAnalysis()
+    } finally {
+      setIsPreparingAnalysis(false)
+    }
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (activityId: number) => deleteWorkout(athleteId, activityId),
@@ -361,11 +447,15 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               variant="ghost"
               size="icon"
               onClick={triggerAnalysis}
-              disabled={analysisRunning}
+              disabled={analysisRunning || isPreparingAnalysis}
               aria-label="Run AI analysis"
               title="Run AI coaching analysis"
             >
-              <Brain className="h-4 w-4" />
+              {isPreparingAnalysis ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Brain className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -469,7 +559,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         {analysisRunning && analysisTask && (
           <AnalysisPanel
             status={analysisTask.status}
-            progress={analysisTask.progress}
+            steps={analysisTask.steps}
             result={analysisTask.result}
             error={analysisTask.error}
           />
@@ -477,7 +567,6 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         {!analysisRunning && storedAnalysis && (
           <AnalysisPanel
             status="completed"
-            progress={1}
             result={{
               workout_analysis: storedAnalysis.workout_analysis,
               restitution_analysis: storedAnalysis.restitution_analysis,
@@ -514,6 +603,38 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               >
                 {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingMissingData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-lg space-y-4">
+            <h3 className="font-semibold">Missing details</h3>
+            <p className="text-sm text-muted-foreground">
+              This day is missing some details the analysis relies on. Analyze anyway?
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              {pendingMissingData.restitutionFields.length > 0 && (
+                <li>Morning check-in missing: {pendingMissingData.restitutionFields.join(", ")}</li>
+              )}
+              {pendingMissingData.workoutNames.length > 0 && (
+                <li>RPE/notes missing: {pendingMissingData.workoutNames.join(", ")}</li>
+              )}
+            </ul>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setPendingMissingData(null)}>
+                Go back
+              </Button>
+              <Button
+                onClick={() => {
+                  setPendingMissingData(null)
+                  startAnalysis()
+                }}
+              >
+                Analyze anyway
               </Button>
             </div>
           </div>
@@ -576,7 +697,10 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
             <span className="text-sm text-destructive">Save failed. Try again.</span>
           )}
           <div className="ml-auto">
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Button
+              onClick={() => saveMutation.mutate(buildEntryPayload())}
+              disabled={saveMutation.isPending}
+            >
               {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Entry
             </Button>

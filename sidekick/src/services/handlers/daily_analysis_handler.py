@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from crew.daily_analysis import DailyAnalysisInput, run_daily_analysis
+from crew.daily_analysis import DailyAnalysisInput, run_daily_analysis_main, run_memory_extraction
 from database.athlete_repository import AthleteRepository
 from database.crew_definition_repository import CrewDefinitionRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
@@ -17,6 +17,7 @@ from database.week_category_repository import WeekCategoryRepository
 from database.workout_repository import WorkoutRepository
 from models.daily_analysis import DailyAnalysisResult
 from models.memory import Memory, MemoryScope, clamp_memory_content
+from models.task import TaskStep, TaskStepStatus
 from services import intervals_calendar, intervals_wellness
 from services.handlers.base import TaskHandler
 from services.plan_matching import attach_matches
@@ -152,17 +153,55 @@ class DailyAnalysisHandler(TaskHandler):
             philosophy=philosophy,
         )
 
-        crew_result = await asyncio.to_thread(run_daily_analysis, analysis_input)
+        await self.task_repo.init_task_steps(
+            task_id,
+            [
+                TaskStep(
+                    key="workout_analysis",
+                    label="Performance analysis",
+                    status=TaskStepStatus.IN_PROGRESS,
+                ),
+                TaskStep(
+                    key="restitution_analysis",
+                    label="Recovery analysis",
+                    status=TaskStepStatus.IN_PROGRESS,
+                ),
+                TaskStep(key="daily_coaching", label="Coaching", status=TaskStepStatus.PENDING),
+            ],
+        )
+
+        loop = asyncio.get_running_loop()
+
+        def on_step(step_key: str, status_str: str) -> None:
+            # Called synchronously from the crew's worker thread (asyncio.to_thread), so the
+            # DB write is scheduled onto the main loop rather than awaited directly here.
+            future = asyncio.run_coroutine_threadsafe(
+                self.task_repo.update_task_step_status(task_id, step_key, TaskStepStatus(status_str)),
+                loop,
+            )
+            future.add_done_callback(
+                lambda f: f.exception()
+                and logger.warning(
+                    "Failed to update step %s for task %s: %s", step_key, task_id, f.exception()
+                )
+            )
+
+        try:
+            main_result = await asyncio.to_thread(run_daily_analysis_main, analysis_input, on_step)
+        except Exception:
+            await self._mark_incomplete_steps_failed(task_id)
+            raise
+
         await self.task_repo.update_task_progress(task_id, 0.9)
 
         if self.prompt_log_repo:
             try:
-                await self.prompt_log_repo.insert_many(crew_result.get("prompt_log_entries", []))
+                await self.prompt_log_repo.insert_many(main_result.get("prompt_log_entries", []))
             except Exception:
                 logger.exception("Failed to persist prompt log entries for task %s", task_id)
-            run_usage = crew_result.get("run_usage")
+            run_usage = main_result.get("run_usage")
             if run_usage is None:
-                logger.warning("No run_usage in crew result for task %s", task_id)
+                logger.warning("No run_usage in main analysis result for task %s", task_id)
             else:
                 try:
                     await self.prompt_log_repo.insert_usage(run_usage)
@@ -176,15 +215,19 @@ class DailyAnalysisHandler(TaskHandler):
         stored = DailyAnalysisResult(
             athlete_id=athlete_id,
             date=date_str,
-            workout_analysis=crew_result["workout_analysis"],
-            restitution_analysis=crew_result["restitution_analysis"],
-            coaching_feedback=crew_result["coaching_feedback"],
-            weekly_philosophy_assessment=crew_result.get("weekly_philosophy_assessment"),
+            workout_analysis=main_result["workout_analysis"],
+            restitution_analysis=main_result["restitution_analysis"],
+            coaching_feedback=main_result["coaching_feedback"],
+            weekly_philosophy_assessment=main_result.get("weekly_philosophy_assessment"),
         )
         await self.daily_analysis_repo.upsert(stored)
         logger.info("Stored daily analysis result for athlete %s on %s", athlete_id, date_str)
 
-        await self._apply_memory_extraction(athlete_id, date_str, crew_result.get("memory_extraction"), active_memories)
+        # Memory extraction runs after the user-visible result is ready, so it never delays
+        # showing the coaching feedback — it's tracked for graceful shutdown but not awaited here.
+        self._start_memory_extraction_background(
+            task_id, athlete_id, date_str, analysis_input, main_result, active_memories
+        )
 
         return {
             "analysis_type": "daily_llm_analysis",
@@ -195,6 +238,72 @@ class DailyAnalysisHandler(TaskHandler):
             "weekly_philosophy_assessment": stored.weekly_philosophy_assessment,
             "completed_at": stored.analyzed_at.isoformat(),
         }
+
+    async def _mark_incomplete_steps_failed(self, task_id: str) -> None:
+        task = await self.task_repo.get_task(task_id)
+        if not task or not task.steps:
+            return
+        for step in task.steps:
+            if step.status in (TaskStepStatus.PENDING, TaskStepStatus.IN_PROGRESS):
+                await self.task_repo.update_task_step_status(task_id, step.key, TaskStepStatus.FAILED)
+
+    def _start_memory_extraction_background(
+        self,
+        task_id: str,
+        athlete_id: int,
+        date_str: str,
+        analysis_input: DailyAnalysisInput,
+        main_result: dict[str, Any],
+        active_memories: list[Memory],
+    ) -> None:
+        from services.task_processor import TaskProcessor
+
+        bg_task = asyncio.create_task(
+            self._run_memory_extraction_background(
+                task_id, athlete_id, date_str, analysis_input, main_result, active_memories
+            )
+        )
+        TaskProcessor.track_background_task(f"{task_id}:memory", bg_task)
+
+    async def _run_memory_extraction_background(
+        self,
+        task_id: str,
+        athlete_id: int,
+        date_str: str,
+        analysis_input: DailyAnalysisInput,
+        main_result: dict[str, Any],
+        active_memories: list[Memory],
+    ) -> None:
+        try:
+            extraction_result = await asyncio.to_thread(
+                run_memory_extraction, analysis_input, main_result
+            )
+
+            if self.prompt_log_repo:
+                try:
+                    await self.prompt_log_repo.insert_many(
+                        extraction_result.get("prompt_log_entries", [])
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to persist memory-extraction prompt log for task %s", task_id
+                    )
+                run_usage = extraction_result.get("run_usage")
+                if run_usage is not None:
+                    try:
+                        await self.prompt_log_repo.insert_usage(run_usage)
+                    except Exception:
+                        logger.exception(
+                            "Failed to persist memory-extraction LLM usage for task %s", task_id
+                        )
+
+            await self._apply_memory_extraction(
+                athlete_id, date_str, extraction_result.get("memory_extraction"), active_memories
+            )
+        except Exception:
+            # Memory extraction is non-essential and must never affect the already-completed
+            # daily analysis result (issue #54) — log and move on.
+            logger.exception("Background memory extraction failed for task %s", task_id)
 
     async def _apply_memory_extraction(
         self,

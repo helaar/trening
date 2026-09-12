@@ -20,14 +20,32 @@ class TaskType(str, Enum):
     MEMORY_CONSOLIDATION = "memory_consolidation"
 
 
+class TaskStepStatus(str, Enum):
+    """Status of a single named sub-step within a task."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class TaskStep(BaseModel):
+    """A named, independently-tracked sub-step of a task (e.g. one crew task)."""
+    key: str = Field(..., description="Stable identifier for this step")
+    label: str = Field(..., description="Human-readable label shown in the UI")
+    status: TaskStepStatus = Field(default=TaskStepStatus.PENDING)
+
+
 class Task(BaseModel):
     """Model for asynchronous task tracking."""
-    
+
     task_id: str = Field(..., description="Unique task identifier")
     athlete_id: int = Field(..., description="Athlete ID who initiated the task")
     task_type: TaskType = Field(..., description="Type of task")
     status: TaskStatus = Field(default=TaskStatus.PENDING, description="Current task status")
     progress: float = Field(default=0.0, description="Task progress (0.0 to 1.0)")
+    steps: list[TaskStep] | None = Field(
+        default=None, description="Named sub-steps for tasks that report granular progress"
+    )
     parameters: dict[str, Any] = Field(default_factory=dict, description="Task input parameters")
     result: dict[str, Any] | None = Field(default=None, description="Task result data")
     error: str | None = Field(default=None, description="Error message if failed")
@@ -59,6 +77,7 @@ class TaskResponse(BaseModel):
     task_id: str
     status: TaskStatus
     progress: float
+    steps: list[TaskStep] | None = None
     result: dict[str, Any] | None = None
     error: str | None = None
     created_at: AwareDatetime
