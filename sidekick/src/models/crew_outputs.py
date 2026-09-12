@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from models.memory import clamp_memory_content
 
 
 class RiskFlag(BaseModel):
@@ -214,10 +216,17 @@ class MemoryTriageDecision(BaseModel):
         description="When action=merge, the memory_id of the survivor absorbing this one",
     )
     reason: str = Field(
-        max_length=200,
-        description="Terse justification citing the evidence dates that drove this verdict. "
-        "Do not restate or rewrite the memory's content here.",
+        description="Terse justification (aim for one sentence) citing the evidence dates that "
+        "drove this verdict. Do not restate or rewrite the memory's content here.",
     )
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def _clamp_reason(cls, v: object) -> object:
+        # Defensive backstop, not enforced via max_length: a hard length constraint would
+        # fail JSON validation for the whole triage output over one verbose field, reintroducing
+        # the same "entire task dies" failure mode this two-pass split exists to avoid.
+        return clamp_memory_content(v, max_chars=250) if isinstance(v, str) else v
 
 
 class NewPatternFlag(BaseModel):
@@ -230,12 +239,18 @@ class NewPatternFlag(BaseModel):
         description="recent=30-day relevance, long_term=multi-month pattern"
     )
     summary: str = Field(
-        max_length=200,
-        description="Terse note of what the pattern is, for pass 2 to expand into full content",
+        description="Terse note (aim for one sentence) of what the pattern is, for pass 2 to "
+        "expand into full content",
     )
     evidence_dates: list[str] = Field(
         default_factory=list, description="YYYY-MM-DD dates supporting this pattern"
     )
+
+    @field_validator("summary", mode="before")
+    @classmethod
+    def _clamp_summary(cls, v: object) -> object:
+        # Same defensive backstop as MemoryTriageDecision.reason — see comment there.
+        return clamp_memory_content(v, max_chars=250) if isinstance(v, str) else v
 
 
 class MemoryTriageOutput(BaseModel):
