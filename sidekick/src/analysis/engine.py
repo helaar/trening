@@ -188,6 +188,8 @@ def _create_session_info(parser: StravaDataParser, duration_sec: float, data_poi
     workout_type = getattr(parser.activity, "workout_type", None)
     if workout_type in {1, 11}:
         derived_tags.append("race")
+    if _is_virtual_activity(parser.activity):
+        derived_tags.append("virtual")
 
     return SessionInfo(
         name=parser.workout.name,
@@ -486,7 +488,9 @@ def analyze_endurance_workout(parser: StravaDataParser, athlete_settings: Athlet
     
     # ERG mode analysis
     erg_analysis = _compute_erg_analysis(lap_analyses, parser, analysis_settings)
-    
+    if erg_analysis is not None and erg_analysis.is_erg_workout:
+        session.tags.append("erg")
+
     return WorkoutAnalysis(
         analysis_type="endurance",
         session=session,
