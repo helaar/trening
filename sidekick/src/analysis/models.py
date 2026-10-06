@@ -237,13 +237,6 @@ class WorkoutAnalysis(BaseModel):
     intervals_rpe: int | None = None
 
     @property
-    def is_virtual_activity(self) -> bool:
-        """Check if this is a virtual/indoor activity."""
-        device = (self.session.device_name or "").lower()
-        virtual_platforms = ['zwift', 'trainerroad', 'rouvy', 'fulgaz', 'tacx', 'wahoo systm']
-        return any(platform in device for platform in virtual_platforms)
-    
-    @property
     def workout_duration_formatted(self) -> str:
         """Get formatted duration string (HH:MM:SS)."""
         duration = int(self.session.duration_sec)
