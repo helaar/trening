@@ -155,7 +155,7 @@ export function FeedDayCard({ day }: { day: FeedDay }) {
           <Link
             to="/"
             search={{ date: day.date, view: "day", from: undefined }}
-            className="shrink-0 p-1 text-muted-foreground hover:text-foreground rounded"
+            className="shrink-0 p-1 text-muted-foreground hover:text-foreground rounded-sm"
           >
             <Pencil className="h-3.5 w-3.5" />
           </Link>

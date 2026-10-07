@@ -81,7 +81,7 @@ export function WeekCategorySelect({ value, weekStart, onChange }: WeekCategoryS
         onChange={(e) => onChange(e.target.value as WeekCategory)}
         className={cn(
           "w-full rounded-full border bg-background px-1.5 py-0.5 text-center text-[11px] font-medium leading-none",
-          "focus:outline-none focus:ring-1 focus:ring-primary",
+          "focus:outline-hidden focus:ring-1 focus:ring-primary",
           value ? WEEK_CATEGORY_STYLES[value] : "border-border text-muted-foreground"
         )}
       >

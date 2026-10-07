@@ -91,7 +91,7 @@ function DocCopyButton({ doc }: { doc: Record<string, string> }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="rounded p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+      className="rounded-sm p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
       title="Copy as JSON"
     >
       {copied
@@ -230,7 +230,7 @@ function DetailPanel({ doc, fields, value, onChange, onImport }: DetailPanelProp
           <button
             type="button"
             onClick={() => setShowImport(true)}
-            className="rounded p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="rounded-sm p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             title="Import from JSON"
           >
             <Upload className="h-4 w-4" />

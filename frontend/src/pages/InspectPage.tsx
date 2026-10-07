@@ -47,7 +47,7 @@ function RoleBadge({ role }: { role: string }) {
   return (
     <span
       className={cn(
-        "inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide",
+        "inline-block rounded-sm px-2 py-0.5 text-xs font-medium uppercase tracking-wide",
         colors[role] ?? "bg-muted text-muted-foreground"
       )}
     >
@@ -93,7 +93,7 @@ function LlmCallContent({ entry }: { entry: PromptLogEntry }) {
       {entry.response && (
         <div className="rounded-md border-2 border-emerald-200 bg-emerald-50 p-3">
           <div className="mb-1.5">
-            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-emerald-200 text-emerald-900">
+            <span className="inline-block rounded-sm px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-emerald-200 text-emerald-900">
               response
             </span>
           </div>
@@ -113,7 +113,7 @@ function ToolCallContent({ entry }: { entry: PromptLogEntry }) {
       {args && (
         <div className="rounded-md border bg-background p-3">
           <div className="mb-1.5">
-            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-amber-100 text-amber-800">
+            <span className="inline-block rounded-sm px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-amber-100 text-amber-800">
               args
             </span>
           </div>
@@ -123,7 +123,7 @@ function ToolCallContent({ entry }: { entry: PromptLogEntry }) {
       {entry.tool_output && (
         <div className="rounded-md border-2 border-amber-200 bg-amber-50 p-3">
           <div className="mb-1.5">
-            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-amber-200 text-amber-900">
+            <span className="inline-block rounded-sm px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-amber-200 text-amber-900">
               output
             </span>
           </div>
@@ -135,7 +135,7 @@ function ToolCallContent({ entry }: { entry: PromptLogEntry }) {
       {entry.tool_error && (
         <div className="rounded-md border-2 border-destructive/30 bg-destructive/5 p-3">
           <div className="mb-1.5">
-            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-destructive/20 text-destructive">
+            <span className="inline-block rounded-sm px-2 py-0.5 text-xs font-medium uppercase tracking-wide bg-destructive/20 text-destructive">
               error
             </span>
           </div>
@@ -166,10 +166,10 @@ function PromptCallDetail({ entry, step }: { entry: PromptLogEntry; step: number
             <span className="font-medium">LLM call</span>
           )}
           {entry.model && (
-            <span className="text-xs rounded bg-muted px-2 py-0.5 font-mono">{entry.model}</span>
+            <span className="text-xs rounded-sm bg-muted px-2 py-0.5 font-mono">{entry.model}</span>
           )}
           {entry.call_type && entry.call_type !== "llm_call" && (
-            <span className="text-xs rounded bg-muted px-2 py-0.5">{entry.call_type}</span>
+            <span className="text-xs rounded-sm bg-muted px-2 py-0.5">{entry.call_type}</span>
           )}
         </div>
       </AccordionTrigger>
@@ -328,7 +328,7 @@ function RunListItem({
       )}
       <div className="mt-1 flex flex-wrap gap-1">
         {run.agent_roles.filter(Boolean).map((role) => (
-          <span key={role} className="rounded bg-muted px-1.5 py-0.5 text-[11px]">
+          <span key={role} className="rounded-sm bg-muted px-1.5 py-0.5 text-[11px]">
             {role}
           </span>
         ))}
