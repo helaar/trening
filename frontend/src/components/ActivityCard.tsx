@@ -139,7 +139,7 @@ export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) commitEdit()
               }}
               onBlur={commitEdit}
-              className="w-full text-sm bg-transparent outline-none border border-input rounded-md px-2 py-1 resize-none focus:border-ring"
+              className="w-full text-sm bg-transparent outline-hidden border border-input rounded-md px-2 py-1 resize-none focus:border-ring"
             />
           ) : (
             <p
@@ -302,7 +302,7 @@ export function ActivityCard({ workout, value, onChange, onSaveNote }: Props) {
                   }
                 }}
                 placeholder={tags.length === 0 ? "race, indoor, long…" : ""}
-                className="min-w-24 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+                className="min-w-24 flex-1 bg-transparent outline-hidden placeholder:text-muted-foreground"
               />
             </div>
             <p className="text-xs text-muted-foreground">Press Enter or comma to add a tag</p>

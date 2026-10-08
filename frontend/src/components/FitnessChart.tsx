@@ -87,10 +87,10 @@ export function FitnessChart({ data }: { data: FitnessPoint[] }) {
       </svg>
       <div className="flex items-center gap-4 text-xs text-gray-600">
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-blue-600" /> CTL (fitness)
+          <span className="inline-block h-2.5 w-2.5 rounded-xs bg-blue-600" /> CTL (fitness)
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500" /> ATL (fatigue)
+          <span className="inline-block h-2.5 w-2.5 rounded-xs bg-amber-500" /> ATL (fatigue)
         </span>
       </div>
 

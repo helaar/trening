@@ -500,7 +500,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
               {loadingWorkouts && <Loader2 className="ml-2 inline h-4 w-4 animate-spin" />}
             </h2>
             <button
-              className="ml-auto p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="ml-auto p-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Add day note"
               title="Add a note for this day"
               onClick={() => setShowNoteModal(true)}
@@ -650,7 +650,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
             </p>
             <input
               type="text"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               onKeyDown={(e) => {
@@ -685,7 +685,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
         </div>
       )}
 
-      <div className="sticky bottom-0 border-t bg-background/95 p-4 backdrop-blur">
+      <div className="sticky bottom-0 border-t bg-background/95 p-4 backdrop-blur-sm">
         <div className="mx-auto max-w-2xl flex items-center justify-between gap-4">
           {saved && (
             <span className="flex items-center gap-1.5 text-sm text-green-600">

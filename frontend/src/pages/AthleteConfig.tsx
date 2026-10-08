@@ -583,7 +583,7 @@ function MemoryCard({
   const Icon = action.icon
   return (
     <li
-      className={`rounded-lg border bg-card p-3 text-card-foreground shadow-sm ${muted ? "opacity-60" : ""}`}
+      className={`rounded-lg border bg-card p-3 text-card-foreground shadow-xs ${muted ? "opacity-60" : ""}`}
     >
       <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
         <span

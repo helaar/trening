@@ -96,7 +96,7 @@ function RiskFlagList({ label, flags }: { label: string; flags: RiskFlag[] }) {
       <h4 className="font-semibold text-gray-800 mb-1">{label}</h4>
       <div className="space-y-1">
         {flags.map((flag, i) => (
-          <div key={i} className={`border rounded px-2 py-1 text-xs ${severityStyle[flag.severity]}`}>
+          <div key={i} className={`border rounded-sm px-2 py-1 text-xs ${severityStyle[flag.severity]}`}>
             <span className="font-medium capitalize">{flag.severity}:</span> {flag.description}
           </div>
         ))}
@@ -149,7 +149,7 @@ function RecoveryContent({ r }: { r: RestitutionAnalysis }) {
   return (
     <>
       {r.data_quality_note && (
-        <div className="border border-amber-200 bg-amber-50 rounded px-3 py-2 text-xs text-amber-800">
+        <div className="border border-amber-200 bg-amber-50 rounded-sm px-3 py-2 text-xs text-amber-800">
           {r.data_quality_note}
         </div>
       )}

@@ -39,7 +39,7 @@ interface Segment {
 
 function IntensityBar({ segments, height = "h-4" }: { segments: Segment[]; height?: string }) {
   return (
-    <div className={`flex ${height} w-full overflow-hidden rounded bg-gray-100`}>
+    <div className={`flex ${height} w-full overflow-hidden rounded-sm bg-gray-100`}>
       {segments.map((s) => (
         <div
           key={s.key}
@@ -133,7 +133,7 @@ export function WeeklyIntensityBar({ a }: { a: WeeklyAssessment }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
         {segments.map((s) => (
           <span key={s.key} className="inline-flex items-center gap-1">
-            <span className={`inline-block h-2.5 w-2.5 rounded-sm ${s.color}`} />
+            <span className={`inline-block h-2.5 w-2.5 rounded-xs ${s.color}`} />
             {s.label} {s.pct.toFixed(0)}%
           </span>
         ))}

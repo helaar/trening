@@ -31,7 +31,7 @@ export function WeekIntensityMini({ athleteId, weekStart, weekEnd }: WeekIntensi
 
   return (
     <div
-      className="flex h-1.5 w-full overflow-hidden rounded bg-gray-100"
+      className="flex h-1.5 w-full overflow-hidden rounded-sm bg-gray-100"
       title={segments.map((s) => `${s.label} ${s.pct.toFixed(0)}%`).join(" · ")}
     >
       {segments.map((s) => (
