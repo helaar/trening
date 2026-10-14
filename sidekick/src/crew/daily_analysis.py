@@ -44,11 +44,11 @@ _RESTITUTION_WINDOW_DAYS = 14
 # philosophies get no weekly classification.
 _POLARIZED_SLUG = "polarized_80_20"
 
-# Fields from a serialized WorkoutAnalysis that workout_analysis_task/
-# WorkoutOutput actually consume. laps/power_histogram/heart_rate_drift/zones
-# are computed but never referenced by name in the prompt or output schema —
-# zones specifically is superseded by the derived intensity_distribution
-# _enrich_workout already adds below.
+# Fields from a serialized WorkoutAnalysis passed through to workout_analysis_task
+# unchanged. laps, zones and heart_rate_drift are added separately in compacted form
+# (see _compact_workout_details) because the task asks for pacing, zone adherence and
+# lap-level anomalies. power_histogram stays out: it's large, and the zones plus the
+# derived intensity_distribution already cover the same information at prompt resolution.
 _WORKOUT_PAYLOAD_KEYS = (
     "activity_id",
     "analysis_type",
@@ -60,6 +60,64 @@ _WORKOUT_PAYLOAD_KEYS = (
     "has_cadence_data",
     "intervals_sync_status",
 )
+
+# start_time_sec is derivable from the preceding laps' durations, and description is a
+# free-text duplicate of label/intensity_type, so neither earns its tokens per lap.
+_LAP_EXCLUDED_KEYS = {"start_time_sec", "description"}
+
+
+def _round_floats(obj: dict[str, Any], ndigits: int = 1) -> dict[str, Any]:
+    return {k: round(v, ndigits) if isinstance(v, float) else v for k, v in obj.items()}
+
+
+def _compact_lap(lap: dict[str, Any]) -> dict[str, Any]:
+    kept = {
+        k: v
+        for k, v in lap.items()
+        if k not in _LAP_EXCLUDED_KEYS and v is not None and not (k == "is_erg_mode" and not v)
+    }
+    return _round_floats(kept)
+
+
+def _compact_zone_distribution(dist: dict[str, Any] | None) -> list[dict[str, Any]] | None:
+    zones = (dist or {}).get("zones")
+    if not zones:
+        return None
+    return [
+        {
+            "name": z.get("name"),
+            "lower": z.get("lower"),
+            "upper": z.get("upper"),
+            "seconds": round(z.get("seconds") or 0),
+            "percent": round(z.get("percent") or 0, 1),
+        }
+        for z in zones
+    ]
+
+
+def _compact_workout_details(analysis: dict[str, Any]) -> dict[str, Any]:
+    """Lap, zone and HR-drift data in a token-lean shape for the workout analyst."""
+    details: dict[str, Any] = {}
+
+    laps = analysis.get("laps") or []
+    if laps:
+        details["laps"] = [_compact_lap(lap) for lap in laps]
+
+    zones_data = analysis.get("zones") or {}
+    zones = {
+        key: compact
+        for key in ("power_zones", "heart_rate_zones")
+        if (compact := _compact_zone_distribution(zones_data.get(key)))
+    }
+    if zones:
+        details["zones"] = zones
+
+    drift = analysis.get("heart_rate_drift")
+    if drift:
+        # hr_per_watt ratios sit well below 1, so one decimal would erase the drift signal.
+        details["heart_rate_drift"] = _round_floats(drift, ndigits=3)
+
+    return details
 
 
 @dataclass
@@ -720,6 +778,7 @@ def run_daily_analysis_main(
         all_tags = list(dict.fromkeys(session_tags + user_tags))
 
         enriched = {k: w[k] for k in _WORKOUT_PAYLOAD_KEYS if k in w}
+        enriched.update(_compact_workout_details(w))
         if all_tags:
             enriched["tags"] = all_tags
         if assessment and assessment.rpe is not None:
