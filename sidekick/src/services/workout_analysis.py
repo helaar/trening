@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
+import requests
 
 from config import settings as app_settings
 from analysis.engine import ANALYSIS_ENGINE_VERSION, analyze_workout
@@ -87,6 +88,68 @@ class WorkoutAnalysisService:
         )
         for match in matches:
             await self.intervals_activity_repo.store_activity(match)
+
+    async def _fetch_and_store_day(
+        self, athlete_id: int, activity_date: datetime
+    ) -> list[StravaActivity]:
+        """Fetch a day's activities from Strava, cache them, and drop deleted ones.
+
+        Pruning matters for Intervals.icu matching, which fuzzy-matches against
+        this cache: an activity deleted on Strava (e.g. the original uploads
+        replaced by a GOTOES-merged file) would otherwise stay a candidate
+        forever, making the real activity's match "ambiguous". A failed fetch
+        returns [] and prunes nothing, since it says nothing about deletions.
+        """
+        try:
+            activities = self.strava_client.fetch_activities_for_date(activity_date)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching Strava activities for {activity_date.date()}: {e}")
+            return []
+        logger.debug(f"Fetched {len(activities)} activities from Strava for {activity_date.date()}")
+
+        for activity in activities:
+            raw_activity = StravaActivityRaw(
+                athlete_id=athlete_id,
+                activity_id=activity.id,
+                activity_date=activity_date,
+                raw_data=activity.data
+            )
+            await self.workout_repo.store_activity(raw_activity)
+
+        await self._prune_deleted_activities(athlete_id, activity_date, activities)
+        return activities
+
+    async def _prune_day_against_strava(self, athlete_id: int, activity_date: datetime) -> None:
+        """Prune only — re-storing the day here would overwrite cached streams/laps."""
+        try:
+            activities = self.strava_client.fetch_activities_for_date(activity_date)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching Strava activities for {activity_date.date()}: {e}")
+            return
+        await self._prune_deleted_activities(athlete_id, activity_date, activities)
+
+    async def _prune_deleted_activities(
+        self, athlete_id: int, activity_date: datetime, fetched: list[StravaActivity]
+    ) -> None:
+        # Only prune activities whose own start falls inside the exact window
+        # Strava was asked about — the cache's day query keys on activity_date,
+        # whose precision varies by call site, so it can reach rows Strava's
+        # query didn't cover.
+        after, before = StravaClient.day_window(activity_date)
+        fetched_ids = {activity.id for activity in fetched}
+        cached = await self.workout_repo.get_activities_for_date(athlete_id, activity_date)
+        stale_ids = [
+            raw.activity_id
+            for raw in cached
+            if raw.activity_id not in fetched_ids
+            and after <= StravaActivity(raw.raw_data).start_date.timestamp() < before
+        ]
+        if not stale_ids:
+            return
+        deleted = await self.workout_repo.delete_activities(athlete_id, stale_ids)
+        logger.info(
+            f"Pruned {deleted} cached activities no longer on Strava for {activity_date.date()}: {stale_ids}"
+        )
 
     async def _refresh_intervals_enrichment(
         self,
@@ -180,18 +243,7 @@ class WorkoutAnalysisService:
         
         # If no cached data or refresh requested, fetch from Strava
         if not activities or refresh:
-            activities = self.strava_client.get_activities_for_date(activity_date)
-            logger.debug(f"Fetched {len(activities)} activities from Strava for {activity_date.date()}")
-            
-            # Store raw activities in database
-            for activity in activities:
-                raw_activity = StravaActivityRaw(
-                    athlete_id=athlete_id,
-                    activity_id=activity.id,
-                    activity_date=activity_date,
-                    raw_data=activity.data
-                )
-                await self.workout_repo.store_activity(raw_activity)
+            activities = await self._fetch_and_store_day(athlete_id, activity_date)
         
         # Convert to activity summaries and calculate training load
         activity_summaries = []
@@ -371,6 +423,7 @@ class WorkoutAnalysisService:
         # mirrors the Strava re-fetch trigger above. Best-effort: degrades to
         # not_configured/not_yet_synced rather than failing the whole request.
         if refresh:
+            await self._prune_day_against_strava(athlete_id, activity.start_date)
             await self._sync_intervals_activities_for_date(athlete_id, activity.start_date, settings)
 
         intervals_activity: IntervalsActivityRaw | None = await self.intervals_activity_repo.get_by_strava_activity_id(
@@ -438,23 +491,15 @@ class WorkoutAnalysisService:
         # If no cached data or refresh requested, fetch from Strava
         if not activities or refresh:
             logger.debug(f"Fetching activities from Strava for detailed analysis on {activity_date.date()}")
-            activities = self.strava_client.get_activities_for_date(activity_date)
-
-            # Store the whole day's activities up front, before analyzing any of
-            # them individually below. get_detailed_analysis() (per activity)
-            # triggers an Intervals.icu resync that fuzzy-matches against
-            # workout_repo.get_activities_for_date() — if activities were only
-            # stored one at a time inside that per-activity call, activities
-            # later in this loop wouldn't be in the candidate pool yet when an
-            # earlier activity's resync runs, silently degrading its match.
-            for activity in activities:
-                raw_activity = StravaActivityRaw(
-                    athlete_id=athlete_id,
-                    activity_id=activity.id,
-                    activity_date=activity_date,
-                    raw_data=activity.data
-                )
-                await self.workout_repo.store_activity(raw_activity)
+            # Store (and prune) the whole day's activities up front, before
+            # analyzing any of them individually below. get_detailed_analysis()
+            # (per activity) triggers an Intervals.icu resync that fuzzy-matches
+            # against workout_repo.get_activities_for_date() — if activities
+            # were only stored one at a time inside that per-activity call,
+            # activities later in this loop wouldn't be in the candidate pool
+            # yet when an earlier activity's resync runs, silently degrading
+            # its match.
+            activities = await self._fetch_and_store_day(athlete_id, activity_date)
 
         # Analyze each activity using the detailed analysis method
         # This will use cached data where available

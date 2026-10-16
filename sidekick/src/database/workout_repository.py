@@ -134,6 +134,17 @@ class WorkoutRepository:
         
         return None
     
+    async def delete_activities(self, athlete_id: int, activity_ids: list[int]) -> int:
+        """Delete several cached activities, together with their cached analyses.
+
+        Returns:
+            Number of activity documents deleted
+        """
+        query = {"athlete_id": athlete_id, "activity_id": {"$in": activity_ids}}
+        result = await self.activities_collection.delete_many(query)
+        await self.analyses_collection.delete_many(query)
+        return result.deleted_count
+
     async def activity_exists(
         self,
         athlete_id: int,
