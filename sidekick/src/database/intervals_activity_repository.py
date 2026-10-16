@@ -36,14 +36,26 @@ class IntervalsActivityRepository:
     async def get_by_strava_activity_id(
         self, athlete_id: int, strava_activity_id: int
     ) -> IntervalsActivityRaw | None:
-        """Get the Intervals.icu record cross-referenced to a given Strava activity."""
-        doc = await self.collection.find_one(
+        """Get the Intervals.icu record cross-referenced to a given Strava activity.
+
+        Several records can match one Strava activity when it was merged from
+        multiple recordings (e.g. GOTOES combining a watch's HR file with a
+        power meter's file) while Intervals.icu received each recording
+        separately. Prefer the one carrying power, since whole-workout power
+        metrics are sourced from it; otherwise the most recently fetched.
+        """
+        cursor = self.collection.find(
             {"athlete_id": athlete_id, "strava_activity_id": strava_activity_id}
+        ).sort("fetched_at", -1)
+        docs = [doc async for doc in cursor]
+        if not docs:
+            return None
+        doc = next(
+            (d for d in docs if d.get("raw_data", {}).get("icu_weighted_avg_watts") is not None),
+            docs[0],
         )
-        if doc:
-            doc.pop("_id", None)
-            return IntervalsActivityRaw(**doc)
-        return None
+        doc.pop("_id", None)
+        return IntervalsActivityRaw(**doc)
 
     async def get_by_intervals_activity_id(
         self, athlete_id: int, intervals_activity_id: str

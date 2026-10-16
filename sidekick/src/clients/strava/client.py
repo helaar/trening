@@ -110,6 +110,31 @@ class StravaClient:
         
         return cls(access_token=tokens.access_token)
     
+    @staticmethod
+    def day_window(target_date: datetime) -> tuple[int, int]:
+        """Epoch-second [after, before) bounds Strava is queried with for target_date's day."""
+        start_time = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_time = start_time + timedelta(days=1)
+        return int(start_time.timestamp()), int(end_time.timestamp())
+
+    def fetch_activities_for_date(self, target_date: datetime) -> list[StravaActivity]:
+        """Get all activities for target_date's day; raises on API failure.
+
+        Use this instead of get_activities_for_date when an empty result must
+        mean "Strava has no activities that day" rather than "the call failed",
+        e.g. before pruning locally cached activities against it.
+        """
+        after, before = self.day_window(target_date)
+        url = f"{self.BASE_URL}/athlete/activities"
+        params = {
+            'after': after,
+            'before': before,
+            'per_page': 200  # Strava max
+        }
+        response = requests.get(url, headers=self.headers, params=params)
+        response.raise_for_status()
+        return [StravaActivity(activity_data) for activity_data in response.json()]
+
     def get_activities_for_date(self, target_date: datetime) -> list[StravaActivity]:
         """
         Get all activities for a specific date.
@@ -118,26 +143,10 @@ class StravaClient:
             target_date: Date to fetch activities for (time portion ignored)
             
         Returns:
-            List of StravaActivity objects
+            List of StravaActivity objects, or an empty list if the API call failed
         """
-        # Set time range for the entire day (ignore time portion of target_date)
-        start_time = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_time = start_time + timedelta(days=1)
-        
-        url = f"{self.BASE_URL}/athlete/activities"
-        params = {
-            'after': int(start_time.timestamp()),
-            'before': int(end_time.timestamp()),
-            'per_page': 200  # Strava max
-        }
-        
         try:
-            response = requests.get(url, headers=self.headers, params=params)
-            response.raise_for_status()
-            activities_data = response.json()
-            
-            return [StravaActivity(activity_data) for activity_data in activities_data]
-        
+            return self.fetch_activities_for_date(target_date)
         except requests.exceptions.RequestException as e:
             logger.error(f"Error fetching activities: {e}")
             return []
