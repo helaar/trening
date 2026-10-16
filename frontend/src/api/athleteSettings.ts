@@ -50,3 +50,21 @@ export function patchAthleteSettings(
     body: JSON.stringify(patch),
   })
 }
+
+export type IntervalsSyncSection = "cycling" | "running" | "heart_rate"
+
+export interface IntervalsPreview {
+  cycling: SportSettings
+  running: SportSettings
+  heart_rate: HeartRateSettings
+}
+
+/** The section as Intervals.icu has it. Read-only: saving goes through patchAthleteSettings. */
+export function fetchIntervalsPreview<S extends IntervalsSyncSection>(
+  athleteId: number,
+  section: S,
+): Promise<IntervalsPreview[S]> {
+  return apiFetch<IntervalsPreview[S]>(
+    `/api/v1/athlete/${athleteId}/settings/intervals-preview/${section}`,
+  )
+}

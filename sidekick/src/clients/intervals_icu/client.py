@@ -122,6 +122,15 @@ class IntervalsIcuClient:
         )
         return response.json()
 
+    async def get_sport_settings(self) -> list[dict]:
+        """Per-sport settings (FTP, LTHR, max HR, zones), one entry per sport group.
+
+        Each entry's `types` lists the activity types it applies to (e.g. Ride,
+        VirtualRide), so callers pick the entry by type rather than by id.
+        """
+        response = await self._get(f"{self._athlete_path}/sport-settings")
+        return response.json()
+
     async def get_events(self, oldest: date, newest: date) -> list[dict]:
         """Calendar events (planned workouts) in [oldest, newest]."""
         response = await self._get(
