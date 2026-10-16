@@ -141,6 +141,8 @@ def compute_heart_rate_drift(
         return None
 
     segment = df.loc[start_ts:end_ts, ["heart_rate", "power"]].dropna()
+    # 0 bpm is a strap dropout, not a reading; a half of only dropouts would divide by zero.
+    segment = segment[segment["heart_rate"] > 0]
     if len(segment) < 4:
         return None
 

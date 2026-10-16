@@ -20,6 +20,7 @@ import {
   type IntervalsIcuSettings,
 } from "../api/athleteSettings"
 import { fetchCurrentAthlete } from "../api/auth"
+import { IntervalsSyncPanel, type DiffField } from "../components/IntervalsSyncPanel"
 import { fetchPrompts } from "../api/prompts"
 import {
   fetchAthleteMemories,
@@ -171,13 +172,20 @@ function SaveRow({ saved, isPending, isError, onSave }: SaveRowProps) {
 
 // ── sport section ─────────────────────────────────────────────────────────────
 
+const SPORT_DIFF_FIELDS: DiffField<SportSettings>[] = [
+  { label: "FTP (W)", get: (v) => v.ftp },
+  { label: "Measured date", get: (v) => v.measured_date },
+  { label: "Measured in activity", get: (v) => v.measured_activity },
+]
+
 interface SportSectionProps {
   field: "cycling" | "running"
   initial: SportSettings | null
   athleteId: number
+  intervalsConfigured: boolean
 }
 
-function SportSectionContent({ field, initial, athleteId }: SportSectionProps) {
+function SportSectionContent({ field, initial, athleteId, intervalsConfigured }: SportSectionProps) {
   const queryClient = useQueryClient()
   const [value, setValue] = useState<SportSettings>(initial ?? emptySport())
   const [saved, setSaved] = useState(false)
@@ -197,6 +205,15 @@ function SportSectionContent({ field, initial, athleteId }: SportSectionProps) {
 
   return (
     <div className="space-y-4">
+      <IntervalsSyncPanel
+        athleteId={athleteId}
+        section={field}
+        saved={initial}
+        intervalsConfigured={intervalsConfigured}
+        fields={SPORT_DIFF_FIELDS}
+        zonesLabel="Power zones (W)"
+        getZones={(v) => v.power_zones}
+      />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor={`${field}-ftp`}>FTP (W)</Label>
@@ -253,12 +270,20 @@ function SportSectionContent({ field, initial, athleteId }: SportSectionProps) {
 
 // ── heart rate section ────────────────────────────────────────────────────────
 
+const HR_DIFF_FIELDS: DiffField<HeartRateSettings>[] = [
+  { label: "Max HR (bpm)", get: (v) => v.max },
+  { label: "Lactate threshold (bpm)", get: (v) => v.lt },
+  { label: "Measured date", get: (v) => v.measured_date },
+  { label: "Measured in activity", get: (v) => v.measured_activity },
+]
+
 interface HRSectionProps {
   initial: HeartRateSettings | null
   athleteId: number
+  intervalsConfigured: boolean
 }
 
-function HRSectionContent({ initial, athleteId }: HRSectionProps) {
+function HRSectionContent({ initial, athleteId, intervalsConfigured }: HRSectionProps) {
   const queryClient = useQueryClient()
   const [value, setValue] = useState<HeartRateSettings>(initial ?? emptyHR())
   const [saved, setSaved] = useState(false)
@@ -278,6 +303,15 @@ function HRSectionContent({ initial, athleteId }: HRSectionProps) {
 
   return (
     <div className="space-y-4">
+      <IntervalsSyncPanel
+        athleteId={athleteId}
+        section="heart_rate"
+        saved={initial}
+        intervalsConfigured={intervalsConfigured}
+        fields={HR_DIFF_FIELDS}
+        zonesLabel="HR zones (bpm), from Intervals.icu bike settings, used for all sports"
+        getZones={(v) => v.hr_zones}
+      />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="space-y-1.5">
           <Label htmlFor="hr-max">Max HR (bpm)</Label>
@@ -765,6 +799,10 @@ export function AthleteConfig() {
     )
   }
 
+  const intervalsConfigured = Boolean(
+    settings?.intervals_icu?.api_key && settings.intervals_icu.intervals_athlete_id,
+  )
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
@@ -806,6 +844,7 @@ export function AthleteConfig() {
               field="cycling"
               initial={settings?.cycling ?? null}
               athleteId={athlete!.athlete_id}
+              intervalsConfigured={intervalsConfigured}
             />
           </AccordionContent>
         </AccordionItem>
@@ -817,6 +856,7 @@ export function AthleteConfig() {
               field="running"
               initial={settings?.running ?? null}
               athleteId={athlete!.athlete_id}
+              intervalsConfigured={intervalsConfigured}
             />
           </AccordionContent>
         </AccordionItem>
@@ -827,6 +867,7 @@ export function AthleteConfig() {
             <HRSectionContent
               initial={settings?.heart_rate ?? null}
               athleteId={athlete!.athlete_id}
+              intervalsConfigured={intervalsConfigured}
             />
           </AccordionContent>
         </AccordionItem>
