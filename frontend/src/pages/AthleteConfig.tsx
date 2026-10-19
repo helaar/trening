@@ -174,8 +174,6 @@ function SaveRow({ saved, isPending, isError, onSave }: SaveRowProps) {
 
 const SPORT_DIFF_FIELDS: DiffField<SportSettings>[] = [
   { label: "FTP (W)", get: (v) => v.ftp },
-  { label: "Measured date", get: (v) => v.measured_date },
-  { label: "Measured in activity", get: (v) => v.measured_activity },
 ]
 
 interface SportSectionProps {
@@ -273,8 +271,6 @@ function SportSectionContent({ field, initial, athleteId, intervalsConfigured }:
 const HR_DIFF_FIELDS: DiffField<HeartRateSettings>[] = [
   { label: "Max HR (bpm)", get: (v) => v.max },
   { label: "Lactate threshold (bpm)", get: (v) => v.lt },
-  { label: "Measured date", get: (v) => v.measured_date },
-  { label: "Measured in activity", get: (v) => v.measured_activity },
 ]
 
 interface HRSectionProps {

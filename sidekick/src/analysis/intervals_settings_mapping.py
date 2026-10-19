@@ -11,6 +11,10 @@ exactly on a boundary lands in the lower zone, as it does in Intervals.icu, and
 fractional values never fall into a gap between zones. The last zone is always
 open-ended so efforts above max HR or 999% FTP are still classified.
 
+Measured date/activity are never synced: Intervals.icu doesn't carry them, and
+they hold notes the athlete entered (which test, when). The caller keeps the
+saved values.
+
 Intervals.icu keeps sport-specific HR zones; sidekick has one HR set for all
 sports, taken from the Ride (bike/default) sport settings by the caller.
 """
@@ -18,9 +22,6 @@ sports, taken from the Ride (bike/default) sport settings by the caller.
 from typing import Any
 
 from models.athlete import HeartRateSettings, SportSettings, ZoneDefinition
-
-MEASURED_ACTIVITY = "Synced from Intervals.icu"
-
 
 class IntervalsSettingsIncomplete(ValueError):
     """Intervals.icu's sport settings lack a value sidekick requires."""
@@ -54,7 +55,7 @@ def _zones_from_upper_bounds(
 
 
 def map_power_settings(
-    raw: dict[str, Any], sport_type: str, measured_date: str
+    raw: dict[str, Any], sport_type: str
 ) -> SportSettings:
     """FTP and power zones (in watts) from one Intervals.icu sport-settings entry."""
     ftp = raw.get("ftp")
@@ -67,14 +68,12 @@ def map_power_settings(
         )
     return SportSettings(
         ftp=ftp,
-        measured_activity=MEASURED_ACTIVITY,
-        measured_date=measured_date,
         power_zones=_zones_from_upper_bounds(power_zones, raw.get("power_zone_names"), ftp),
     )
 
 
 def map_heart_rate_settings(
-    raw: dict[str, Any], sport_type: str, measured_date: str
+    raw: dict[str, Any], sport_type: str
 ) -> HeartRateSettings:
     """LTHR, max HR and HR zones (in bpm) from one Intervals.icu sport-settings entry."""
     lthr = raw.get("lthr")
@@ -87,29 +86,6 @@ def map_heart_rate_settings(
     return HeartRateSettings(
         max=max_hr,
         lt=lthr,
-        measured_activity=MEASURED_ACTIVITY,
-        measured_date=measured_date,
         hr_zones=_zones_from_upper_bounds(hr_zones, raw.get("hr_zone_names"), None),
     )
 
-
-def keep_measured_fields_if_unchanged(
-    proposed: SportSettings | HeartRateSettings,
-    current: SportSettings | HeartRateSettings | None,
-) -> SportSettings | HeartRateSettings:
-    """Keep the current measured date/activity when the synced values didn't change.
-
-    Otherwise every sync would show a date change, and the preview could never
-    say the settings are already in sync.
-    """
-    if current is None:
-        return proposed
-    excluded = {"measured_activity", "measured_date"}
-    if proposed.model_dump(exclude=excluded) != current.model_dump(exclude=excluded):
-        return proposed
-    return proposed.model_copy(
-        update={
-            "measured_activity": current.measured_activity,
-            "measured_date": current.measured_date,
-        }
-    )

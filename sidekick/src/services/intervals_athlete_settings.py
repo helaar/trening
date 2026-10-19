@@ -4,18 +4,15 @@ Read-only: nothing is written here. The settings page shows the athlete a diff
 against their saved settings, and saving goes through the normal settings PATCH.
 """
 
-from datetime import datetime, timezone
 from typing import Literal
 
 from analysis.intervals_settings_mapping import (
     find_sport_settings,
-    keep_measured_fields_if_unchanged,
     map_heart_rate_settings,
     map_power_settings,
 )
 from clients.intervals_icu.client import IntervalsIcuClient
 from models.athlete import AthleteSettings, HeartRateSettings, SportSettings
-from utils.datetime_utils import to_athlete_tz
 
 SyncSection = Literal["cycling", "running", "heart_rate"]
 
@@ -39,11 +36,18 @@ async def preview_from_intervals(
     client = IntervalsIcuClient.from_athlete_settings(settings)
     sport_type = INTERVALS_SPORT_TYPE[section]
     raw = find_sport_settings(await client.get_sport_settings(), sport_type)
-    today = to_athlete_tz(datetime.now(timezone.utc), settings.timezone).date().isoformat()
-
     match section:
         case "heart_rate":
-            proposed = map_heart_rate_settings(raw, sport_type, today)
+            proposed = map_heart_rate_settings(raw, sport_type)
         case "cycling" | "running":
-            proposed = map_power_settings(raw, sport_type, today)
-    return keep_measured_fields_if_unchanged(proposed, getattr(settings, section))
+            proposed = map_power_settings(raw, sport_type)
+    current = getattr(settings, section)
+    if current is None:
+        return proposed
+    # Measured date/activity are the athlete's own notes; Intervals.icu has no equivalent.
+    return proposed.model_copy(
+        update={
+            "measured_activity": current.measured_activity,
+            "measured_date": current.measured_date,
+        }
+    )
