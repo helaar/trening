@@ -1,16 +1,24 @@
 import logging
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from pymongo.asynchronous.database import AsyncDatabase
 
+from analysis.intervals_settings_mapping import IntervalsSettingsIncomplete
 from analysis.memory_relevance import DayContext, select_relevant_memories_objects
 from auth.dependencies import get_current_athlete_id
+from clients.intervals_icu.client import (
+    IntervalsIcuError,
+    IntervalsIcuNotConfigured,
+    IntervalsIcuRateLimited,
+)
 from database.athlete_repository import AthleteRepository
 from database.memory_repository import MemoryRepository
 from database.mongodb import get_db
 from models.athlete import AthleteSettings, HeartRateSettings, IntervalsIcuSettings, SportSettings
+from services.intervals_athlete_settings import SyncSection, preview_from_intervals
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/athlete", tags=["athlete"])
@@ -100,6 +108,54 @@ async def patch_settings(
     if athlete is None:
         raise HTTPException(status_code=404, detail="Athlete not found")
     return athlete.settings
+
+
+@router.get(
+    "/{athlete_id}/settings/intervals-preview/{section}",
+    response_model=SportSettings | HeartRateSettings,
+)
+async def preview_settings_from_intervals(
+    athlete_id: int,
+    section: SyncSection,
+    current_athlete_id: int = Depends(get_current_athlete_id),
+    repo: AthleteRepository = Depends(get_athlete_repository),
+) -> SportSettings | HeartRateSettings:
+    """A settings section as Intervals.icu has it, for the athlete to review and save.
+
+    Writes nothing: saving the reviewed values goes through PATCH /settings.
+    """
+    if athlete_id != current_athlete_id:
+        raise HTTPException(status_code=403, detail="You can only access your own data")
+    settings = await repo.get_athlete_settings(athlete_id)
+    if settings is None:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+
+    try:
+        return await preview_from_intervals(settings, section)
+    except IntervalsIcuNotConfigured:
+        raise HTTPException(
+            status_code=400,
+            detail="Intervals.icu is not configured. Add your API key and athlete id first.",
+        )
+    except IntervalsSettingsIncomplete as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except IntervalsIcuRateLimited:
+        raise HTTPException(
+            status_code=429, detail="Intervals.icu is rate limiting requests. Try again shortly."
+        )
+    except IntervalsIcuError as e:
+        # The response body is logged, not returned: it is third-party content.
+        logger.warning(
+            "Intervals.icu sport-settings fetch failed for athlete %s: %s", athlete_id, e
+        )
+        raise HTTPException(
+            status_code=502, detail=f"Intervals.icu returned HTTP {e.status_code}"
+        )
+    except httpx.HTTPError as e:
+        logger.warning(
+            "Intervals.icu sport-settings fetch failed for athlete %s: %r", athlete_id, e
+        )
+        raise HTTPException(status_code=502, detail="Could not reach Intervals.icu")
 
 
 @router.get("/{athlete_id}/memories", response_model=list[MemoryView])

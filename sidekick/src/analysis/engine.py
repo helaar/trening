@@ -27,7 +27,7 @@ from analysis.calculations import (
 # documents (whose stored analysis_engine_version won't match) to recompute
 # rather than serving stale locally-computed values forever, since the
 # settings_hash cache-staleness field is advisory-only and never compared.
-ANALYSIS_ENGINE_VERSION = 1
+ANALYSIS_ENGINE_VERSION = 2
 
 
 def _is_virtual_activity(activity: StravaActivity) -> bool:
