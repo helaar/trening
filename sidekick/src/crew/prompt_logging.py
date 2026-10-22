@@ -108,6 +108,16 @@ class _PromptLogListener(BaseEventListener):
     def setup_listeners(self, bus) -> None:
         @bus.on(LLMCallCompletedEvent)
         def _on_llm_completed(source: Any, event: LLMCallCompletedEvent) -> None:
+            if not event.response:
+                # CrewAI only reports "None or empty" for these; the stop reason says why
+                # (max_tokens: output cap spent on thinking; refusal: safety decline).
+                logger.warning(
+                    "Empty LLM response: agent=%s model=%s finish_reason=%s usage=%s",
+                    getattr(event, "agent_role", None),
+                    event.model,
+                    event.finish_reason,
+                    event.usage,
+                )
             buffer = _lookup_buffer(event)
             if buffer is None:
                 return

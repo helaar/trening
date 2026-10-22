@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     openai_api_key: str = ""
     llm_model: str = "anthropic/claude-haiku-4-5-20251001"
-    llm_max_tokens: int = 8192  # Output cap; prevents truncated structured (JSON) outputs
+    # Output cap per call. Claude 5-family models think by default and thinking tokens
+    # count against this cap, so too low a value ends the call mid-thought with no text.
+    # Must stay under ~21k: the Anthropic SDK refuses larger non-streaming requests.
+    llm_max_tokens: int = 16000
 
     # Memory consolidation — ISO 8601 duration; set PT0S to disable the guard
     consolidation_min_age: str = "P1W"
