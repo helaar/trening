@@ -14,12 +14,20 @@ import { cn, localToday } from "../../lib/utils"
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-function getMonthRange(date: string): { start: string; end: string } {
-  const [year, month] = date.split("-").map(Number)
-  const start = `${year}-${String(month).padStart(2, "0")}-01`
-  const lastDay = new Date(year, month, 0).getDate()
-  const end = `${year}-${String(month).padStart(2, "0")}-${lastDay}`
-  return { start, end }
+// The grid shows whole Monday–Sunday weeks, so it spills into the adjacent months.
+// Data is fetched for the full visible range so those overlap days and their weeks
+// show the same workouts, intensity and summaries as in-month days.
+function getGridRange(year: number, month: number): { start: string; end: string } {
+  const firstOfMonth = new Date(Date.UTC(year, month - 1, 1))
+  const lastOfMonth = new Date(Date.UTC(year, month, 0))
+  const startDow = (firstOfMonth.getUTCDay() + 6) % 7
+  const endDow = (lastOfMonth.getUTCDay() + 6) % 7
+  const start = new Date(Date.UTC(year, month - 1, 1 - startDow))
+  const end = new Date(Date.UTC(year, month - 1, lastOfMonth.getUTCDate() + (6 - endDow)))
+  return {
+    start: start.toISOString().split("T")[0],
+    end: end.toISOString().split("T")[0],
+  }
 }
 
 function buildCalendarGrid(
@@ -81,7 +89,7 @@ export function MonthView({
   onSetWeekCategory,
 }: MonthViewProps) {
   const [year, month] = date.split("-").map(Number)
-  const { start, end } = getMonthRange(date)
+  const { start, end } = getGridRange(year, month)
   const today = localToday()
   const queryClient = useQueryClient()
 
@@ -162,7 +170,7 @@ export function MonthView({
                 />
               </div>
               {week.map(({ date: cellDate, inMonth, feedDay }) => (
-                <div key={cellDate} className={cn("h-full", inMonth ? "" : "opacity-30")}>
+                <div key={cellDate} className={cn("h-full", inMonth ? "" : "opacity-60")}>
                   <CalendarDayCell
                     day={feedDay}
                     date={cellDate}
