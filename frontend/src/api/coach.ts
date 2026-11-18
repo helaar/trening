@@ -4,13 +4,13 @@ import type { StoredAnalysis } from "./tasks"
 import type { WeekCategoryEntry } from "./weekCategory"
 
 export interface RosterAthlete {
-  athlete_id: number
+  athlete_id: string
   name: string | null
   profile_picture: string | null
 }
 
 export interface CoachProfile {
-  coach_id: number
+  coach_id: string
   display_name: string | null
   roster: RosterAthlete[]
 }
@@ -22,7 +22,7 @@ export interface RiskCounts {
 }
 
 export interface AthleteStatus {
-  athlete_id: number
+  athlete_id: string
   name: string | null
   profile_picture: string | null
   last_activity_date: string | null
@@ -42,7 +42,7 @@ export function fetchCoachRoster(windowDays = 14): Promise<AthleteStatus[]> {
 }
 
 export function fetchCoachAthleteFeed(
-  athleteId: number,
+  athleteId: string,
   start: string,
   end: string
 ): Promise<FeedDay[]> {
@@ -52,7 +52,7 @@ export function fetchCoachAthleteFeed(
 }
 
 export function fetchCoachAthleteDailyAnalysis(
-  athleteId: number,
+  athleteId: string,
   date: string
 ): Promise<StoredAnalysis | null> {
   return apiFetch<StoredAnalysis | null>(
@@ -61,7 +61,7 @@ export function fetchCoachAthleteDailyAnalysis(
 }
 
 export function fetchCoachAthleteWeekCategories(
-  athleteId: number,
+  athleteId: string,
   start: string,
   end: string
 ): Promise<WeekCategoryEntry[]> {

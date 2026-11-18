@@ -12,7 +12,7 @@ export interface FeedDay {
   has_analysis: boolean
 }
 
-export function fetchFeed(athleteId: number, start: string, end: string): Promise<FeedDay[]> {
+export function fetchFeed(athleteId: string, start: string, end: string): Promise<FeedDay[]> {
   return apiFetch<FeedDay[]>(
     `/api/v1/athlete/${athleteId}/feed?start=${start}&end=${end}`
   )

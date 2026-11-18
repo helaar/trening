@@ -16,7 +16,7 @@ export interface DiffField<T> {
 }
 
 interface IntervalsSyncPanelProps<S extends IntervalsSyncSection> {
-  athleteId: number
+  athleteId: string
   section: S
   saved: IntervalsPreview[S] | null
   intervalsConfigured: boolean

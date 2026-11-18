@@ -3,6 +3,7 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 
@@ -16,7 +17,7 @@ class PromptLogEntry(BaseModel):
     """
 
     run_id: str
-    athlete_id: int
+    athlete_id: StravaId
     crew_name: str
     kind: Literal["llm_call", "tool_call"] = "llm_call"
     agent_role: str | None = None
@@ -68,7 +69,7 @@ class RunUsage(BaseModel):
     """
 
     run_id: str
-    athlete_id: int
+    athlete_id: StravaId
     crew_name: str
     prompt_tokens: int = 0
     cached_prompt_tokens: int = 0

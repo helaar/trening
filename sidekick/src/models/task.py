@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
+
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
+
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 
@@ -39,7 +42,7 @@ class Task(BaseModel):
     """Model for asynchronous task tracking."""
 
     task_id: str = Field(..., description="Unique task identifier")
-    athlete_id: int = Field(..., description="Athlete ID who initiated the task")
+    athlete_id: StravaId = Field(..., description="Athlete ID who initiated the task")
     task_type: TaskType = Field(..., description="Type of task")
     status: TaskStatus = Field(default=TaskStatus.PENDING, description="Current task status")
     progress: float = Field(default=0.0, description="Task progress (0.0 to 1.0)")

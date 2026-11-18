@@ -1,5 +1,8 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
+
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 
@@ -102,7 +105,7 @@ class AthleteSettings(BaseModel):
 class Athlete(BaseModel):
     """Athlete model representing a Strava user."""
     
-    athlete_id: int = Field(..., description="Strava athlete ID")
+    athlete_id: StravaId = Field(..., description="Strava athlete ID")
     username: str | None = None
     firstname: str | None = None
     lastname: str | None = None
@@ -120,7 +123,7 @@ class Athlete(BaseModel):
 class StravaTokens(BaseModel):
     """Strava OAuth tokens model - stored separately from athlete data."""
     
-    athlete_id: int = Field(..., description="Strava athlete ID")
+    athlete_id: StravaId = Field(..., description="Strava athlete ID")
     access_token: str
     refresh_token: str
     expires_at: int  # Unix timestamp

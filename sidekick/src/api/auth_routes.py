@@ -74,7 +74,8 @@ async def get_current_user(
     Requires a valid JWT token in the Authorization header.
     """
     return {
-        "athlete_id": athlete.athlete_id,
+        # String so 64-bit Strava IDs survive JavaScript's JSON.parse (see models.strava_id).
+        "athlete_id": str(athlete.athlete_id),
         "username": athlete.username,
         "firstname": athlete.firstname,
         "lastname": athlete.lastname,

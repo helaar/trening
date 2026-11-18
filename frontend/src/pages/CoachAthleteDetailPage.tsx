@@ -34,7 +34,8 @@ function shiftMonth(date: string, delta: number): string {
 
 export function CoachAthleteDetailPage() {
   const { athleteId } = useParams({ from: "/coach/athletes/$athleteId" })
-  const id = Number(athleteId)
+  // Kept as a string: 64-bit Strava IDs lose precision as JS numbers.
+  const id = athleteId
   const today = localToday()
   const [monthDate, setMonthDate] = useState(today)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)

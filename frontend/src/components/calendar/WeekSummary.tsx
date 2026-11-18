@@ -9,7 +9,7 @@ function formatDuration(totalMinutes: number): string {
 }
 
 interface WeekSummaryProps {
-  athleteId: number
+  athleteId: string
   weekStart: string
   weekEnd: string
   totals: WeekTotals

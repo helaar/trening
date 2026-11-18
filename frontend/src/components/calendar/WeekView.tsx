@@ -30,18 +30,18 @@ function getWeekRange(date: string): { start: string; end: string; dates: string
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 interface WeekViewProps {
-  athleteId: number
+  athleteId: string
   date: string
   selectedDate: string
   onSelectDate: (date: string) => void
-  fetchFeedFn?: (athleteId: number, start: string, end: string) => Promise<FeedDay[]>
+  fetchFeedFn?: (athleteId: string, start: string, end: string) => Promise<FeedDay[]>
   fetchWeekCategoryFn?: (
-    athleteId: number,
+    athleteId: string,
     start: string,
     end: string
   ) => Promise<WeekCategoryEntry[]>
   onSetWeekCategory?: (
-    athleteId: number,
+    athleteId: string,
     weekStart: string,
     category: WeekCategory
   ) => Promise<WeekCategoryEntry>

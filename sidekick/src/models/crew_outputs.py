@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from models.memory import clamp_memory_content
+from models.strava_id import StravaId
 
 
 class RiskFlag(BaseModel):
@@ -22,7 +23,7 @@ class RiskFlag(BaseModel):
 
 
 class WorkoutOutput(BaseModel):
-    activity_id: int | None = Field(default=None, description="Numeric activity_id if present")
+    activity_id: StravaId | None = Field(default=None, description="Numeric activity_id if present")
     session_name: str = Field(description="Athlete's session name, or sport + date if absent")
     is_commute: bool = Field(description="True if this is a commute/transport activity")
     is_erg_mode: bool = Field(

@@ -81,11 +81,11 @@ function formatDate(iso: string): string {
 }
 
 // Use activity_id when available, fall back to array index
-function workoutKey(workout: { activity_id: number | null }, index: number): number {
-  return workout.activity_id ?? -(index + 1)
+function workoutKey(workout: { activity_id: string | null }, index: number): string {
+  return workout.activity_id ?? `index-${index}`
 }
 
-type AssessmentMap = Record<number, { rpe?: number; notes?: string; tags?: string[] }>
+type AssessmentMap = Record<string, { rpe?: number; notes?: string; tags?: string[] }>
 
 interface MissingData {
   restitutionFields: string[]
@@ -114,7 +114,7 @@ function isCommuteWorkout(
 }
 
 interface DayDetailPanelProps {
-  athleteId: number
+  athleteId: string
   selectedDate: string
   onDateChange: (date: string) => void
 }
@@ -126,7 +126,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   const [restitution, setRestitution] = useState<Restitution>({})
   const [assessments, setAssessments] = useState<AssessmentMap>({})
   const [saved, setSaved] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<{ activityId: number; name: string } | null>(
+  const [pendingDelete, setPendingDelete] = useState<{ activityId: string; name: string } | null>(
     null
   )
   const [analysisTaskId, setAnalysisTaskId] = useState<string | null>(null)
@@ -378,7 +378,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   }
 
   const deleteMutation = useMutation({
-    mutationFn: (activityId: number) => deleteWorkout(athleteId, activityId),
+    mutationFn: (activityId: string) => deleteWorkout(athleteId, activityId),
     onSuccess: (_, activityId) => {
       queryClient.setQueryData<WorkoutAnalysis[]>(
         ["workouts", athleteId, selectedDate],
@@ -401,7 +401,7 @@ export function DayDetailPanel({ athleteId, selectedDate, onDateChange }: DayDet
   })
 
   const updateNoteMutation = useMutation({
-    mutationFn: ({ activityId, text }: { activityId: number; text: string }) =>
+    mutationFn: ({ activityId, text }: { activityId: string; text: string }) =>
       updateNote(athleteId, activityId, text),
     onSuccess: (updated) => {
       queryClient.setQueryData<WorkoutAnalysis[]>(

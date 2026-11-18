@@ -3,6 +3,7 @@ from enum import Enum
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 
@@ -16,7 +17,7 @@ class WeekCategory(str, Enum):
 
 
 class WeekCategoryEntry(BaseModel):
-    athlete_id: int
+    athlete_id: StravaId
     week_start: str  # YYYY-MM-DD, Monday of the week
     category: WeekCategory
     created_at: AwareDatetime = Field(default_factory=lambda: datetime.now(timezone.utc))
