@@ -23,7 +23,7 @@ export interface RunUsage {
 
 export interface PromptLogRunSummary {
   run_id: string
-  athlete_id: number
+  athlete_id: string
   crew_name: string
   agent_roles: (string | null)[]
   call_count: number
@@ -39,7 +39,7 @@ export interface PromptLogMessage {
 
 export interface PromptLogEntry {
   run_id: string
-  athlete_id: number
+  athlete_id: string
   crew_name: string
   kind: "llm_call" | "tool_call"
   agent_role: string | null
@@ -55,7 +55,7 @@ export interface PromptLogEntry {
   created_at: string
 }
 
-export async function fetchPromptLogRuns(athleteId?: number): Promise<PromptLogRunSummary[]> {
+export async function fetchPromptLogRuns(athleteId?: string): Promise<PromptLogRunSummary[]> {
   const params = new URLSearchParams()
   if (athleteId !== undefined) params.set("athlete_id", String(athleteId))
   const qs = params.toString()

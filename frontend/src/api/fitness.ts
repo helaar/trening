@@ -8,6 +8,6 @@ export interface FitnessPoint {
   ramp_rate: number | null
 }
 
-export function fetchFitnessSeries(athleteId: number, days = 90): Promise<FitnessPoint[]> {
+export function fetchFitnessSeries(athleteId: string, days = 90): Promise<FitnessPoint[]> {
   return apiFetch<FitnessPoint[]>(`/api/v1/athlete/${athleteId}/fitness?days=${days}`)
 }

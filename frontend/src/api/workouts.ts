@@ -39,7 +39,7 @@ export interface SessionInfo {
 }
 
 export interface WorkoutAnalysis {
-  activity_id: number | null
+  activity_id: string | null
   session: SessionInfo
   metrics: WorkoutMetrics
   zones: ZoneAnalysis | null
@@ -49,13 +49,13 @@ export interface WorkoutAnalysis {
   intervals_rpe: number | null
 }
 
-export function deleteWorkout(athleteId: number, activityId: number): Promise<void> {
+export function deleteWorkout(athleteId: string, activityId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/athlete/${athleteId}/activities/${activityId}`, {
     method: "DELETE",
   })
 }
 
-export function updateNote(athleteId: number, activityId: number, text: string): Promise<WorkoutAnalysis> {
+export function updateNote(athleteId: string, activityId: string, text: string): Promise<WorkoutAnalysis> {
   return apiFetch<WorkoutAnalysis>(`/api/v1/athlete/${athleteId}/activities/${activityId}/note`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -63,7 +63,7 @@ export function updateNote(athleteId: number, activityId: number, text: string):
   })
 }
 
-export function createNote(athleteId: number, date: string, text: string): Promise<WorkoutAnalysis> {
+export function createNote(athleteId: string, date: string, text: string): Promise<WorkoutAnalysis> {
   return apiFetch<WorkoutAnalysis>(`/api/v1/athlete/${athleteId}/workouts/note`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -72,7 +72,7 @@ export function createNote(athleteId: number, date: string, text: string): Promi
 }
 
 export function fetchDetailedWorkouts(
-  athleteId: number,
+  athleteId: string,
   date: string,
   refresh = false
 ): Promise<WorkoutAnalysis[]> {

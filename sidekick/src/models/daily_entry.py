@@ -1,5 +1,8 @@
 from datetime import datetime, timezone
+
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
+
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 
@@ -27,7 +30,7 @@ class RestitutionSync(BaseModel):
 
 
 class ActivityAssessment(BaseModel):
-    activity_id: int
+    activity_id: StravaId
     activity_name: str
     rpe: int | None = Field(None, ge=1, le=10, description="Rate of Perceived Exertion (1-10)")
     notes: str | None = None
@@ -35,7 +38,7 @@ class ActivityAssessment(BaseModel):
 
 
 class DailyEntry(BaseModel):
-    athlete_id: int
+    athlete_id: StravaId
     date: str  # YYYY-MM-DD
     restitution: Restitution | None = None
     activity_assessments: list[ActivityAssessment] = Field(default_factory=list)

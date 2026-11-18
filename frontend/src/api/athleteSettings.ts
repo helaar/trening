@@ -37,12 +37,12 @@ export interface AthleteSettings {
 
 export type AthleteSettingsPatch = Partial<AthleteSettings>
 
-export function fetchAthleteSettings(athleteId: number): Promise<AthleteSettings> {
+export function fetchAthleteSettings(athleteId: string): Promise<AthleteSettings> {
   return apiFetch<AthleteSettings>(`/api/v1/athlete/${athleteId}/settings`)
 }
 
 export function patchAthleteSettings(
-  athleteId: number,
+  athleteId: string,
   patch: AthleteSettingsPatch,
 ): Promise<AthleteSettings> {
   return apiFetch<AthleteSettings>(`/api/v1/athlete/${athleteId}/settings`, {
@@ -61,7 +61,7 @@ export interface IntervalsPreview {
 
 /** The section as Intervals.icu has it. Read-only: saving goes through patchAthleteSettings. */
 export function fetchIntervalsPreview<S extends IntervalsSyncSection>(
-  athleteId: number,
+  athleteId: string,
   section: S,
 ): Promise<IntervalsPreview[S]> {
   return apiFetch<IntervalsPreview[S]>(

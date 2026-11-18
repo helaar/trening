@@ -9,7 +9,7 @@ export type WeekCategory =
   | "recovering"
 
 export interface WeekCategoryEntry {
-  athlete_id: number
+  athlete_id: string
   week_start: string
   category: WeekCategory
   created_at: string
@@ -17,7 +17,7 @@ export interface WeekCategoryEntry {
 }
 
 export function fetchWeekCategories(
-  athleteId: number,
+  athleteId: string,
   start: string,
   end: string
 ): Promise<WeekCategoryEntry[]> {
@@ -27,7 +27,7 @@ export function fetchWeekCategories(
 }
 
 export function setWeekCategory(
-  athleteId: number,
+  athleteId: string,
   weekStart: string,
   category: WeekCategory
 ): Promise<WeekCategoryEntry> {

@@ -10,7 +10,7 @@ export interface Restitution {
 }
 
 export interface ActivityAssessment {
-  activity_id: number
+  activity_id: string
   activity_name: string
   rpe?: number
   notes?: string
@@ -24,20 +24,20 @@ export interface DailyEntryRequest {
 }
 
 export interface DailyEntry extends DailyEntryRequest {
-  athlete_id: number
+  athlete_id: string
   created_at: string
   updated_at: string
 }
 
 export async function fetchDailyEntry(
-  athleteId: number,
+  athleteId: string,
   date: string
 ): Promise<DailyEntry | null> {
   return apiFetch<DailyEntry | null>(`/api/v1/athlete/${athleteId}/daily-entry?date=${date}`)
 }
 
 export function saveDailyEntry(
-  athleteId: number,
+  athleteId: string,
   entry: DailyEntryRequest
 ): Promise<DailyEntry> {
   return apiFetch<DailyEntry>(`/api/v1/athlete/${athleteId}/daily-entry`, {

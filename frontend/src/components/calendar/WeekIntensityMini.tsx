@@ -8,7 +8,7 @@ const BANDS = [
 ] as const
 
 interface WeekIntensityMiniProps {
-  athleteId: number
+  athleteId: string
   weekStart: string
   weekEnd: string
 }

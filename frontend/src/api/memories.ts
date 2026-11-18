@@ -8,21 +8,21 @@ export interface AthleteMemory {
   confidence: number
 }
 
-export function fetchAthleteMemories(athleteId: number): Promise<AthleteMemory[]> {
+export function fetchAthleteMemories(athleteId: string): Promise<AthleteMemory[]> {
   return apiFetch<AthleteMemory[]>(`/api/v1/athlete/${athleteId}/memories`)
 }
 
-export function fetchSuppressedMemories(athleteId: number): Promise<AthleteMemory[]> {
+export function fetchSuppressedMemories(athleteId: string): Promise<AthleteMemory[]> {
   return apiFetch<AthleteMemory[]>(`/api/v1/athlete/${athleteId}/memories/suppressed`)
 }
 
-export function suppressMemory(athleteId: number, memoryId: string): Promise<void> {
+export function suppressMemory(athleteId: string, memoryId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/athlete/${athleteId}/memories/${memoryId}`, {
     method: "DELETE",
   })
 }
 
-export function restoreMemory(athleteId: number, memoryId: string): Promise<void> {
+export function restoreMemory(athleteId: string, memoryId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/athlete/${athleteId}/memories/${memoryId}/restore`, {
     method: "POST",
   })

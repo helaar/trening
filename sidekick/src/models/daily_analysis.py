@@ -3,13 +3,13 @@ from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
-from utils.datetime_utils import ensure_utc
-
 from models.crew_outputs import CoachingOutput, RestitutionAnalysisOutput, WorkoutAnalysisOutput
+from models.strava_id import StravaId
+from utils.datetime_utils import ensure_utc
 
 
 class DailyAnalysisResult(BaseModel):
-    athlete_id: int
+    athlete_id: StravaId
     date: str
     workout_analysis: WorkoutAnalysisOutput | None = None
     restitution_analysis: RestitutionAnalysisOutput | None = None

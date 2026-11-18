@@ -3,6 +3,7 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 
@@ -18,8 +19,8 @@ class IntervalsActivityRaw(BaseModel):
     wrong fuzzy match is auditable.
     """
 
-    athlete_id: int = Field(..., description="Athlete ID who owns this activity")
-    strava_activity_id: int | None = Field(
+    athlete_id: StravaId = Field(..., description="Athlete ID who owns this activity")
+    strava_activity_id: StravaId | None = Field(
         None, description="Cross-referenced Strava activity ID, if matched"
     )
     intervals_activity_id: str = Field(..., description="Intervals.icu activity ID")

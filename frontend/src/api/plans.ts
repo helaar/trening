@@ -4,7 +4,7 @@ export type Sport = "cycling" | "running" | "strength" | "skiing_cross" | "skiin
 
 export interface PlannedActivity {
   id: string
-  athlete_id: number
+  athlete_id: string
   date: string
   sport: Sport
   name: string
@@ -15,17 +15,17 @@ export interface PlannedActivity {
   estimated_tss?: number
   external_reference?: string | null
   race_priority: "A" | "B" | "C" | null
-  matched_activity_id: number | null
+  matched_activity_id: string | null
   created_at: string
   updated_at: string
 }
 
-export function fetchPlansForDate(athleteId: number, date: string): Promise<PlannedActivity[]> {
+export function fetchPlansForDate(athleteId: string, date: string): Promise<PlannedActivity[]> {
   return apiFetch<PlannedActivity[]>(`/api/v1/athlete/${athleteId}/plans?date=${date}`)
 }
 
 export function fetchPlansForRange(
-  athleteId: number,
+  athleteId: string,
   start: string,
   end: string
 ): Promise<PlannedActivity[]> {

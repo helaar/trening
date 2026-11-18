@@ -37,7 +37,7 @@ export interface RiskFlag {
 }
 
 export interface WorkoutOutput {
-  activity_id: number | null
+  activity_id: string | null
   session_name: string
   is_commute: boolean
   is_erg_mode: boolean
@@ -110,7 +110,7 @@ export interface WeeklyAssessment {
 }
 
 export interface StoredAnalysis {
-  athlete_id: number
+  athlete_id: string
   date: string
   workout_analysis: WorkoutAnalysis | null
   restitution_analysis: RestitutionAnalysis | null
@@ -127,7 +127,7 @@ export async function createMemoryConsolidationTask(): Promise<TaskResponse> {
 }
 
 export async function createDailyAnalysisTask(
-  _athleteId: number,
+  _athleteId: string,
   date: string,
 ): Promise<TaskResponse> {
   return apiFetch<TaskResponse>("/api/v1/tasks", {
@@ -144,7 +144,7 @@ export async function getTaskStatus(taskId: string): Promise<TaskResponse> {
 }
 
 export async function getTaskForDate(
-  _athleteId: number,
+  _athleteId: string,
   date: string,
 ): Promise<TaskResponse | null> {
   const tasks = await apiFetch<TaskResponse[]>(
@@ -154,7 +154,7 @@ export async function getTaskForDate(
 }
 
 export async function fetchStoredAnalysis(
-  athleteId: number,
+  athleteId: string,
   date: string,
 ): Promise<StoredAnalysis | null> {
   return apiFetch<StoredAnalysis | null>(
@@ -163,7 +163,7 @@ export async function fetchStoredAnalysis(
 }
 
 export async function fetchWeeklyIntensity(
-  athleteId: number,
+  athleteId: string,
   date: string,
 ): Promise<WeeklyAssessment | null> {
   return apiFetch<WeeklyAssessment | null>(

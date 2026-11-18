@@ -5,6 +5,7 @@ from enum import Enum
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 _RECENT_TTL_DAYS = 30
@@ -41,7 +42,7 @@ class MemoryCategory(str, Enum):
 
 class Memory(BaseModel):
     memory_id: str
-    athlete_id: int
+    athlete_id: StravaId
     scope: MemoryScope
     category: MemoryCategory
     content: str = Field(description="1-3 sentence natural language observation")

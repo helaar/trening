@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from pymongo.asynchronous.database import AsyncDatabase
 
+from api.feed_routes import FeedDay, build_feed
 from auth.dependencies import (
     get_athlete_repository,
     get_coach_repository,
     get_current_coach_id,
     verify_coach_athlete_access,
 )
-from api.feed_routes import FeedDay, build_feed
 from database.athlete_repository import AthleteRepository
 from database.coach_repository import CoachRepository
 from database.daily_analysis_repository import DailyAnalysisRepository
@@ -18,19 +18,20 @@ from database.daily_entry_repository import DailyEntryRepository
 from database.mongodb import get_db
 from database.week_category_repository import WeekCategoryRepository
 from models.daily_analysis import DailyAnalysisResult
+from models.strava_id import StravaId
 from models.week_category import WeekCategoryEntry
 
 router = APIRouter(prefix="/coach", tags=["coach"])
 
 
 class RosterAthlete(BaseModel):
-    athlete_id: int
+    athlete_id: StravaId
     name: str | None
     profile_picture: str | None
 
 
 class CoachProfile(BaseModel):
-    coach_id: int
+    coach_id: StravaId
     display_name: str | None
     roster: list[RosterAthlete]
 
@@ -42,7 +43,7 @@ class RiskCounts(BaseModel):
 
 
 class AthleteStatus(BaseModel):
-    athlete_id: int
+    athlete_id: StravaId
     name: str | None
     profile_picture: str | None
     last_activity_date: str | None

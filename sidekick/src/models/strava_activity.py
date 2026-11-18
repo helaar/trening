@@ -1,14 +1,17 @@
 from datetime import datetime, timezone
 from typing import Any
+
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
+
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 
 class StravaActivityRaw(BaseModel):
     """Raw Strava activity data as stored in the database."""
 
-    athlete_id: int = Field(..., description="Athlete ID who owns this activity")
-    activity_id: int = Field(..., description="Strava activity ID")
+    athlete_id: StravaId = Field(..., description="Athlete ID who owns this activity")
+    activity_id: StravaId = Field(..., description="Strava activity ID")
     activity_date: datetime = Field(..., description="Date of the activity (time zeroed)")
     raw_data: dict = Field(..., description="Raw activity data from Strava API")
     streams: dict[str, Any] | None = Field(None, description="Activity streams data (power, HR, cadence, etc.)")
@@ -25,8 +28,8 @@ class StravaActivityRaw(BaseModel):
 class WorkoutAnalysisData(BaseModel):
     """Workout analysis results stored in the database."""
 
-    athlete_id: int = Field(..., description="Athlete ID who owns this activity")
-    activity_id: int = Field(..., description="Strava activity ID")
+    athlete_id: StravaId = Field(..., description="Athlete ID who owns this activity")
+    activity_id: StravaId = Field(..., description="Strava activity ID")
     settings_hash: str = Field(..., description="Hash of athlete settings used for analysis")
     analysis_engine_version: int = Field(
         default=0, description="analysis/engine.py's ANALYSIS_ENGINE_VERSION when this was computed"

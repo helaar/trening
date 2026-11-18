@@ -232,9 +232,9 @@ class DailyAnalysisHandler(TaskHandler):
         return {
             "analysis_type": "daily_llm_analysis",
             "date": date_str,
-            "workout_analysis": stored.workout_analysis.model_dump() if stored.workout_analysis else None,
-            "restitution_analysis": stored.restitution_analysis.model_dump() if stored.restitution_analysis else None,
-            "coaching_feedback": stored.coaching_feedback.model_dump() if stored.coaching_feedback else None,
+            "workout_analysis": stored.workout_analysis.model_dump(mode="json") if stored.workout_analysis else None,
+            "restitution_analysis": stored.restitution_analysis.model_dump(mode="json") if stored.restitution_analysis else None,
+            "coaching_feedback": stored.coaching_feedback.model_dump(mode="json") if stored.coaching_feedback else None,
             "weekly_philosophy_assessment": stored.weekly_philosophy_assessment,
             "completed_at": stored.analyzed_at.isoformat(),
         }

@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
+from models.strava_id import StravaId
 from utils.datetime_utils import ensure_utc
 
 
@@ -14,7 +15,7 @@ class PlannedActivity(BaseModel):
     """
 
     id: str = Field(default_factory=lambda: str(uuid4()))
-    athlete_id: int
+    athlete_id: StravaId
     date: str  # YYYY-MM-DD
     sport: Literal["cycling", "running", "strength", "skiing_cross", "skiing_alpine", "day_off", "other"]
     name: str
@@ -25,7 +26,7 @@ class PlannedActivity(BaseModel):
     estimated_tss: int | None = None
     external_reference: str | None = None
     race_priority: Literal["A", "B", "C"] | None = None
-    matched_activity_id: int | None = Field(
+    matched_activity_id: StravaId | None = Field(
         default=None,
         description=(
             "Strava activity id of the completed workout that fulfilled this "

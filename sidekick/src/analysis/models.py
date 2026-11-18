@@ -7,7 +7,10 @@ designed to support both endurance and strength training workouts.
 """
 from datetime import datetime
 from typing import Literal
+
 from pydantic import BaseModel, Field
+
+from models.strava_id import StravaId
 
 
 class SessionInfo(BaseModel):
@@ -210,7 +213,7 @@ class WorkoutAnalysis(BaseModel):
     metrics: WorkoutMetrics
 
     # Optional fields with defaults
-    activity_id: int | None = None  # Strava activity ID, set when loaded via API
+    activity_id: StravaId | None = None  # Strava activity ID, set when loaded via API
     analysis_timestamp: datetime = Field(default_factory=datetime.now)
     zones: ZoneAnalysis | None = None
     power_histogram: PowerHistogram | None = None

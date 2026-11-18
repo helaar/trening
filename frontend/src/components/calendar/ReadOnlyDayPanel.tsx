@@ -19,7 +19,7 @@ function formatDate(iso: string): string {
 }
 
 interface ReadOnlyDayPanelProps {
-  athleteId: number
+  athleteId: string
   selectedDate: string
 }
 

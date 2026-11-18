@@ -179,7 +179,7 @@ const SPORT_DIFF_FIELDS: DiffField<SportSettings>[] = [
 interface SportSectionProps {
   field: "cycling" | "running"
   initial: SportSettings | null
-  athleteId: number
+  athleteId: string
   intervalsConfigured: boolean
 }
 
@@ -275,7 +275,7 @@ const HR_DIFF_FIELDS: DiffField<HeartRateSettings>[] = [
 
 interface HRSectionProps {
   initial: HeartRateSettings | null
-  athleteId: number
+  athleteId: string
   intervalsConfigured: boolean
 }
 
@@ -379,7 +379,7 @@ function HRSectionContent({ initial, athleteId, intervalsConfigured }: HRSection
 
 interface AutolapSectionProps {
   initial: string | null
-  athleteId: number
+  athleteId: string
 }
 
 function AutolapSectionContent({ initial, athleteId }: AutolapSectionProps) {
@@ -430,7 +430,7 @@ function AutolapSectionContent({ initial, athleteId }: AutolapSectionProps) {
 
 interface IntervalsIcuSectionProps {
   initial: IntervalsIcuSettings | null
-  athleteId: number
+  athleteId: string
 }
 
 function IntervalsIcuSectionContent({ initial, athleteId }: IntervalsIcuSectionProps) {
@@ -499,7 +499,7 @@ function IntervalsIcuSectionContent({ initial, athleteId }: IntervalsIcuSectionP
 // ── training philosophy section ───────────────────────────────────────────────
 
 interface PhilosophySectionProps {
-  athleteId: number
+  athleteId: string
 }
 
 function PhilosophySectionContent({ athleteId }: PhilosophySectionProps) {
@@ -591,7 +591,7 @@ const SCOPE_LABELS: Record<AthleteMemory["scope"], string> = {
 }
 
 interface MemoriesSectionProps {
-  athleteId: number
+  athleteId: string
 }
 
 interface MemoryCardAction {
